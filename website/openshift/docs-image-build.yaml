@@ -1,0 +1,36 @@
+# Optional: OpenShift BuildConfig to build docs image from Git
+# oc apply -f website/openshift/docs-image-build.yaml -n copilot-metrics-docs
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: copilot-metrics-docs
+  namespace: copilot-metrics-docs
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: copilot-metrics-docs
+  namespace: copilot-metrics-docs
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/your-org/copilot-metrics-viewer.git
+      ref: main
+    contextDir: website
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+      buildArgs:
+        - name: DOCUSAURUS_URL
+          value: https://copilot-metrics-docs.apps.example.com
+        - name: DOCUSAURUS_BASE_URL
+          value: /
+  output:
+    to:
+      kind: ImageStreamTag
+      name: copilot-metrics-docs:latest
+  triggers:
+    - type: ConfigChange
