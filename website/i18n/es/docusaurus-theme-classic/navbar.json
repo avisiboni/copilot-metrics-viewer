@@ -1,6 +1,6 @@
 {
   "title": {
-    "message": "Copilot Metrics",
+    "message": "Copilot Metrikleri",
     "description": "The title in the navbar"
   },
   "logo.alt": {
@@ -8,7 +8,7 @@
     "description": "The alt text of navbar logo"
   },
   "item.label.תיעוד": {
-    "message": "Documentation",
+    "message": "Belgeler",
     "description": "Navbar item with label תיעוד"
   }
 }
