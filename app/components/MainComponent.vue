@@ -1,105 +1,230 @@
 <template>
-  <div>
-    <v-toolbar color="indigo" elevation="4">
-      <v-btn icon>
-        <v-icon>mdi-github</v-icon>
+  <v-navigation-drawer
+      v-model="sidebarOpen"
+      :rail="sidebarRail"
+      permanent
+      app
+      class="brand-nav-drawer"
+      width="240"
+      rail-width="56"
+    >
+      <div v-if="!sidebarRail" class="brand-nav-drawer__head pa-2 d-flex align-center">
+        <img
+          :src="brandLogoSrc"
+          :alt="brandLogoAlt"
+          class="brand-nav-drawer__logo"
+        >
+        <v-btn
+          icon
+          variant="text"
+          size="small"
+          class="ms-auto"
+          :aria-label="t('header.collapseSidebar')"
+          @click="collapseSidebarToRail"
+        >
+          <v-icon>{{ collapseChevronIcon }}</v-icon>
+        </v-btn>
+      </div>
+
+      <v-list nav density="compact" class="brand-nav-list">
+        <v-list-item
+          v-for="item in tabItems"
+          :key="item"
+          :to="tabLink(item)"
+          :title="tabLabel(item)"
+          :value="item"
+          :active="tab === item"
+          rounded="lg"
+        >
+          <template #prepend>
+            <v-icon :icon="tabIcon(item)" size="small" />
+          </template>
+        </v-list-item>
+      </v-list>
+  </v-navigation-drawer>
+
+  <v-app-bar app flat density="compact" class="brand-app-bar" elevation="0">
+      <v-btn
+        v-if="sidebarRail"
+        icon
+        variant="text"
+        size="small"
+        class="me-1"
+        :aria-label="t('header.expandSidebar')"
+        @click="expandSidebar"
+      >
+        <v-icon>mdi-menu</v-icon>
       </v-btn>
-
-      <v-toolbar-title class="toolbar-title">{{ displayName }}</v-toolbar-title>
-      <h2 class="error-message"> {{ mockedDataMessage }} </h2>
+      <v-app-bar-title class="brand-app-bar__title text-truncate">
+        {{ displayName }}
+      </v-app-bar-title>
+      <v-chip
+        v-if="mockedDataMessage"
+        size="x-small"
+        variant="outlined"
+        color="warning"
+        class="ms-2 d-none d-md-inline-flex"
+      >
+        {{ t('header.mockData') }}
+      </v-chip>
       <v-spacer />
-
-      <!-- Conditionally render the logout button -->
+      <LanguageSwitcher class="brand-app-bar__locale d-none d-sm-flex" />
       <AuthState>
         <template #default="{ loggedIn, user }">
-          <div v-show="loggedIn" class="user-info">
-            Welcome,
-            <v-avatar class="user-avatar">
-              <v-img :alt="user?.name" :src="user?.avatarUrl" />
-            </v-avatar> {{ user?.name }}
+          <span v-if="loggedIn && !sidebarRail" class="brand-app-bar__user text-truncate d-none d-sm-inline">
+            {{ user?.name }}
+          </span>
+          <v-avatar v-if="loggedIn" size="28" class="ms-2">
+            <v-img :alt="user?.name" :src="user?.avatarUrl" />
+          </v-avatar>
+          <v-btn
+            v-if="showLogoutButton && loggedIn"
+            variant="text"
+            size="small"
+            class="ms-1"
+            @click="logout"
+          >
+            {{ t('header.logout') }}
+          </v-btn>
+        </template>
+      </AuthState>
+  </v-app-bar>
+
+  <v-main app class="app-shell__main">
+    <div class="app-shell__page">
+      <DateRangeSelector
+        v-show="tab !== 'seat analysis' && !signInRequired"
+        :loading="isLoading"
+        :report-range="tabReportRange"
+        @date-range-changed="handleDateRangeChange"
+      />
+
+      <v-card
+        v-if="tab === 'seat analysis'"
+        flat
+        class="mb-2 pa-2 brand-info-banner text-caption text-center"
+      >
+        {{ t('header.seatsBanner', { name: displayName }) }}
+      </v-card>
+
+      <v-alert
+        v-if="apiError && !signInRequired"
+        type="error"
+        variant="outlined"
+        density="compact"
+        class="mb-2 brand-alert brand-alert--error"
+      >
+        {{ apiError }}
+      </v-alert>
+
+      <AuthState>
+        <template #default="{ loggedIn }">
+          <div v-show="signInRequired" class="github-login-container">
+            <NuxtLink
+              v-if="!loggedIn && signInRequired"
+              to="/auth/github"
+              external
+              class="github-login-button"
+            >
+              <v-icon start>mdi-github</v-icon>
+              {{ t('header.signInGithub') }}
+            </NuxtLink>
           </div>
-          <v-btn v-if="showLogoutButton && loggedIn" class="logout-button" @click="logout">Logout</v-btn>
+        </template>
+        <template #placeholder>
+          <div class="github-login-container">
+            <v-skeleton-loader type="button" width="200" />
+          </div>
         </template>
       </AuthState>
 
-      <template #extension>
-
-        <v-tabs v-model="tab" align-tabs="title">
-          <v-tab v-for="item in tabItems" :key="item" :value="item">
-            {{ item }}
-          </v-tab>
-        </v-tabs>
-
-      </template>
-
-    </v-toolbar>
-
-    <!-- Date Range Selector - Hidden for seats tab -->
-    <DateRangeSelector 
-      v-show="tab !== 'seat analysis' && !signInRequired" 
-      :loading="isLoading"
-      @date-range-changed="handleDateRangeChange" />
-
-    <!-- Organization info for seats tab -->
-    <div v-if="tab === 'seat analysis'" class="organization-info">
-      <v-card flat class="pa-3 mb-2">
-        <div class="text-body-2 text-center">
-          Displaying data for organization: <strong>{{ displayName }}</strong>
-        </div>
-      </v-card>
+      <div v-show="!apiError" class="app-shell__body">
+        <BrandPageSkeleton
+          v-if="showTabSkeleton"
+          :layout="skeletonLayout"
+          :aria-label="t('alerts.loadingTab', { tab: tabLabel(tab || '') })"
+        />
+        <v-window
+          v-show="showTabContent"
+          v-model="tab"
+        >
+          <v-window-item v-for="item in tabItems" :key="item" :value="item">
+            <keep-alive>
+              <v-card flat>
+                <MetricsViewer
+                  v-if="item === getDisplayTabName(itemName)"
+                  :metrics="metrics"
+                  :usage="originalMetrics"
+                  :adoption-by-phase="adoptionByPhase"
+                  :date-range-description="dateRangeDescription"
+                />
+                <TeamsComponent
+                  v-if="item === 'teams'"
+                  :date-range-description="dateRangeDescription"
+                  :date-range="dateRange"
+                />
+                <BreakdownComponent
+                  v-if="item === 'languages'"
+                  :metrics="metrics"
+                  breakdown-key="language"
+                  :date-range-description="dateRangeDescription"
+                />
+                <BreakdownComponent
+                  v-if="item === 'editors'"
+                  :metrics="metrics"
+                  breakdown-key="editor"
+                  :date-range-description="dateRangeDescription"
+                />
+                <CopilotChatViewer
+                  v-if="item === 'copilot chat'"
+                  :metrics="metrics"
+                  :usage="originalMetrics"
+                  :date-range-description="dateRangeDescription"
+                />
+                <AgentModeViewer
+                  v-if="item === 'usage insights'"
+                  :original-metrics="originalMetrics"
+                  :date-range="dateRange"
+                  :date-range-description="dateRangeDescription"
+                  :adoption-by-phase="adoptionByPhase"
+                />
+                <UserMetricsViewer
+                  v-if="item === 'users'"
+                  :date-range="dateRange"
+                  :date-range-description="dateRangeDescription"
+                />
+                <UsageBillingViewer
+                  v-if="item === 'usage & billing'"
+                  :date-range="dateRange"
+                  :date-range-description="dateRangeDescription"
+                />
+                <SeatsAnalysisViewer v-if="item === 'seat analysis'" :seats="seats" />
+                <ApiResponse
+                  v-if="item === 'api response'"
+                  :metrics="metrics"
+                  :original-metrics="originalMetrics"
+                  :seats="seats"
+                />
+              </v-card>
+            </keep-alive>
+          </v-window-item>
+          <v-alert
+            v-show="(metricsReady && metrics.length == 0 && tab !== 'seat analysis') || (seatsReady && seats.length == 0 && tab === 'seat analysis')"
+            density="compact"
+            :text="t('alerts.noDataText')"
+            :title="t('alerts.noDataTitle')"
+            type="warning"
+            class="ma-3"
+          />
+        </v-window>
+      </div>
     </div>
-
-    <!-- API Error Message -->
-    <div v-show="apiError && !signInRequired" class="error-message" v-text="apiError" />
-    <AuthState>
-      <template #default="{ loggedIn }">
-        <div v-show="signInRequired" class="github-login-container">
-          <NuxtLink v-if="!loggedIn && signInRequired" to="/auth/github" external class="github-login-button"> <v-icon
-              left>mdi-github</v-icon>
-            Sign in with GitHub</NuxtLink>
-        </div>
-      </template>
-      <template #placeholder>
-        <button disabled>Loading...</button>
-      </template>
-    </AuthState>
-
-
-    <div v-show="!apiError">
-      <v-progress-linear v-show="!metricsReady" indeterminate color="indigo" />
-      <v-window v-show="(metricsReady && metrics.length) || (seatsReady && tab === 'seat analysis')" v-model="tab">
-        <v-window-item v-for="item in tabItems" :key="item" :value="item">
-          <v-card flat>
-            <MetricsViewer v-if="item === getDisplayTabName(itemName)" :metrics="metrics" :date-range-description="dateRangeDescription" />
-            <TeamsComponent v-if="item === 'teams'" :date-range-description="dateRangeDescription" :date-range="dateRange" />
-            <BreakdownComponent
-v-if="item === 'languages'" :metrics="metrics" :breakdown-key="'language'"
-              :date-range-description="dateRangeDescription" />
-            <BreakdownComponent
-v-if="item === 'editors'" :metrics="metrics" :breakdown-key="'editor'"
-              :date-range-description="dateRangeDescription" />
-            <CopilotChatViewer
-v-if="item === 'copilot chat'" :metrics="metrics"
-              :date-range-description="dateRangeDescription" />
-            <AgentModeViewer v-if="item === 'github.com'" :original-metrics="originalMetrics" :date-range="dateRange" :date-range-description="dateRangeDescription" />
-            <SeatsAnalysisViewer v-if="item === 'seat analysis'" :seats="seats" />
-            <ApiResponse
-v-if="item === 'api response'" :metrics="metrics" :original-metrics="originalMetrics"
-              :seats="seats" />
-          </v-card>
-        </v-window-item>
-        <v-alert
-          v-show="(metricsReady && metrics.length == 0 && tab !== 'seat analysis') || (seatsReady && seats.length == 0 && tab === 'seat analysis')"
-          density="compact" text="No data available to display" title="No data" type="warning" />
-      </v-window>
-
-    </div>
-
-  </div>
+  </v-main>
 </template>
 <script lang='ts'>
 import type { Metrics } from '@/model/Metrics';
 import type { CopilotMetrics } from '@/model/Copilot_Metrics';
+import type { AiAdoptionPhaseAggregate } from '../../shared/types/copilot-usage';
 import type { MetricsApiResponse } from '@/types/metricsApiResponse';
 import type { Seat } from "@/model/Seat";
 import type { H3Error } from 'h3'
@@ -113,8 +238,35 @@ import TeamsComponent from './TeamsComponent.vue'
 import ApiResponse from './ApiResponse.vue'
 import AgentModeViewer from './AgentModeViewer.vue'
 import DateRangeSelector from './DateRangeSelector.vue'
+import UserMetricsViewer from './UserMetricsViewer.vue'
+import UsageBillingViewer from './UsageBillingViewer.vue'
+import BrandPageSkeleton from './BrandPageSkeleton.vue'
 import { Options } from '@/model/Options';
 import { useRoute } from 'vue-router';
+import { isEnvTruthy } from '../../shared/utils/env-boolean';
+import { buildPageTitle } from '../../shared/i18n/buildPageTitle';
+import { resolveTabFromSlug, tabToSlug } from '../../shared/utils/tab-routing';
+import { provideTabReportRange } from '@/composables/useTabReportRange';
+import {
+  tabToSkeletonLayout,
+  tabUsesMainMetricsLoading,
+  tabUsesSeatsLoading
+} from '@/utils/tab-skeleton-layout';
+
+const TAB_ICONS: Record<string, string> = {
+  organization: 'mdi-office-building-outline',
+  enterprise: 'mdi-domain',
+  team: 'mdi-account-group-outline',
+  teams: 'mdi-account-multiple-outline',
+  languages: 'mdi-code-tags',
+  editors: 'mdi-application-outline',
+  'copilot chat': 'mdi-chat-outline',
+  'usage insights': 'mdi-chart-timeline-variant',
+  users: 'mdi-account-outline',
+  'usage & billing': 'mdi-currency-usd',
+  'seat analysis': 'mdi-seat-outline',
+  'api response': 'mdi-code-json'
+};
 
 export default defineNuxtComponent({
   name: 'MainComponent',
@@ -126,7 +278,32 @@ export default defineNuxtComponent({
     TeamsComponent,
     ApiResponse,
     AgentModeViewer,
-    DateRangeSelector
+    DateRangeSelector,
+    UserMetricsViewer,
+    UsageBillingViewer,
+    BrandPageSkeleton
+  },
+  computed: {
+    skeletonLayout() {
+      return tabToSkeletonLayout(this.tab);
+    },
+    showTabSkeleton() {
+      if (this.signInRequired) return false;
+      if (tabUsesSeatsLoading(this.tab)) {
+        return !this.seatsReady;
+      }
+      if (tabUsesMainMetricsLoading(this.tab)) {
+        return !this.metricsReady || this.isLoading;
+      }
+      return false;
+    },
+    showTabContent() {
+      if (this.showTabSkeleton) return false;
+      if (this.tab === 'seat analysis') {
+        return this.seatsReady;
+      }
+      return this.metricsReady && this.metrics.length > 0;
+    }
   },
   methods: {
     logout() {
@@ -134,6 +311,45 @@ export default defineNuxtComponent({
       this.metrics = [];
       this.seats = [];
       clear();
+    },
+    tabLink(tab: string) {
+      return {
+        path: this.route.path,
+        query: {
+          ...this.route.query,
+          tab: tabToSlug(tab)
+        }
+      };
+    },
+    tabIcon(tab: string) {
+      return TAB_ICONS[tab] || 'mdi-chart-line';
+    },
+    syncTabFromRoute() {
+      const slug = this.route.query.tab;
+      const resolved = resolveTabFromSlug(
+        typeof slug === 'string' ? slug : undefined,
+        this.tabItems
+      );
+      if (resolved) {
+        this.tab = resolved;
+        return;
+      }
+      if (this.tabItems.length) {
+        this.tab = this.tabItems[0];
+        this.updateTabQuery(this.tab);
+      }
+    },
+    updateTabQuery(tab: string) {
+      const nextSlug = tabToSlug(tab);
+      const currentSlug = typeof this.route.query.tab === 'string' ? this.route.query.tab : '';
+      if (currentSlug === nextSlug) return;
+      this.router.replace({
+        path: this.route.path,
+        query: {
+          ...this.route.query,
+          tab: nextSlug
+        }
+      });
     },
     getDisplayTabName(itemName: string): string {
       // Transform scope names to display names for tabs
@@ -194,10 +410,15 @@ export default defineNuxtComponent({
 
         this.metrics = response.metrics || [];
         this.originalMetrics = response.usage || [];
+        this.adoptionByPhase = response.adoptionByPhase || [];
         this.metricsReady = true;
 
         if (config.public.scope && config.public.scope.includes('team') && this.metrics.length === 0 && !this.apiError) {
-          this.apiError = 'No data returned from API - check if the team exists and has any activity and at least 5 active members';
+          this.apiError = (this.t as (key: string) => string)('errors.noTeamData');
+        }
+
+        if (!options.locale && this.apiLocale) {
+          options.locale = this.apiLocale;
         }
 
       } catch (error: any) {
@@ -208,23 +429,32 @@ export default defineNuxtComponent({
     },
     processError(error: H3Error) {
       console.error(error || 'No data returned from API');
-      // Check the status code of the error response
+      const translate = this.t as (key: string, params?: Record<string, string | number>) => string
       if (error && error.statusCode) {
         switch (error.statusCode) {
           case 401:
-            this.apiError = '401 Unauthorized access returned by GitHub API - check if your token in the .env (for local runs). Check PAT token and GitHub permissions.';
+            this.apiError = translate('errors.unauthorized');
             break;
           case 404:
-            this.apiError = `404 Not Found - is the ${this.config?.public?.scope || ''} org:"${this.config?.public?.githubOrg || ''}" ent:"${this.config?.public?.githubEnt || ''}" team:"${this.config?.public?.githubTeam}" correct? ${error.message}`;
+            this.apiError = translate('errors.notFound', {
+              scope: this.config?.public?.scope || '',
+              org: this.config?.public?.githubOrg || '',
+              ent: this.config?.public?.githubEnt || '',
+              team: this.config?.public?.githubTeam || '',
+              message: error.message || '',
+            });
             break;
           case 422:
-            this.apiError = `422 Unprocessable Entity - Is the Copilot Metrics API enabled for the Org/Ent? When changing filters, try adjusting the "from" date.  ${error.message}`;
+            this.apiError = translate('errors.unprocessable', { message: error.message || '' });
             break;
           case 500:
-            this.apiError = `500 Internal Server Error - most likely a bug in the app. Error: ${error.message}`;
+            this.apiError = translate('errors.serverError', { message: error.message || '' });
             break;
           default:
-            this.apiError = `${error.statusCode} Error: ${error.message}`;
+            this.apiError = translate('errors.generic', {
+              status: error.statusCode,
+              message: error.message || '',
+            });
             break;
         }
       }
@@ -233,17 +463,27 @@ export default defineNuxtComponent({
 
   data() {
     return {
-      tabItems: ['languages', 'editors', 'copilot chat', 'github.com', 'seat analysis', 'api response'],
+      tabItems: [
+        'copilot chat',
+        'users',
+        'usage & billing',
+        'seat analysis',
+        'usage insights',
+        'languages',
+        'editors',
+        'api response',
+      ],
       tab: null,
-      dateRangeDescription: 'Over the last 28 days',
-      isLoading: false,
+      dateRangeDescription: '',
       metricsReady: false,
       metrics: [] as Metrics[],
       originalMetrics: [] as CopilotMetrics[],
+      adoptionByPhase: [] as AiAdoptionPhaseAggregate[],
       seatsReady: false,
       seats: [] as Seat[],
       apiError: undefined as string | undefined,
       config: null as ReturnType<typeof useRuntimeConfig> | null,
+      unwatchTabQuery: undefined as (() => void) | undefined,
       holidayOptions: {
         excludeHolidays: false,
       }
@@ -252,14 +492,37 @@ export default defineNuxtComponent({
   created() {
     this.tabItems.unshift(this.getDisplayTabName(this.itemName));
     
-    // Add teams tab for organization and enterprise scopes to allow team comparison
+    // Add teams tab for organization and enterprise scopes (after Usage insights)
     if (this.itemName === 'organization' || this.itemName === 'enterprise') {
-      this.tabItems.splice(1, 0, 'teams'); // Insert after the first tab
+      const insightsIdx = this.tabItems.indexOf('usage insights');
+      this.tabItems.splice(insightsIdx + 1, 0, 'teams');
     }
     
     this.config = useRuntimeConfig();
+    this.syncTabFromRoute();
   },
   async mounted() {
+    this.unwatchTabQuery = this.$watch(
+      () => this.route.query.tab,
+      () => {
+        const slug = this.route.query.tab;
+        const resolved = resolveTabFromSlug(
+          typeof slug === 'string' ? slug : undefined,
+          this.tabItems
+        );
+        if (resolved && resolved !== this.tab) {
+          this.tab = resolved;
+        }
+      }
+    );
+
+    this.$watch('tab', (tab: string) => {
+      const reportTabs = ['users', 'usage & billing'];
+      if (!reportTabs.includes(tab) && this.tabReportRange) {
+        this.tabReportRange = null;
+      }
+    });
+
     // Load initial data
     try {
 
@@ -282,17 +545,28 @@ export default defineNuxtComponent({
       console.error('Error loading initial data:', error);
     }
   },
-  async setup() {
+  setup() {
     const { loggedIn, user } = useUserSession()
     const config = useRuntimeConfig();
+    const branding = useAppBranding();
+    const brandLogoSrc = computed(() => branding.value.logoSrc);
+    const brandLogoAlt = computed(() => branding.value.logoAlt);
     const showLogoutButton = computed(() => config.public.usingGithubAuth && loggedIn.value);
-    const mockedDataMessage = computed(() => config.public.isDataMocked ? 'Using mock data - see README if unintended' : '');
+    const { t, tabLabel, apiLocale, isRtl } = useAppI18n()
+    const collapseChevronIcon = computed(() =>
+      isRtl.value ? 'mdi-chevron-right' : 'mdi-chevron-left'
+    )
+    const mockedDataMessage = computed(() =>
+      isEnvTruthy(config.public.isDataMocked) ? t.value('header.mockDataHint') : ''
+    );
     const itemName = computed(() => config.public.scope);
-    const githubInfo = getDisplayName(config.public)
-    const displayName = computed(() => githubInfo);
+    const displayName = computed(() =>
+      buildPageTitle(t.value, config.public, branding.value.appName),
+    );
     const dateRange = ref({ since: undefined as string | undefined, until: undefined as string | undefined });
     const isLoading = ref(false);
-    const route = ref(useRoute());
+    const route = useRoute();
+    const router = useRouter();
 
     const signInRequired = computed(() => {
       return config.public.usingGithubAuth && !loggedIn.value;
@@ -302,12 +576,31 @@ export default defineNuxtComponent({
       server: true,
       immediate: !signInRequired.value,
       query: computed(() => {
-        const options = Options.fromRoute(route.value);
+        const options = Options.fromRoute(route);
         return options.toParams();
       })
     });
 
+    const tabReportRange = provideTabReportRange();
+    const sidebarOpen = ref(true);
+    const sidebarRail = ref(false);
+
+    const expandSidebar = () => {
+      sidebarRail.value = false;
+      sidebarOpen.value = true;
+    };
+    const collapseSidebarToRail = () => {
+      sidebarRail.value = true;
+      sidebarOpen.value = true;
+    };
+
     return {
+      brandLogoSrc,
+      brandLogoAlt,
+      t,
+      tabLabel,
+      apiLocale,
+      collapseChevronIcon,
       showLogoutButton,
       mockedDataMessage,
       itemName,
@@ -318,25 +611,31 @@ export default defineNuxtComponent({
       dateRange,
       isLoading,
       route,
+      router,
+      tabReportRange,
+      sidebarOpen,
+      sidebarRail,
+      expandSidebar,
+      collapseSidebarToRail
     };
   },
 })
 </script>
 
 <style scoped>
-.toolbar-title {
-  white-space: nowrap;
-  overflow: visible;
-  text-overflow: clip;
-
+.app-shell__body {
+  min-height: 200px;
 }
 
-.error-message {
-  color: red;
+.brand-app-bar__title {
+  font-size: 0.9rem !important;
+  font-weight: 600;
 }
 
-.logout-button {
-  margin-left: auto;
+.brand-app-bar__user {
+  font-size: 0.8125rem;
+  max-width: 140px;
+  color: var(--brand-text);
 }
 
 .github-login-container {
@@ -359,25 +658,5 @@ export default defineNuxtComponent({
 
 .github-login-button:hover {
   background-color: #444d56;
-}
-
-.github-login-button v-icon {
-  margin-right: 8px;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-}
-
-.user-avatar {
-  margin-right: 8px;
-  margin-left: 8px;
-  border: 2px solid white;
-}
-
-.organization-info {
-  background-color: #f5f5f5;
-  border-left: 4px solid #1976d2;
 }
 </style>

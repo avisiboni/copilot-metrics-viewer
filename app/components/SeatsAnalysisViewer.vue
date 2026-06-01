@@ -1,229 +1,288 @@
 <template>
-    <div class="tiles-container">
-        <v-card
-elevation="4" color="white" variant="elevated" class="mx-auto my-4"
-            style="width: 330px; height: 175px;">
-            <v-card-item class="d-flex justify-center align-center">
-                <div class="tiles-text">
-                    <div class="text-overline mb-1" style="visibility: hidden;">filler</div>
-                    <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-                      <template #activator="{ props }">
-                        <div v-bind="props" class="text-h6 mb-1">Total Assigned  </div>
-                      </template>
-                      <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                        <span class="text-caption" style="font-size: 10px !important;">This metric represents the total number of Copilot seats assigned {{ isTeamView ? `to team "${currentTeam}"` : 'within the current organization/enterprise' }}.</span>
-                      </v-card>
-                    </v-tooltip>
-                    <div class="text-caption">
-                        {{ isTeamView ? `Seats assigned to team "${currentTeam}"` : 'Currently assigned seats' }}
-                    </div>
-                    <p class="text-h4">{{ totalSeats.length }}</p>
-                </div>
-            </v-card-item>
-        </v-card>
+  <div>
+    <div class="tiles-container seat-filter-tiles">
+      <v-card
+        v-for="tile in seatFilterTiles"
+        :key="tile.filter"
+        variant="flat"
+        :ripple="false"
+        class="brand-kpi-card brand-kpi-card--interactive"
+        :class="{ 'brand-kpi-card--active': seatFilter === tile.filter }"
+        role="button"
+        tabindex="0"
+        :aria-pressed="seatFilter === tile.filter"
+        @click="toggleSeatFilter(tile.filter)"
+        @keydown.enter.prevent="toggleSeatFilter(tile.filter)"
+        @keydown.space.prevent="toggleSeatFilter(tile.filter)"
+      >
+        <BrandKpiTooltip :text="tile.tooltip" />
+        <v-card-item class="d-flex justify-center align-center">
+          <div class="tiles-text">
+            <div class="text-h6 mb-1">{{ tile.title }}</div>
+            <div class="text-caption">{{ tile.subtitle }}</div>
+            <p class="text-h4">{{ tile.count }}</p>
+            <div v-if="seatFilter === tile.filter" class="text-caption text-medium-emphasis mt-1">
+              {{ t('seats.filterHint') }}
+            </div>
+          </div>
+        </v-card-item>
+      </v-card>
+    </div>
 
-        <v-card
-elevation="4" color="white" variant="elevated" class="mx-auto my-3"
-            style="width: 300px; height: 175px;">
-            <v-card-item class="d-flex justify-center align-center">
-                <div class="tiles-text">
-                    <div class="text-overline mb-1" style="visibility: hidden;">filler</div>
-                    <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-                      <template #activator="{ props }">
-                        <div v-bind="props" class="text-h6 mb-1">Assigned But Never Used</div>
-                      </template>
-                      <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                        <span class="text-caption" style="font-size: 10px !important;">This metric shows seats that were assigned but never used {{ isTeamView ? `within team "${currentTeam}"` : 'within the current organization/enterprise' }}. The assigned timestamp is also displayed in the chart.</span>
-                      </v-card>
-                    </v-tooltip>
-                    <div class="text-caption">
-                        No show seats
-                    </div>
-                    <p class="text-h4">{{ noshowSeats }}</p>
-                </div>
-            </v-card-item>
-        </v-card>
-        <v-card elevation="4" color="white" variant="elevated" class="mx-auto my-4" style="width: 330px; height: 175px;">
-            <v-card-item class="d-flex justify-center align-center">
-                <div class="tiles-text">
-                    <div class="text-overline mb-1" style="visibility: hidden;">filler</div>
-                    <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-                      <template #activator="{ props }">
-                        <div v-bind="props" class="text-h6 mb-1">No Activity in the Last 7 days </div>
-                      </template>
-                      <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                        <span class="text-caption" style="font-size: 10px !important;">Never used seats or seats used, but with no activity in the past 7 days.</span>
-                      </v-card>
-                    </v-tooltip>
-                    <div class="text-caption">
-                        No use in the last 7 days
-                    </div>
-                    <p class="text-h4">{{ unusedSeatsInSevenDays }}</p>
-                </div>
-            </v-card-item>
-        </v-card>
-        <v-card elevation="4" color="white" variant="elevated" class="mx-auto my-4" style="width: 330px; height: 175px;">
-            <v-card-item class="d-flex justify-center align-center">
-                <div class="tiles-text">
-                    <div class="text-overline mb-1" style="visibility: hidden;">filler</div>
-                    <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-                      <template #activator="{ props }">
-                        <div v-bind="props" class="text-h6 mb-1">No Activity in the Last 30 days </div>
-                      </template>
-                      <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                        <span class="text-caption" style="font-size: 10px !important;">This metric represents seats with no activity in the last 30 days, including those never used.</span>
-                      </v-card>
-                    </v-tooltip>
-                    <div class="text-caption">
-                        No use in the last 30 days
-                    </div>
-                    <p class="text-h4">{{ unusedSeatsInThirtyDays }}</p>
-                </div>
-            </v-card-item>
-        </v-card>
-    </div>
-    
-    <div>
-        <v-main class="p-1" style="min-height: 300px;">
-            <v-container style="min-height: 300px;" class="px-4 elevation-2">
-                <br>
-                <h2>All assigned seats </h2>
-                <br>
-            <v-data-table :headers="headers" :items="totalSeats" :items-per-page="10" class="elevation-2">
-                <template #item="{ item, index }">
-                    <tr>
-                        <td>{{ index + 1 }}</td>
-                        <td>{{ item.login }}</td>
-                        <td>{{ item.id }}</td>
-                        <td>{{ item.team }}</td>
-                        <td>{{ item.created_at }} {{ item.plan_type }}</td>
-                        <td>{{ item.last_activity_at }}</td>
-                        <td>{{ item.last_activity_editor }}</td>
-                    </tr>
-                </template>
-                </v-data-table>
-            </v-container>
-        </v-main>
-    </div>
+    <v-card v-if="billing" flat class="pa-3 mb-2 brand-info-banner">
+      <v-card-title class="text-h6">{{ t('seats.billingTitle') }}</v-card-title>
+      <v-card-text>
+        <v-row>
+          <v-col cols="12" md="3"><strong>{{ t('seats.plan') }}</strong> {{ billing.plan_type || t('common.emDash') }}</v-col>
+          <v-col cols="12" md="3"><strong>{{ t('seats.ideChat') }}</strong> {{ billing.ide_chat || t('common.emDash') }}</v-col>
+          <v-col cols="12" md="3"><strong>{{ t('seats.platformChat') }}</strong> {{ billing.platform_chat || t('common.emDash') }}</v-col>
+          <v-col cols="12" md="3"><strong>{{ t('seats.cli') }}</strong> {{ billing.cli || t('common.emDash') }}</v-col>
+          <v-col cols="12" md="3"><strong>{{ t('seats.publicSuggestions') }}</strong> {{ billing.public_code_suggestions || t('common.emDash') }}</v-col>
+          <v-col cols="12" md="3"><strong>{{ t('seats.seatManagement') }}</strong> {{ billing.seat_management_setting || t('common.emDash') }}</v-col>
+          <v-col cols="12" md="3"><strong>{{ t('seats.totalSeats') }}</strong> {{ billing.seat_breakdown?.total ?? t('common.emDash') }}</v-col>
+          <v-col cols="12" md="3"><strong>{{ t('seats.activeCycle') }}</strong> {{ billing.seat_breakdown?.active_this_cycle ?? t('common.emDash') }}</v-col>
+        </v-row>
+      </v-card-text>
+    </v-card>
+
+    <section class="brand-page-panel">
+        <BrandTableShell :title="tableTitle">
+          <template v-if="seatFilter !== 'all'" #toolbar>
+            <v-chip
+              size="small"
+              closable
+              class="brand-filter-chip"
+              @click:close="seatFilter = 'all'"
+            >
+              {{ activeFilterLabel }}
+            </v-chip>
+          </template>
+        <v-data-table
+          :headers="headers"
+          :items="displayedSeats"
+          :items-per-page="10"
+          density="comfortable"
+          class="brand-data-table"
+        >
+          <template #item="{ item, index }">
+            <tr>
+              <td>{{ index + 1 }}</td>
+              <td>{{ item.login }}</td>
+              <td>{{ item.id }}</td>
+              <td>{{ item.team }}</td>
+              <td>{{ item.created_at }} {{ item.plan_type }}</td>
+              <td>{{ item.last_activity_at || t('common.emDash') }}</td>
+              <td>{{ item.last_activity_editor || t('common.emDash') }}</td>
+            </tr>
+          </template>
+        </v-data-table>
+        </BrandTableShell>
+    </section>
+  </div>
 </template>
-  
-<script lang="ts">
-  import { defineComponent, ref, watchEffect, computed } from 'vue';
-  import type { Seat } from '@/model/Seat';
-  import {
-    Chart as ChartJS,
-    ArcElement,
-    CategoryScale,
-    LinearScale,
-    PointElement,
-    LineElement,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend
-    } from 'chart.js'
 
-ChartJS.register(
-  ArcElement, 
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-)
+<script lang="ts">
+import { defineComponent, ref, watch, computed, onMounted } from 'vue';
+import BrandTableShell from '@/components/BrandTableShell.vue';
+import type { Seat } from '@/model/Seat';
+import type { CopilotBillingSettings } from '../../shared/types/copilot-usage';
+
+export type SeatStatusFilter = 'all' | 'noshow' | 'inactive7' | 'inactive30';
+
+function isNoshowSeat(seat: Seat): boolean {
+  return !seat.last_activity_at;
+}
+
+function isInactive7Seat(seat: Seat, oneWeekAgo: Date): boolean {
+  if (!seat.last_activity_at) return true;
+  return new Date(seat.last_activity_at) < oneWeekAgo;
+}
+
+function isInactive30Seat(seat: Seat, thirtyDaysAgo: Date): boolean {
+  if (!seat.last_activity_at) return true;
+  return new Date(seat.last_activity_at) < thirtyDaysAgo;
+}
+
+function matchesSeatFilter(seat: Seat, filter: SeatStatusFilter, oneWeekAgo: Date, thirtyDaysAgo: Date): boolean {
+  switch (filter) {
+    case 'all':
+      return true;
+    case 'noshow':
+      return isNoshowSeat(seat);
+    case 'inactive7':
+      return isInactive7Seat(seat, oneWeekAgo);
+    case 'inactive30':
+      return isInactive30Seat(seat, thirtyDaysAgo);
+  }
+}
+
+function sortSeatsByActivity(seats: Seat[]): Seat[] {
+  return [...seats].sort((a, b) => {
+    if (a.last_activity_at === null) return -1;
+    if (b.last_activity_at === null) return 1;
+    return new Date(a.last_activity_at) > new Date(b.last_activity_at) ? 1 : -1;
+  });
+}
 
 export default defineComponent({
-name: 'SeatsAnalysisViewer',
-props: {
-        seats: {
-            type: Array as () => Seat[],
-            required: true,
-            default: () => []  
+  name: 'SeatsAnalysisViewer',
+  components: { BrandTableShell },
+  props: {
+    seats: {
+      type: Array as () => Seat[],
+      required: true,
+      default: () => []
+    }
+  },
+  setup(props) {
+    const { t } = useAppI18n();
+    const billing = ref<CopilotBillingSettings | null>(null);
+    const allSeats = ref<Seat[]>([]);
+    const seatFilter = ref<SeatStatusFilter>('all');
+
+    const activityCutoffs = computed(() => {
+      const oneWeekAgo = new Date();
+      const thirtyDaysAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      return { oneWeekAgo, thirtyDaysAgo };
+    });
+
+    watch(
+      () => props.seats,
+      (seats) => {
+        if (seats && Array.isArray(seats)) {
+          allSeats.value = sortSeatsByActivity(seats);
+        } else {
+          allSeats.value = [];
         }
-    },
-setup(props) {
-    const totalSeats = ref<Seat[]>([]);
-        const noshowSeats = ref<number>(0);
-        const unusedSeatsInSevenDays = ref<number>(0);
-        const unusedSeatsInThirtyDays = ref<number>(0);
+      },
+      { immediate: true }
+    );
 
-        let noshowCount = 0;
-        let unusedIn7Count = 0;
-        let unusedIn30Count = 0;
+    onMounted(async () => {
+      try {
+        const response = await $fetch<{ billing: CopilotBillingSettings | null }>('/api/billing');
+        billing.value = response.billing;
+      } catch {
+        billing.value = null;
+      }
+    });
 
-        watchEffect(() => {
-            if (props.seats && Array.isArray(props.seats)) {
-                totalSeats.value = props.seats;
+    const noshowSeats = computed(() =>
+      allSeats.value.filter((seat) => isNoshowSeat(seat)).length
+    );
 
-                const oneWeekAgo = new Date();
-                const thirtyDaysAgo = new Date();
-                oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const unusedSeatsInSevenDays = computed(() => {
+      const { oneWeekAgo } = activityCutoffs.value;
+      return allSeats.value.filter((seat) => isInactive7Seat(seat, oneWeekAgo)).length;
+    });
 
-                props.seats.forEach(seat => {
-                    if(!seat.last_activity_at) {
-                        noshowCount++;
-                    } else {
-                        const lastActivityDate = new Date(seat.last_activity_at);
-                        if (lastActivityDate < oneWeekAgo) {
-                            unusedIn7Count++;
-                        }
-                        if (lastActivityDate < thirtyDaysAgo) {
-                            unusedIn30Count++;
-                        }
-                    }
-                });
+    const unusedSeatsInThirtyDays = computed(() => {
+      const { thirtyDaysAgo } = activityCutoffs.value;
+      return allSeats.value.filter((seat) => isInactive30Seat(seat, thirtyDaysAgo)).length;
+    });
 
-                // to sort totalSeats by last_activity_at
-                totalSeats.value.sort((a, b) => {
-                    if (a.last_activity_at === null) {
-                        return -1;
-                    }
-                    if (b.last_activity_at === null) {
-                        return 1;
-                    }
-                    return new Date(a.last_activity_at) > new Date(b.last_activity_at) ? 1 : -1;
-                });
-            } else {
-                throw new Error('Invalid number of seats');
-            }
+    const displayedSeats = computed(() => {
+      const { oneWeekAgo, thirtyDaysAgo } = activityCutoffs.value;
+      return allSeats.value.filter((seat) =>
+        matchesSeatFilter(seat, seatFilter.value, oneWeekAgo, thirtyDaysAgo)
+      );
+    });
 
-        });
+    const config = useRuntimeConfig();
+    const isTeamView = computed(() => config.public.scope?.includes('team') && config.public.githubTeam);
+    const currentTeam = computed(() => config.public.githubTeam || '');
 
-        noshowSeats.value = noshowCount;
-        unusedSeatsInSevenDays.value = unusedIn7Count;
-        unusedSeatsInThirtyDays.value = unusedIn30Count;
+    const scope = computed(() => String(config.public.scope || ''));
+    const teamScope = computed(() => {
+      const translate = t.value;
+      if (isTeamView.value) {
+        return translate('seats.scopeToTeam', { team: currentTeam.value });
+      }
+      if (scope.value.includes('organization')) {
+        return translate('seats.scopeInOrg');
+      }
+      if (scope.value.includes('enterprise')) {
+        return translate('seats.scopeInEnt');
+      }
+      return translate('seats.scopeCurrentOrgEnt');
+    });
 
-        // Add computed properties for team filtering info
-        const config = useRuntimeConfig();
-        const isTeamView = computed(() => config.public.scope?.includes('team') && config.public.githubTeam);
-        const currentTeam = computed(() => config.public.githubTeam || '');
+    const seatFilterTiles = computed(() => [
+      {
+        filter: 'all' as const,
+        title: t.value('seats.totalAssigned'),
+        subtitle: isTeamView.value
+          ? t.value('seats.subtitleAssignedTeam', { team: currentTeam.value })
+          : t.value('seats.subtitleAssigned'),
+        count: allSeats.value.length,
+        tooltip: t.value('seats.tooltipTotal', { scope: teamScope.value })
+      },
+      {
+        filter: 'noshow' as const,
+        title: t.value('seats.assignedNeverUsed'),
+        subtitle: t.value('seats.subtitleNeverUsed'),
+        count: noshowSeats.value,
+        tooltip: t.value('seats.tooltipNeverUsed')
+      },
+      {
+        filter: 'inactive7' as const,
+        title: t.value('seats.noActivity7'),
+        subtitle: t.value('seats.subtitleNoUse7'),
+        count: unusedSeatsInSevenDays.value,
+        tooltip: t.value('seats.tooltipInactive', { days: 7 })
+      },
+      {
+        filter: 'inactive30' as const,
+        title: t.value('seats.noActivity30'),
+        subtitle: t.value('seats.subtitleNoUse30'),
+        count: unusedSeatsInThirtyDays.value,
+        tooltip: t.value('seats.tooltipInactive', { days: 30 })
+      }
+    ]);
 
-        return {
-            totalSeats,
-            noshowSeats: noshowSeats,
-            unusedSeatsInSevenDays: unusedSeatsInSevenDays,
-            unusedSeatsInThirtyDays: unusedSeatsInThirtyDays,
-            isTeamView,
-            currentTeam
-        }
-},
-data() {
+    const filterLabels = computed<Record<SeatStatusFilter, string>>(() => ({
+      all: t.value('seats.tableAll'),
+      noshow: t.value('seats.tableNeverUsed'),
+      inactive7: t.value('seats.tableNoActivity7'),
+      inactive30: t.value('seats.tableNoActivity30')
+    }));
+
+    const tableTitle = computed(() =>
+      seatFilter.value === 'all' ? t.value('seats.tableAll') : filterLabels.value[seatFilter.value]
+    );
+
+    const activeFilterLabel = computed(() => filterLabels.value[seatFilter.value]);
+
+    const headers = computed(() => [
+      { title: t.value('seats.colSerial'), key: 'serialNumber' },
+      { title: t.value('seats.colLogin'), key: 'login' },
+      { title: t.value('seats.colGithubId'), key: 'id' },
+      { title: t.value('seats.colTeam'), key: 'team' },
+      { title: t.value('seats.colAssigned'), key: 'created_at' },
+      { title: t.value('seats.colLastActivity'), key: 'last_activity_at' },
+      { title: t.value('seats.colLastEditor'), key: 'last_activity_editor' }
+    ]);
+
+    function toggleSeatFilter(filter: SeatStatusFilter) {
+      seatFilter.value = seatFilter.value === filter ? 'all' : filter;
+    }
+
     return {
-        headers: [
-            { title: 'S.No', key: 'serialNumber'},
-            { title: 'Login', key: 'login' },
-            { title: 'GitHub ID', key: 'id' },
-            { title: 'Assigning team', key: 'team' },
-            { title: 'Assigned time', key: 'created_at' },
-            { title: 'Last Activity At', key: 'last_activity_at' },
-            { title: 'Last Activity Editor', key: 'last_activity_editor' },
-        ],
+      billing,
+      allSeats,
+      seatFilter,
+      displayedSeats,
+      seatFilterTiles,
+      tableTitle,
+      activeFilterLabel,
+      headers,
+      toggleSeatFilter,
+      isTeamView,
+      currentTeam,
+      t
     };
-}   
-  
+  }
 });
 </script>

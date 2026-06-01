@@ -16,6 +16,12 @@ title: משתני סביבה
 | `NUXT_PUBLIC_USING_GITHUB_AUTH` | הפעלת OAuth |
 | `NUXT_PUBLIC_DOCS_URL` | נתיב או URL לתיעוד בפוטר (ברירת מחדל: `/docs` — אותו host, תיקיית `/docs`) |
 | `NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED` | `true` (ברירת מחדל) — שליפת PRU לפי משתמש מ-Billing API. `false` — תג **בקרוב**, ללא קריאות billing ל-PRU |
+| `NUXT_PUBLIC_BRAND_LOGO_PATH` | נתיב ב-`public/` או URL מלא ללוגו בסרגל הצד (ברירת מחדל: `/brand/logo.png`) |
+| `NUXT_PUBLIC_BRAND_LOGO_ALT` | טקסט `alt` ללוגו |
+| `NUXT_PUBLIC_BRAND_APP_NAME` | שם האפליקציה (כותרת דף, פוטר) |
+| `NUXT_PUBLIC_BRAND_META_DESCRIPTION` | תיאור `<meta name="description">` |
+| `NUXT_PUBLIC_BRAND_FOOTER_PROJECT_URL` | קישור הפרויקט בפוטר |
+| `NUXT_PUBLIC_BRAND_FAVICON_PATH` | נתיב או URL ל-favicon (ברירת מחדל: `/brand/logo.png`) |
 
 ## שרת
 

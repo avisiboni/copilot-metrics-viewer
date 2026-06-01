@@ -37,14 +37,14 @@ export class GitHubTab {
         
         // Container and main elements
         this.githubContainer = page.locator('.github-com-container');
-        this.statisticsTitle = page.locator('h2').filter({ hasText: 'Copilot Statistics' });
+        this.statisticsTitle = page.locator('h2').filter({ hasText: 'Copilot usage insights' });
         this.dateRangeCard = page.locator('.v-card').filter({ hasText: /calendar-range/ });
         
         // Overview cards - using more specific selectors to avoid ambiguity
         this.ideCodeCompletionsCard = page.locator('.v-card').filter({ hasText: 'IDE Code Completions' }).first();
         this.ideChatCard = page.locator('.v-card').filter({ hasText: 'IDE Chat' }).first();
-        this.githubChatCard = page.locator('.v-card').filter({ hasText: 'GitHub.com Chat' }).first();
-        this.githubPRSummariesCard = page.locator('.v-card').filter({ hasText: 'GitHub.com PR Summaries' }).first();
+        this.githubChatCard = page.locator('.v-card').filter({ hasText: 'Copilot CLI' }).first();
+        this.githubPRSummariesCard = page.locator('.v-card').filter({ hasText: 'Code review' }).first();
         
         // Chart sections
         this.featureUsageTitle = page.locator('h2').filter({ hasText: 'Copilot Feature Usage Over Time' });

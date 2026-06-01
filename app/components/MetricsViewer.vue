@@ -3,18 +3,12 @@
     <div class="tiles-container">      
       <!-- Acceptance Rate Tile -->  
       <!--changed on 2024/11/22 to reorder cards, so the accepance rate by counts are be more focused-->
-      <v-card elevation="4" color="white" variant="elevated" class="mx-auto my-3" style="width: 300px; height: 175px;">
+      <v-card variant="flat" class="brand-kpi-card">
+        <BrandKpiTooltip :text="t('metrics.kpiTooltipAcceptanceCount')" />
         <v-card-item>
           <div class="tiles-text">
             <div class="spacing-25"/>
-            <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-              <template #activator="{ props }">
-                <div v-bind="props" class="text-h6 mb-1">Acceptance Rate (by count)</div>
-              </template>
-              <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                  <span class="text-caption" style="font-size: 10px !important;">This metric represents the ratio of accepted suggestions to the total suggestions made by GitHub Copilot. This rate indicates the relevance and usefulness of Copilot's suggestions based on the number of prompts, but should be used with caution as developers use Copilot in various ways (research, confirm, verify, etc., not always "inject").</span>
-              </v-card>
-            </v-tooltip>
+            <div class="text-h6 mb-1">{{ t('metrics.acceptanceRateByCount') }}</div>
             <div class="text-caption">
               {{ dateRangeDescription }}
             </div>
@@ -23,18 +17,12 @@
         </v-card-item>
       </v-card>
 
-      <v-card elevation="4" color="white" variant="elevated" class="mx-auto my-3" style="width: 300px; height: 175px;">
+      <v-card variant="flat" class="brand-kpi-card">
+        <BrandKpiTooltip :text="t('metrics.kpiTooltipTotalSuggestions')" />
         <v-card-item>
           <div class="tiles-text">
             <div class="spacing-10"/>
-            <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-              <template #activator="{ props }">
-                <div v-bind="props" class="text-h6 mb-1">Total count of Suggestions (Prompts)</div>
-              </template>
-              <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                <span class="text-caption" style="font-size: 10px !important;">This chart illustrates the total number of code suggestions made by GitHub Copilot. It offers a view of the tool's activity and its engagement with users over time.</span>
-              </v-card>
-            </v-tooltip>
+            <div class="text-h6 mb-1">{{ t('metrics.totalSuggestions') }}</div>
               <div class="text-caption">
               {{ dateRangeDescription }}
             </div>
@@ -43,18 +31,12 @@
         </v-card-item>
       </v-card>
 
-      <v-card elevation="4" color="white" variant="elevated" class="mx-auto my-3" style="width: 300px; height: 175px;">
+      <v-card variant="flat" class="brand-kpi-card">
+          <BrandKpiTooltip :text="t('metrics.kpiTooltipAcceptanceLines')" />
           <v-card-item>
             <div class="spacing-25"/>
             <div class="tiles-text">
-              <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-                <template #activator="{ props }">
-                  <div v-bind="props" class="text-h6 mb-1">Acceptance Rate (by lines)</div>
-                </template>
-                <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                  <span class="text-caption" style="font-size: 10px !important;">This metric represents the ratio of accepted lines of code to the total lines suggested by GitHub Copilot. This rate indicates the relevance and usefulness of Copilot's suggestions based on the volume of code, but should be used with caution as developers use Copilot in various ways (research, confirm, verify, etc., not always "inject").</span>
-                </v-card>
-              </v-tooltip>
+              <div class="text-h6 mb-1">{{ t('metrics.acceptanceRateByLines') }}</div>
               <div class="text-caption">
                 {{ dateRangeDescription }}
               </div>
@@ -63,18 +45,12 @@
         </v-card-item>
       </v-card>
 
-      <v-card elevation="4" color="white" variant="elevated" class="mx-auto my-3" style="width: 300px; height: 175px;">
+      <v-card variant="flat" class="brand-kpi-card">
+        <BrandKpiTooltip :text="t('metrics.kpiTooltipTotalLines')" />
         <v-card-item>
           <div class="tiles-text">
             <div class="spacing-10"/>
-            <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-              <template #activator="{ props }">
-                <div v-bind="props" class="text-h6 mb-1">Total Lines of code Suggested</div>
-              </template>
-              <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                <span class="text-caption" style="font-size: 10px !important;">Showcases the total number of lines of code suggested by GitHub Copilot. This gives an idea of the volume of code generation and assistance provided.</span>
-              </v-card>
-            </v-tooltip>
+            <div class="text-h6 mb-1">{{ t('metrics.totalLinesSuggested') }}</div>
             <div class="text-caption">
               {{ dateRangeDescription }}
             </div>
@@ -84,67 +60,63 @@
       </v-card>
     </div>
 
-    <v-main class="p-1" style="min-height: 300px;">
+    <BrandAiAdoptionPanel
+      v-if="adoptionByPhase.length"
+      :phases="adoptionByPhase"
+      class="mb-4"
+    />
 
-      <v-container style="min-height: 300px;" class="px-4 elevation-2">
-      <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-        <template #activator="{ props }">
-          <h2 v-bind="props">Acceptance rate by count (%)</h2>
-        </template>
-        <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-          <span class="text-caption" style="font-size: 10px !important;">This metric represents the ratio of accepted suggestions to the total suggestions made by GitHub Copilot. This rate indicates the relevance and usefulness of Copilot's suggestions based on the number of prompts, but should be used with caution as developers use Copilot in various ways (research, confirm, verify, etc., not always "inject").</span>
-        </v-card>
-      </v-tooltip>
-      <Bar :data="acceptanceRateByCountChartData" :options="chartOptions" />
+    <section class="brand-page-panel">
+      <BrandChartTitle
+        :title="t('metrics.chartAcceptanceRateByCount')"
+        :tooltip="chartTooltips.acceptanceRateByCount"
+        heading-class=""
+      />
+      <Line :data="acceptanceRateByCountChartData" :options="chartOptions" />
 
-      <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-        <template #activator="{ props }">
-          <h2 v-bind="props" class="mb-1">Total Suggestions Count | Total Acceptances Count</h2>
-        </template>
-        <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-          <span class="text-caption" style="font-size: 10px !important;">This visualization focuses on the total number of suggestions accepted by users.</span>
-        </v-card>
-      </v-tooltip>
+      <BrandChartTitle
+        :title="t('metrics.chartSuggestionsAcceptances')"
+        :tooltip="chartTooltips.totalSuggestionsAndAcceptances"
+      />
       <Line :data="totalSuggestionsAndAcceptanceChartData" :options="chartOptions" />
 
-      <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-        <template #activator="{ props }">
-          <h2 v-bind="props">Acceptance rate by lines (%)</h2>
-        </template>
-        <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-          <span class="text-caption" style="font-size: 10px !important;">This metric represents the ratio of accepted lines of code to the total lines suggested by GitHub Copilot. This rate indicates the relevance and usefulness of Copilot's suggestions based on the volume of code, but should be used with caution as developers use Copilot in various ways (research, confirm, verify, etc., not always "inject").</span>
-        </v-card>
-      </v-tooltip>
-      <Bar :data="acceptanceRateByLinesChartData" :options="chartOptions" />
+      <BrandChartTitle
+        :title="t('metrics.chartAcceptanceRateByLines')"
+        :tooltip="chartTooltips.acceptanceRateByLines"
+        heading-class=""
+      />
+      <Line :data="acceptanceRateByLinesChartData" :options="chartOptions" />
 
-      <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-        <template #activator="{ props }">
-          <h2 v-bind="props" class="mb-1">Total Lines Suggested | Total Lines Accepted</h2>
-        </template>
-        <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-          <span class="text-caption" style="font-size: 10px !important;">As the name suggests, the total lines of code accepted by users (full acceptances) offering insights into how much of the suggested code is actually being utilized and incorporated into the codebase.</span>
-        </v-card>
-      </v-tooltip>
+      <BrandChartTitle
+        :title="t('metrics.chartLinesSuggestedAccepted')"
+        :tooltip="chartTooltips.totalLinesSuggestedAccepted"
+      />
       <Line :data="chartData" :options="chartOptions" />
 
-      <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-        <template #activator="{ props }">
-          <h2 v-bind="props" class="mb-1">Total Active Users</h2>
-        </template>
-        <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-          <span class="text-caption" style="font-size: 10px !important;">Represents the number of active users engaging with GitHub Copilot. This helps in understanding the user base growth and adoption rate.</span>
-        </v-card>
-      </v-tooltip>
+      <BrandChartTitle
+        :title="t('metrics.chartTotalActiveUsers')"
+        :tooltip="chartTooltips.totalActiveUsers"
+      />
       <Bar :data="totalActiveUsersChartData" :options="totalActiveUsersChartOptions" />
 
-      </v-container>
-    </v-main>
+      <BrandChartTitle
+        :title="t('metrics.chartDauWauMau')"
+        :tooltip="chartTooltips.dauWauMau"
+      />
+      <Line :data="engagementChartData" :options="chartOptions" />
+
+    </section>
   </div>
 </template>
 
 <script lang="ts">
 import { defineComponent, ref, toRef, watchEffect } from 'vue';
+import { useChartTooltips } from '@/utils/chart-tooltips';
 import type { Metrics } from '@/model/Metrics';
+import type { CopilotMetrics } from '@/model/Copilot_Metrics';
+import type { AiAdoptionPhaseAggregate } from '../../shared/types/copilot-usage';
+import BrandAiAdoptionPanel from '@/components/BrandAiAdoptionPanel.vue';
+import type { PropType } from 'vue';
 import {
   Chart as ChartJS,
   ArcElement,
@@ -159,6 +131,12 @@ import {
 } from 'chart.js'
 
 import { Line, Bar } from 'vue-chartjs'
+import {
+  barDataset,
+  brandBarChartOptions,
+  brandLineChartOptions,
+  lineDataset
+} from '@/utils/chart-theme'
 
 ChartJS.register(
   ArcElement, 
@@ -177,9 +155,9 @@ export default defineComponent({
   name: 'MetricsViewer',
   components: {
     Line,
-    Bar
-  }
-  ,
+    Bar,
+    BrandAiAdoptionPanel
+  },
   props: {
         metrics: {
             type: Array as PropType<Metrics[]>,
@@ -188,9 +166,19 @@ export default defineComponent({
         dateRangeDescription: {
             type: String,
             default: 'Over the last 28 days'
+        },
+        usage: {
+            type: Array as PropType<CopilotMetrics[]>,
+            default: () => []
+        },
+        adoptionByPhase: {
+            type: Array as PropType<AiAdoptionPhaseAggregate[]>,
+            default: () => []
         }
     },
   setup(props) {
+    const chartTooltips = useChartTooltips()
+    const { t } = useAppI18n()
 
     //Tiles
     const acceptanceRateAverageByLines = ref(0);
@@ -213,47 +201,21 @@ export default defineComponent({
     const chartData = ref<{ labels: string[]; datasets: any[] }>({ labels: [], datasets: [] });
     
     //Total Active Users
-    const totalActiveUsersChartData = ref<{ labels: string[]; datasets: any[] }>({ labels: [], datasets: [] });  
+    const totalActiveUsersChartData = ref<{ labels: string[]; datasets: any[] }>({ labels: [], datasets: [] });
+    const engagementChartData = ref<{ labels: string[]; datasets: any[] }>({ labels: [], datasets: [] });
 
-    const chartOptions = {
-      responsive: true,
-      maintainAspectRatio: true,
-      height: 300,
-      width: 300,
-      layout: {
-        padding: {
-          left: 150,
-          right: 150,
-          top: 20,
-          bottom: 40
-        }
-      },
-    };
+    const chartOptions = brandLineChartOptions()
 
-    const totalActiveUsersChartOptions = {
-      responsive: true,
-      maintainAspectRatio: true,
+    const totalActiveUsersChartOptions = brandBarChartOptions({
       scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            stepSize: 1
-          }
-        }
-      },
-      layout: {
-        padding: {
-          left: 50,
-          right: 50,
-          top: 50,
-          bottom: 50
-        }
-      },
-    };
+        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+      }
+    })
 
     // Watch for changes in metrics prop and recalculate all data
     watchEffect(() => {
       const data = toRef(props, 'metrics').value;
+      const translate = t.value
       
       if (!data || data.length === 0) {
         return;
@@ -274,20 +236,8 @@ export default defineComponent({
     totalSuggestionsAndAcceptanceChartData.value = {
       labels: data.map((m: Metrics) => m.day),
       datasets: [
-        {
-          label: 'Total Suggestions',
-          data: cumulativeSuggestionsData,
-          backgroundColor: 'rgba(75, 192, 192, 0.2)',
-          borderColor: 'rgba(75, 192, 192, 1)'
-
-        },
-        {
-          label: 'Total Acceptance',
-          data: cumulativeAcceptancesData,
-          backgroundColor: 'rgba(153, 102, 255, 0.2)',
-          borderColor: 'rgba(153, 102, 255, 1)'
-        },
-        
+        lineDataset(translate('metrics.legendTotalSuggestions'), cumulativeSuggestionsData, 0),
+        lineDataset(translate('metrics.legendTotalAcceptance'), cumulativeAcceptancesData, 1)
       ]
     };
 
@@ -301,19 +251,8 @@ export default defineComponent({
     chartData.value = {
       labels: data.map((m: Metrics) => m.day),
       datasets: [
-        {
-          label: 'Total Lines Suggested',
-          data: data.map((m: Metrics) => m.total_lines_suggested),
-          backgroundColor: 'rgba(75, 192, 192, 0.2)',
-          borderColor: 'rgba(75, 192, 192, 1)'
-
-        },
-        {
-          label: 'Total Lines Accepted',
-          data: cumulativeLOCAcceptedData,
-          backgroundColor: 'rgba(153, 102, 255, 0.2)',
-          borderColor: 'rgba(153, 102, 255, 1)'
-        }
+        lineDataset(translate('metrics.legendTotalLinesSuggested'), data.map((m: Metrics) => m.total_lines_suggested), 0),
+        lineDataset(translate('metrics.legendTotalLinesAccepted'), cumulativeLOCAcceptedData, 1)
       ]
     };
     
@@ -329,30 +268,12 @@ export default defineComponent({
 
     acceptanceRateByLinesChartData.value = {
       labels: data.map((m: Metrics) => m.day),
-      datasets: [
-        {
-          type: 'line', // This makes the dataset a line in the chart
-          label: 'Acceptance Rate by Lines',
-          data: acceptanceRatesByLines,
-          backgroundColor: 'rgba(173, 216, 230, 0.2)', // light blue
-          borderColor: 'rgba(173, 216, 230, 1)', // darker blue
-          fill: false // This makes the area under the line not filled
-        }
-      ]
+      datasets: [lineDataset(translate('metrics.legendAcceptanceRateLines'), acceptanceRatesByLines, 0)]
     };
 
     acceptanceRateByCountChartData.value = {
       labels: data.map((m: Metrics) => m.day),
-      datasets: [
-        {
-          type: 'line', // This makes the dataset a line in the chart
-          label: 'Acceptance Rate by Count',
-          data: acceptanceRatesByCount,
-          backgroundColor: 'rgba(173, 216, 230, 0.2)', // light blue
-          borderColor: 'rgba(173, 216, 230, 1)', // darker blue
-          fill: false // This makes the area under the line not filled
-        }
-      ]
+      datasets: [lineDataset(translate('metrics.legendAcceptanceRateCount'), acceptanceRatesByCount, 1)]
     };
     
     totalLinesSuggested.value = data.reduce((sum: number, m: Metrics) => sum + m.total_lines_suggested, 0);
@@ -373,21 +294,56 @@ export default defineComponent({
     totalActiveUsersChartData.value = {
       labels: data.map((m: Metrics) => m.day),
       datasets: [
-        {
-          label: 'Total Active Users',
-          data: data.map((m: Metrics) => m.total_active_users),
-          backgroundColor: 'rgba(0, 0, 139, 0.2)', // dark blue with 20% opacity
-          borderColor: 'rgba(255, 99, 132, 1)'
-        }
+        barDataset(
+          translate('metrics.legendTotalActiveUsers'),
+          data.map((m: Metrics) => m.total_active_users),
+          1
+        )
+      ]
+    };
+
+    const usageData = toRef(props, 'usage').value || [];
+    engagementChartData.value = {
+      labels: usageData.map((m) => m.date),
+      datasets: [
+        lineDataset(
+          translate('metrics.legendDau'),
+          usageData.map((m) => m.usage_detail?.daily_active_users ?? m.total_active_users),
+          0
+        ),
+        lineDataset(
+          translate('metrics.legendWau'),
+          usageData.map((m) => m.usage_detail?.weekly_active_users || 0),
+          2
+        ),
+        lineDataset(
+          translate('metrics.legendMau'),
+          usageData.map((m) => m.usage_detail?.monthly_active_users || 0),
+          3
+        )
       ]
     };
     
     }); // end of watchEffect
 
-    return { totalSuggestionsAndAcceptanceChartData, chartData, 
-      chartOptions, totalActiveUsersChartData, 
-      totalActiveUsersChartOptions, acceptanceRateByLinesChartData, acceptanceRateByCountChartData, acceptanceRateAverageByLines, acceptanceRateAverageByCount, cumulativeNumberSuggestions, 
-      cumulativeNumberAcceptances, cumulativeNumberLOCAccepted, totalLinesSuggested };
+    return {
+      t,
+      chartTooltips,
+      totalSuggestionsAndAcceptanceChartData,
+      chartData,
+      chartOptions,
+      totalActiveUsersChartData,
+      engagementChartData,
+      totalActiveUsersChartOptions,
+      acceptanceRateByLinesChartData,
+      acceptanceRateByCountChartData,
+      acceptanceRateAverageByLines,
+      acceptanceRateAverageByCount,
+      cumulativeNumberSuggestions,
+      cumulativeNumberAcceptances,
+      cumulativeNumberLOCAccepted,
+      totalLinesSuggested
+    };
   },
   data () {
     return {

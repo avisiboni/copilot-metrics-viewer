@@ -1,4 +1,6 @@
 import type { H3Event, EventHandlerRequest } from 'h3'
+import { isEnvTruthy } from '../../shared/utils/env-boolean'
+import { shouldUseMockData } from '../../shared/utils/mock-mode'
 
 // https://www.telerik.com/blogs/implementing-sso-vue-nuxt-auth-github-comprehensive-guide
 
@@ -20,10 +22,7 @@ export async function authenticateAndGetGitHubHeaders(event: H3Event<EventHandle
     const config = useRuntimeConfig(event);
     const query = getQuery(event);
 
-    // simple way to check if mock data requested in path
-    const dataMocked = query.mock || query.isDataMocked || false;
-
-    if (config.public.isDataMocked || dataMocked) {
+    if (shouldUseMockData(config.public, query)) {
         // when data is mocked, we still need to have a token, but it's not used for real API calls
         return buildHeaders('mock-token');
     }
@@ -58,6 +57,6 @@ function buildHeaders(token: string): Headers {
     return new Headers({
         Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
-        Authorization: `token ${token}`
+        Authorization: `Bearer ${token}`
     });
 }

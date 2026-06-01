@@ -50,7 +50,7 @@ export class DashboardPage {
         this.seatAnalysisTabLink = page.getByRole("tab", { name: "seat analysis" });
         this.apiResponseTabLink = page.getByRole("tab", { name: "api response" });
         this.copilotChatTabLink = page.getByRole("tab", { name: "copilot chat" });
-        this.githubTabLink = page.getByRole("tab", { name: "github.com" });
+        this.githubTabLink = page.getByRole("tab", { name: "usage insights" });
 
         this.teamTabLink = page.getByRole("tab", { name: "team" });
         this.teamsTabLink = page.getByRole("tab", { name: "teams" });

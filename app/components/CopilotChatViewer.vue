@@ -1,35 +1,23 @@
 <template>
     <div class="tiles-container">      
-        <v-card elevation="4" color="white" variant="elevated" class="mx-auto my-3" style="width: 300px; height: 175px;">
+        <v-card variant="flat" class="brand-kpi-card">
+            <BrandKpiTooltip :text="t('chat.kpiTooltipTurns')" />
             <v-card-item>
                 <div class="tiles-text">
                     <div class="spacing-25"/>
-                    <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-                      <template #activator="{ props }">
-                        <div v-bind="props" class="text-h6 mb-1">Cumulative Number of Turns</div>
-                      </template>
-                      <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                        <span class="text-caption" style="font-size: 10px !important;">This metric represents the total number of turns (interactions) with the Copilot over the past 28 days. A 'turn' includes both user inputs and Copilot's responses.</span>
-                      </v-card>
-                    </v-tooltip>
+                    <div class="text-h6 mb-1">{{ t('chat.cumulativeTurns') }}</div>
                     <div class="text-caption">{{ dateRangeDescription }}</div>
                     <p class="text-h4">{{ cumulativeNumberTurns }}</p>
                 </div>
             </v-card-item>
         </v-card>
 
-        <v-card elevation="4" color="white" variant="elevated" class="mx-auto my-3" style="width: 300px; height: 175px;">
+        <v-card variant="flat" class="brand-kpi-card">
+            <BrandKpiTooltip :text="t('chat.kpiTooltipAcceptances')" />
             <v-card-item>
                 <div class="tiles-text">
                     <div class="spacing-10"/>
-                    <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-                      <template #activator="{ props }">
-                        <div v-bind="props" class="text-h6 mb-1">Cumulative Number of Acceptances</div>
-                      </template>
-                      <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                        <span class="text-caption" style="font-size: 10px !important;">This metric shows the total number of lines of code suggested by Copilot that have been accepted by users over the past 28 days.</span>
-                      </v-card>
-                    </v-tooltip>
+                    <div class="text-h6 mb-1">{{ t('chat.cumulativeAcceptances') }}</div>
                     <div class="text-caption">{{ dateRangeDescription }}</div>
                     <p class="text-h4">{{ cumulativeNumberAcceptances }}</p>
                 </div>
@@ -37,37 +25,42 @@
         </v-card>
     </div>
 
-    <v-main class="p-1" style="min-height: 300px;">
-        <v-container style="min-height: 300px;" class="px-4 elevation-2">
+    <section class="brand-page-panel">
 
-            <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-              <template #activator="{ props }">
-                <h2 v-bind="props" class="mb-1">Total Acceptances | Total Turns Count</h2>
-              </template>
-              <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                <span class="text-caption" style="font-size: 10px !important;">This is a chart that displays the total number of turns and acceptances.</span>
-              </v-card>
-            </v-tooltip>
+            <BrandChartTitle
+              :title="t('chat.chartAcceptancesTurns')"
+              :tooltip="chartTooltips.chatAcceptancesAndTurns"
+            />
             <Line :data="totalNumberAcceptancesAndTurnsChartData" :options="chartOptions" />
 
-            <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-              <template #activator="{ props }">
-                <h2 v-bind="props" class="mb-1">Total Active Copilot Chat Users</h2>
-              </template>
-              <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                <span class="text-caption" style="font-size: 10px !important;">A bar chart that illustrates the total number of users who have actively interacted with Copilot over the past 28 days.</span>
-              </v-card>
-            </v-tooltip>
+            <BrandChartTitle
+              :title="t('chat.chartActiveUsers')"
+              :tooltip="chartTooltips.chatActiveUsers"
+            />
             <Bar :data="totalActiveCopilotChatUsersChartData" :options="totalActiveChatUsersChartOptions" />
 
-        </v-container>
-    </v-main>
+            <BrandChartTitle
+              :title="t('chat.chartByMode')"
+              :tooltip="chartTooltips.chatRequestsByMode"
+              wrapper-class="mt-6"
+            />
+            <Line :data="chatModeChartData" :options="chartOptions" />
+
+    </section>
 </template>
   
 <script lang="ts">
-  import { defineComponent, ref, toRef } from 'vue';
+  import { defineComponent, ref, toRef, watchEffect, type PropType } from 'vue';
   import type { Metrics } from '@/model/Metrics';
+  import type { CopilotMetrics } from '@/model/Copilot_Metrics';
+  import { useChartTooltips } from '@/utils/chart-tooltips';
   import { Line, Bar } from 'vue-chartjs'
+  import {
+    brandBarChartOptions,
+    brandLineChartOptions,
+    lineDataset,
+    paletteEntry
+  } from '@/utils/chart-theme'
   import {
   Chart as ChartJS,
   ArcElement,
@@ -107,9 +100,15 @@ props: {
         dateRangeDescription: {
             type: String,
             default: 'Over the last 28 days'
+        },
+        usage: {
+            type: Array as PropType<CopilotMetrics[]>,
+            default: () => []
         }
     },
 setup(props) {
+    const chartTooltips = useChartTooltips()
+    const { t } = useAppI18n()
 
     const cumulativeNumberAcceptances = ref(0);
 
@@ -118,89 +117,95 @@ setup(props) {
     //Total Copilot Chat Active Users
     const totalActiveCopilotChatUsersChartData = ref<{ labels: string[]; datasets: any[] }>({ labels: [], datasets: [] });  
 
-    const totalActiveChatUsersChartOptions = {
-    responsive: true,
-    maintainAspectRatio: true,
-    scales: {
-        y: {
-        beginAtZero: true,
-        ticks: {
-            stepSize: 1
-        }
-        }
-    },
-    layout: {
-        padding: {
-        left: 50,
-        right: 50,
-        top: 50,
-        bottom: 50
-        }
-    },
-    };
+    const totalActiveChatUsersChartOptions = brandBarChartOptions({
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+      }
+    });
 
-    const chartOptions = {
-        responsive: true,
-        maintainAspectRatio: true,
-        height: 300,
-        width: 300,
-        layout: {
-            padding: {
-            left: 150,
-            right: 150,
-            top: 20,
-            bottom: 40
-            }
-        },
-    };
+    const chartOptions = brandLineChartOptions();
 
     //Total Number Acceptances And Turns
     const totalNumberAcceptancesAndTurnsChartData = ref<{ labels: string[]; datasets: any[] }>({ labels: [], datasets: [] });
+    const chatModeChartData = ref<{ labels: string[]; datasets: any[] }>({ labels: [], datasets: [] });
 
-    const data = toRef(props, 'metrics').value;
+    watchEffect(() => {
+      const data = toRef(props, 'metrics').value;
+      const translate = t.value
+      if (!data?.length) return;
 
-    cumulativeNumberTurns.value = 0;
-    const cumulativeNumberTurnsData = data.map((m: Metrics)  => {        
+      cumulativeNumberTurns.value = 0;
+      const cumulativeNumberTurnsData = data.map((m: Metrics) => {
         cumulativeNumberTurns.value += m.total_chat_turns;
         return m.total_chat_turns;
-    });
+      });
 
-    cumulativeNumberAcceptances.value = 0;
-    const cumulativeNumberAcceptancesData = data.map((m: Metrics)  => {        
+      cumulativeNumberAcceptances.value = 0;
+      const cumulativeNumberAcceptancesData = data.map((m: Metrics) => {
         cumulativeNumberAcceptances.value += m.total_chat_acceptances;
         return m.total_chat_acceptances;
-    });
+      });
 
-    totalNumberAcceptancesAndTurnsChartData.value = {
-    labels: data.map((m: Metrics)  => m.day),
-        datasets: [
-        {
-            label: 'Total Acceptances',
-            data: cumulativeNumberAcceptancesData,
-            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-            borderColor: 'rgba(75, 192, 192, 1)'
-
-        },
-        {
-            label: 'Total Turns',
-            data: cumulativeNumberTurnsData,
-            backgroundColor: 'rgba(153, 102, 255, 0.2)',
-            borderColor: 'rgba(153, 102, 255, 1)'
-        }]
-    };
-
-    totalActiveCopilotChatUsersChartData.value = {
+      totalNumberAcceptancesAndTurnsChartData.value = {
         labels: data.map((m: Metrics) => m.day),
         datasets: [
-        {
-            label: 'Total Active Copilot Chat Users',
+          lineDataset(translate('chat.legendAcceptances'), cumulativeNumberAcceptancesData, 0),
+          lineDataset(translate('chat.legendTurns'), cumulativeNumberTurnsData, 1)
+        ]
+      };
+
+      totalActiveCopilotChatUsersChartData.value = {
+        labels: data.map((m: Metrics) => m.day),
+        datasets: [
+          {
+            label: translate('chat.legendActiveUsers'),
             data: data.map((m: Metrics) => m.total_active_chat_users),
-            backgroundColor: 'rgba(0, 0, 139, 0.2)', // dark blue with 20% opacity
-            borderColor: 'rgba(255, 99, 132, 1)'
-        }]
+            backgroundColor: paletteEntry(2).bg,
+            borderColor: paletteEntry(2).border,
+            borderWidth: 1,
+            borderRadius: 6
+          }
+        ]
+      };
+
+      const usageData = toRef(props, 'usage').value || [];
+      const modes = ['ask', 'edit', 'plan', 'agent', 'custom', 'unknown'] as const;
+      const modeLabels: Record<(typeof modes)[number], string> = {
+        ask: translate('chat.modeAsk'),
+        edit: translate('chat.modeEdit'),
+        plan: translate('chat.modePlan'),
+        agent: translate('chat.modeAgent'),
+        custom: translate('chat.modeCustom'),
+        unknown: translate('chat.modeUnknown'),
+      };
+      chatModeChartData.value = {
+        labels: usageData.map((m) => m.date),
+        datasets: modes.map((mode, index) =>
+          lineDataset(
+            modeLabels[mode],
+            usageData.map((metric) => {
+              const breakdown = (metric.copilot_ide_chat as {
+                chat_mode_breakdown?: Array<{ mode: string; total_chats?: number }>
+              })?.chat_mode_breakdown;
+              return breakdown?.find((item) => item.mode === mode)?.total_chats || 0;
+            }),
+            index
+          )
+        )
+      };
+    });
+
+    return {
+      t,
+      chartTooltips,
+      totalActiveCopilotChatUsersChartData,
+      totalActiveChatUsersChartOptions,
+      cumulativeNumberAcceptances,
+      cumulativeNumberTurns,
+      totalNumberAcceptancesAndTurnsChartData,
+      chatModeChartData,
+      chartOptions
     };
-    
-    return {  totalActiveCopilotChatUsersChartData, totalActiveChatUsersChartOptions,cumulativeNumberAcceptances, cumulativeNumberTurns, totalNumberAcceptancesAndTurnsChartData, chartOptions};
 }
 });
 

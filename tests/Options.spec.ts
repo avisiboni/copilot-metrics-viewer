@@ -144,12 +144,24 @@ describe('Options', () => {
       expect(options.scope).toBe('team-enterprise')
     })
 
-    test('handles mock query parameter', () => {
+    test('handles mock query parameter in development', () => {
+      process.env.NUXT_MOCK_QUERY_DEV_OVERRIDE = 'true'
       const mockRoute = createMockRoute({ org: 'test-org' }, { mock: 'true' })
-      
+
       const options = Options.fromRoute(mockRoute)
-      
+
       expect(options.isDataMocked).toBe(true)
+      delete process.env.NUXT_MOCK_QUERY_DEV_OVERRIDE
+    })
+
+    test('ignores mock query parameter when not in development and public mock is off', () => {
+      process.env.NUXT_MOCK_QUERY_DEV_OVERRIDE = 'false'
+      const mockRoute = createMockRoute({ org: 'test-org' }, { mock: 'true' })
+
+      const options = Options.fromRoute(mockRoute)
+
+      expect(options.isDataMocked).toBeUndefined()
+      delete process.env.NUXT_MOCK_QUERY_DEV_OVERRIDE
     })
 
     test('uses runtime config defaults when no route params', () => {
@@ -158,9 +170,12 @@ describe('Options', () => {
       const options = Options.fromRoute(mockRoute)
       
       expect(options.scope).toBe('organization')
-      // The runtime config defaults are not being applied in the test environment
-      // This is expected behavior in the test - runtime config would apply in real app
-      expect(options.githubOrg).toBeUndefined()
+      const expectedOrg = process.env.NUXT_PUBLIC_GITHUB_ORG
+      if (expectedOrg) {
+        expect(options.githubOrg).toBe(expectedOrg)
+      } else {
+        expect(options.githubOrg).toBeUndefined()
+      }
     })
   })
 
@@ -270,6 +285,18 @@ describe('Options', () => {
       expect(options.isDataMocked).toBeUndefined()
       expect(options.githubOrg).toBeUndefined()
       expect(options.scope).toBeUndefined()
+    })
+
+    test('applies runtime config when query omits scope and org', () => {
+      const options = Options.fromQuery({}, {
+        scope: 'organization',
+        githubOrg: 'menora-copilot',
+        githubEnt: '',
+        githubTeam: ''
+      } as RuntimeConfig['public'])
+
+      expect(options.scope).toBe('organization')
+      expect(options.githubOrg).toBe('menora-copilot')
     })
   })
 
@@ -455,7 +482,7 @@ describe('Options', () => {
       
       const url = options.getApiUrl()
       
-      expect(url).toBe('https://api.github.com/orgs/test-org/copilot/metrics?since=2023-01-01&until=2023-12-31')
+      expect(url).toBe('https://api.github.com/orgs/test-org/copilot/metrics/reports/organization-28-day/latest')
     })
 
     test('generates correct URL for enterprise scope', () => {
@@ -467,7 +494,7 @@ describe('Options', () => {
       
       const url = options.getApiUrl()
       
-      expect(url).toBe('https://api.github.com/enterprises/test-ent/copilot/metrics?since=2023-01-01')
+      expect(url).toBe('https://api.github.com/enterprises/test-ent/copilot/metrics/reports/enterprise-28-day/latest')
     })
 
     test('generates correct URL for team-organization scope', () => {
@@ -479,7 +506,7 @@ describe('Options', () => {
       
       const url = options.getApiUrl()
       
-      expect(url).toBe('https://api.github.com/orgs/test-org/team/test-team/copilot/metrics')
+      expect(url).toBe('https://api.github.com/orgs/test-org/copilot/metrics/reports/organization-28-day/latest')
     })
 
     test('generates correct URL for team-enterprise scope', () => {
@@ -491,7 +518,7 @@ describe('Options', () => {
       
       const url = options.getApiUrl()
       
-      expect(url).toBe('https://api.github.com/enterprises/test-ent/team/test-team/copilot/metrics')
+      expect(url).toBe('https://api.github.com/enterprises/test-ent/copilot/metrics/reports/enterprise-28-day/latest')
     })
 
     test('throws error for organization scope without githubOrg', () => {
@@ -510,19 +537,13 @@ describe('Options', () => {
       expect(() => options.getApiUrl()).toThrow('GitHub enterprise must be set for enterprise scope')
     })
 
-    test('throws error for team-organization scope without required fields', () => {
-      const options1 = new Options({
-        scope: 'team-organization',
-        githubOrg: 'test-org'
-      })
-      
-      const options2 = new Options({
+    test('throws error for team-organization scope without organization', () => {
+      const options = new Options({
         scope: 'team-organization',
         githubTeam: 'test-team'
       })
       
-      expect(() => options1.getApiUrl()).toThrow('GitHub organization and team must be set for team-organization scope')
-      expect(() => options2.getApiUrl()).toThrow('GitHub organization and team must be set for team-organization scope')
+      expect(() => options.getApiUrl()).toThrow('GitHub organization must be set for organization scope')
     })
 
     test('throws error for invalid scope', () => {
@@ -533,7 +554,7 @@ describe('Options', () => {
       expect(() => options.getApiUrl()).toThrow('Invalid scope: invalid-scope')
     })
 
-    test('handles URL encoding in date parameters', () => {
+    test('returns 28-day rollup URL regardless of date filters', () => {
       const options = new Options({
         scope: 'organization',
         githubOrg: 'test-org',
@@ -543,8 +564,7 @@ describe('Options', () => {
       
       const url = options.getApiUrl()
       
-      expect(url).toContain('since=2023-01-01T00%3A00%3A00Z')
-      expect(url).toContain('until=2023-12-31T23%3A59%3A59Z')
+      expect(url).toBe('https://api.github.com/orgs/test-org/copilot/metrics/reports/organization-28-day/latest')
     })
   })
 

@@ -14,6 +14,9 @@ WORKDIR /app
 COPY --chown=1000:1000 package*.json ./
 RUN npm ci
 COPY --chown=1000:1000 . .
+# Public app URL for embedded docs canonical/OG links (path /docs/ on same host)
+ARG DOCUSAURUS_URL=https://metrics.example.com
+ENV DOCUSAURUS_URL=$DOCUSAURUS_URL
 RUN npm run build
 
 # Stage 2: Prepare the Node.js API

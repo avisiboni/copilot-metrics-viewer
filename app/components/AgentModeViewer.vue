@@ -1,16 +1,16 @@
 <template>
     <div class="github-com-container">
-        <v-main class="p-1" style="min-height: 300px;">
-            <v-container style="min-height: 300px;" class="px-4 elevation-2">
-                <!-- Loading state -->
-                <div v-if="loading" class="d-flex justify-center align-center" style="min-height: 300px;">
-                    <v-progress-circular indeterminate size="64" color="primary" />
-                </div>
+        <section class="brand-page-panel">
+                <BrandPageSkeleton
+                    v-if="loading"
+                    layout="agent-mode"
+                    :aria-label="t('usageInsights.loading')"
+                />
 
                 <!-- Error state -->
                 <div v-else-if="error" class="d-flex justify-center align-center" style="min-height: 300px;">
                     <v-alert type="error" class="mb-4">
-                        <v-alert-title>Error Loading Statistics</v-alert-title>
+                        <v-alert-title>{{ t('usageInsights.errorTitle') }}</v-alert-title>
                         {{ error }}
                     </v-alert>
                 </div>
@@ -18,227 +18,162 @@
                 <!-- Main content -->
                 <div v-else>
                     <!-- Agent Mode Statistics Title -->
-                    <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-                        <template #activator="{ props }">
-                            <h2 v-bind="props" class="mb-4">Copilot Statistics</h2>
-                        </template>
-                        <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 400px;">
-                            <span class="text-caption" style="font-size: 10px !important;">
-                                This section displays statistics for different GitHub.com Copilot features and the
-                                models used by users.
-                            </span>
-                        </v-card>
-                    </v-tooltip>
+                    <BrandChartTitle
+                        :title="t('usageInsights.title')"
+                        :tooltip="chartTooltips.usageInsightsOverview"
+                        heading-class="mb-4"
+                    />
 
-                    <!-- Date Range Information -->
-                    <v-card v-if="dateRangeDescription" flat class="pa-3 mb-4" color="blue-grey lighten-5">
-                        <div class="text-body-2 text-center">
-                            <v-icon left small>mdi-calendar-range</v-icon>
-                            {{ dateRangeDescription }}
-                        </div>
-                    </v-card>
+                    <BrandAiAdoptionPanel
+                        v-if="adoptionByPhase.length"
+                        :phases="adoptionByPhase"
+                    />
 
                     <!-- Agent Mode Overview Cards -->
                     <v-row class="mb-4">
                         <v-col cols="12" md="6" lg="3">
-                            <v-card elevation="4" color="blue lighten-4">
-                                <v-card-title class="text-h6">
-                                    <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-                                        <template #activator="{ props }">
-                                            <span v-bind="props">IDE Code Completions</span>
-                                        </template>
-                                        <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                                            <span class="text-caption" style="font-size: 10px !important;">
-                                                Statistics for code completions in integrated development environments.
-                                            </span>
-                                        </v-card>
-                                    </v-tooltip>
-                                </v-card-title>
+                            <v-card variant="flat" class="brand-kpi-card brand-metric-card--purple">
+                                <BrandKpiTooltip :text="t('usageInsights.kpiTooltipCompletions')" />
+                                <v-card-title class="text-h6">{{ t('usageInsights.ideCompletions') }}</v-card-title>
                                 <v-card-text>
                                     <div class="text-h4 mb-2">{{ stats.totalIdeCodeCompletionUsers }}</div>
-                                    <div class="text-caption">Total Users with Activity</div>
-                                    <div class="text-subtitle2 mt-2">{{ stats.totalIdeCodeCompletionModels }} Models
-                                        Used</div>
+                                    <div class="text-caption">{{ t('usageInsights.totalUsersActivity') }}</div>
+                                    <div class="text-subtitle2 mt-2">
+                                      {{ t('usageInsights.modelsUsed', { count: stats.totalIdeCodeCompletionModels }) }}
+                                    </div>
                                 </v-card-text>
                             </v-card>
                         </v-col>
                         <v-col cols="12" md="6" lg="3">
-                            <v-card elevation="4" color="green lighten-4">
-                                <v-card-title class="text-h6">
-                                    <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-                                        <template #activator="{ props }">
-                                            <span v-bind="props">IDE Chat</span>
-                                        </template>
-                                        <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                                            <span class="text-caption" style="font-size: 10px !important;">
-                                                Statistics for chat interactions in integrated development environments.
-                                            </span>
-                                        </v-card>
-                                    </v-tooltip>
-                                </v-card-title>
+                            <v-card variant="flat" class="brand-kpi-card brand-metric-card--turquoise">
+                                <BrandKpiTooltip :text="t('usageInsights.kpiTooltipChat')" />
+                                <v-card-title class="text-h6">{{ t('usageInsights.ideChat') }}</v-card-title>
                                 <v-card-text>
                                     <div class="text-h4 mb-2">{{ stats.totalIdeChatUsers }}</div>
-                                    <div class="text-caption">Total Users with Activity</div>
-                                    <div class="text-subtitle2 mt-2">{{ stats.totalIdeChatModels }} Models Used</div>
+                                    <div class="text-caption">{{ t('usageInsights.totalUsersActivity') }}</div>
+                                    <div class="text-subtitle2 mt-2">
+                                      {{ t('usageInsights.modelsUsed', { count: stats.totalIdeChatModels }) }}
+                                    </div>
                                 </v-card-text>
                             </v-card>
                         </v-col>
                         <v-col cols="12" md="6" lg="3">
-                            <v-card elevation="4" color="purple lighten-4">
-                                <v-card-title class="text-h6">
-                                    <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-                                        <template #activator="{ props }">
-                                            <span v-bind="props">GitHub.com Chat</span>
-                                        </template>
-                                        <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                                            <span class="text-caption" style="font-size: 10px !important;">
-                                                Statistics for chat interactions on GitHub.com web interface.
-                                            </span>
-                                        </v-card>
-                                    </v-tooltip>
-                                </v-card-title>
+                            <v-card variant="flat" class="brand-kpi-card brand-metric-card--lavender">
+                                <BrandKpiTooltip :text="t('usageInsights.kpiTooltipCli')" />
+                                <v-card-title class="text-h6">{{ t('usageInsights.copilotCli') }}</v-card-title>
                                 <v-card-text>
-                                    <div class="text-h4 mb-2">{{ stats.totalDotcomChatUsers }}</div>
-                                    <div class="text-caption">Total Users with Activity</div>
-                                    <div class="text-subtitle2 mt-2">{{ stats.totalDotcomChatModels }} Models Used</div>
+                                    <div class="text-h4 mb-2">{{ stats.totalCliUsers }}</div>
+                                    <div class="text-caption">{{ t('usageInsights.cliActiveUsers') }}</div>
                                 </v-card-text>
                             </v-card>
                         </v-col>
                         <v-col cols="12" md="6" lg="3">
-                            <v-card elevation="4" color="orange lighten-4">
-                                <v-card-title class="text-h6">
-                                    <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-                                        <template #activator="{ props }">
-                                            <span v-bind="props">GitHub.com PR Summaries</span>
-                                        </template>
-                                        <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                                            <span class="text-caption" style="font-size: 10px !important;">
-                                                Statistics for pull request summaries generated by Copilot on
-                                                GitHub.com.
-                                            </span>
-                                        </v-card>
-                                    </v-tooltip>
-                                </v-card-title>
+                            <v-card variant="flat" class="brand-kpi-card brand-metric-card--accent">
+                                <BrandKpiTooltip :text="t('usageInsights.kpiTooltipReview')" />
+                                <v-card-title class="text-h6">{{ t('usageInsights.codeReview') }}</v-card-title>
                                 <v-card-text>
-                                    <div class="text-h4 mb-2">{{ stats.totalPRSummariesCreated }}</div>
-                                    <div class="text-caption">Total PR Summaries Created</div>
-                                    <div class="text-subtitle2 mt-2">{{ stats.totalDotcomPRModels }} Models Used</div>
+                                    <div class="text-h4 mb-2">{{ stats.totalCodeReviewActiveUsers }}</div>
+                                    <div class="text-caption">{{ t('usageInsights.activeReviewUsers') }}</div>
+                                    <div class="text-subtitle2 mt-2">{{ t('usageInsights.passive', { count: stats.totalCodeReviewPassiveUsers }) }}</div>
+                                    <div class="text-subtitle2">{{ t('usageInsights.agentLocAdded', { count: stats.totalAgentLocAdded }) }}</div>
                                 </v-card-text>
                             </v-card>
                         </v-col>
                     </v-row>
 
                     <!-- Agent Mode Statistics Chart -->
-                    <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-                        <template #activator="{ props }">
-                            <h2 v-bind="props" class="mb-1">Copilot Feature Usage Over Time</h2>
-                        </template>
-                        <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 400px;">
-                            <span class="text-caption" style="font-size: 10px !important;">
-                                This chart shows the usage of different Copilot features over time.
-                            </span>
-                        </v-card>
-                    </v-tooltip>
+                    <BrandChartTitle
+                        :title="t('usageInsights.chartFeatureUsage')"
+                        :tooltip="chartTooltips.copilotFeatureUsageOverTime"
+                    />
                     <div class="chart-container">
                         <LineChart
-v-if="stats.agentModeChartData.labels.length" :data="stats.agentModeChartData"
+v-if="stats.featureUsageChartData.labels.length" :data="stats.featureUsageChartData"
+                            :options="chartOptions" />
+                    </div>
+
+                    <BrandChartTitle
+                        :title="t('usageInsights.chartDauWauMau')"
+                        :tooltip="chartTooltips.usageInsightsDauWauMau"
+                        wrapper-class="mt-6"
+                    />
+                    <div class="chart-container">
+                        <LineChart
+v-if="stats.activeUsersChartData.labels.length" :data="stats.activeUsersChartData"
+                            :options="chartOptions" />
+                    </div>
+
+                    <BrandChartTitle
+                        :title="t('usageInsights.chartChatByMode')"
+                        :tooltip="chartTooltips.usageInsightsChatByMode"
+                        wrapper-class="mt-6"
+                    />
+                    <div class="chart-container">
+                        <LineChart
+v-if="stats.chatModeChartData.labels.length" :data="stats.chatModeChartData"
+                            :options="chartOptions" />
+                    </div>
+
+                    <BrandChartTitle
+                        :title="t('usageInsights.chartCli')"
+                        :tooltip="chartTooltips.usageInsightsCli"
+                        wrapper-class="mt-6"
+                    />
+                    <div class="chart-container">
+                        <LineChart
+v-if="stats.cliChartData.labels.length" :data="stats.cliChartData"
                             :options="chartOptions" />
                     </div>
 
                     <!-- Models Used Section -->
-                    <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-                        <template #activator="{ props }">
-                            <h2 v-bind="props" class="mb-4 mt-6">Models Used by Users</h2>
-                        </template>
-                        <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 400px;">
-                            <span class="text-caption" style="font-size: 10px !important;">
-                                This section shows detailed information about the AI models used across different
-                                GitHub.com Copilot
-                                features.
-                            </span>
-                        </v-card>
-                    </v-tooltip>
+                    <BrandChartTitle
+                        :title="t('usageInsights.chartModels')"
+                        :tooltip="chartTooltips.modelsUsedByUsers"
+                        wrapper-class="mt-6"
+                        heading-class="mb-4"
+                    />
 
                     <!-- Models by Agent Mode -->
                     <v-expansion-panels class="mb-4">
                         <v-expansion-panel v-if="stats.ideCodeCompletionModels.length > 0">
                             <v-expansion-panel-title>
                                 <v-icon start>mdi-code-braces</v-icon>
-                                IDE Code Completions Models ({{ stats.ideCodeCompletionModels.length }})
+                                {{ t('usageInsights.panelCompletions', { count: stats.ideCodeCompletionModels.length }) }}
                             </v-expansion-panel-title>
                             <v-expansion-panel-text>
                                 <v-data-table
 :headers="codeCompletionHeaders" :items="stats.ideCodeCompletionModels"
-                                    class="elevation-1" item-key="name" />
+                                    class="brand-data-table" item-key="name" density="comfortable" />
                             </v-expansion-panel-text>
                         </v-expansion-panel>
 
                         <v-expansion-panel v-if="stats.ideChatModels.length > 0">
                             <v-expansion-panel-title>
                                 <v-icon start>mdi-chat</v-icon>
-                                IDE Chat Models ({{ stats.ideChatModels.length }})
+                                {{ t('usageInsights.panelChat', { count: stats.ideChatModels.length }) }}
                             </v-expansion-panel-title>
                             <v-expansion-panel-text>
                                 <v-data-table
-:headers="ideChatHeaders" :items="stats.ideChatModels" class="elevation-1"
-                                    item-key="name" />
+:headers="ideChatHeaders" :items="stats.ideChatModels" class="brand-data-table"
+                                    item-key="name" density="comfortable" />
                             </v-expansion-panel-text>
                         </v-expansion-panel>
 
-                        <v-expansion-panel v-if="stats.dotcomChatModels.length > 0">
-                            <v-expansion-panel-title>
-                                <v-icon start>mdi-web</v-icon>
-                                GitHub.com Chat Models ({{ stats.dotcomChatModels.length }})
-                            </v-expansion-panel-title>
-                            <v-expansion-panel-text>
-                                <v-data-table
-:headers="dotcomChatHeaders" :items="stats.dotcomChatModels"
-                                    class="elevation-1" item-key="name" />
-                            </v-expansion-panel-text>
-                        </v-expansion-panel>
-
-                        <v-expansion-panel v-if="stats.dotcomPRModels.length > 0">
-                            <v-expansion-panel-title>
-                                <v-icon start>mdi-source-pull</v-icon>
-                                GitHub.com PR Summary Models ({{ stats.dotcomPRModels.length }})
-                            </v-expansion-panel-title>
-                            <v-expansion-panel-text>
-                                <v-data-table
-:headers="dotcomPRHeaders" :items="stats.dotcomPRModels"
-                                    class="elevation-1" item-key="name" />
-                            </v-expansion-panel-text>
-                        </v-expansion-panel>
                     </v-expansion-panels>
-
-                    <!-- Model Usage Summary Chart -->
-                    <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-                        <template #activator="{ props }">
-                            <h2 v-bind="props" class="mb-1">Model Usage Distribution</h2>
-                        </template>
-                        <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 400px;">
-                            <span class="text-caption" style="font-size: 10px !important;">
-                                This chart shows the distribution of model usage across different GitHub.com Copilot
-                                features.
-                            </span>
-                        </v-card>
-                    </v-tooltip>
-                    <div class="chart-container">
-                        <BarChart
-v-if="stats.modelUsageChartData.labels.length" :data="stats.modelUsageChartData"
-                            :options="barChartOptions" />
-                    </div>
                 </div>
-            </v-container>
-        </v-main>
+        </section>
     </div>
 </template>
 
 <script lang="ts">
 import { defineComponent, ref, watch, type PropType, shallowRef } from 'vue';
+import BrandPageSkeleton from '@/components/BrandPageSkeleton.vue';
+import { useChartTooltips } from '@/utils/chart-tooltips';
 import type { CopilotMetrics } from '@/model/Copilot_Metrics';
 import { Options } from '@/model/Options';
 import { useRoute } from 'vue-router';
-import { Line as LineChart, Bar as BarChart } from 'vue-chartjs';
+import { Line as LineChart } from 'vue-chartjs';
+import { brandLineChartOptions } from '@/utils/chart-theme';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -288,37 +223,37 @@ interface ChartData {
 interface GitHubStats {
     totalIdeCodeCompletionUsers: number;
     totalIdeChatUsers: number;
-    totalDotcomChatUsers: number;
-    totalDotcomPRUsers: number;
-    totalPRSummariesCreated: number;
+    totalCliUsers: number;
+    totalCodeReviewActiveUsers: number;
+    totalCodeReviewPassiveUsers: number;
+    totalAgentLocAdded: number;
+    totalAgentLocDeleted: number;
     totalIdeCodeCompletionModels: number;
     totalIdeChatModels: number;
-    totalDotcomChatModels: number;
-    totalDotcomPRModels: number;
     ideCodeCompletionModels: ModelData[];
     ideChatModels: ModelData[];
-    dotcomChatModels: ModelData[];
-    dotcomPRModels: ModelData[];
-    agentModeChartData: ChartData;
-    modelUsageChartData: ChartData;
+    featureUsageChartData: ChartData;
+    activeUsersChartData: ChartData;
+    chatModeChartData: ChartData;
+    cliChartData: ChartData;
 }
 
 const defaultStats: GitHubStats = {
     totalIdeCodeCompletionUsers: 0,
     totalIdeChatUsers: 0,
-    totalDotcomChatUsers: 0,
-    totalDotcomPRUsers: 0,
-    totalPRSummariesCreated: 0,
+    totalCliUsers: 0,
+    totalCodeReviewActiveUsers: 0,
+    totalCodeReviewPassiveUsers: 0,
+    totalAgentLocAdded: 0,
+    totalAgentLocDeleted: 0,
     totalIdeCodeCompletionModels: 0,
     totalIdeChatModels: 0,
-    totalDotcomChatModels: 0,
-    totalDotcomPRModels: 0,
     ideCodeCompletionModels: [],
     ideChatModels: [],
-    dotcomChatModels: [],
-    dotcomPRModels: [],
-    agentModeChartData: { labels: [], datasets: [] },
-    modelUsageChartData: { labels: [], datasets: [] }
+    featureUsageChartData: { labels: [], datasets: [] },
+    activeUsersChartData: { labels: [], datasets: [] },
+    chatModeChartData: { labels: [], datasets: [] },
+    cliChartData: { labels: [], datasets: [] }
 };
 
 interface DateRange {
@@ -330,7 +265,7 @@ export default defineComponent({
     name: 'AgentModeViewer',
     components: {
         LineChart,
-        BarChart
+        BrandPageSkeleton
     },
     props: {
         dateRange: {
@@ -344,9 +279,15 @@ export default defineComponent({
         dateRangeDescription: {
             type: String,
             default: ''
+        },
+        adoptionByPhase: {
+            type: Array as PropType<import('../../shared/types/copilot-usage').AiAdoptionPhaseAggregate[]>,
+            default: () => []
         }
     },
     setup(props) {
+        const chartTooltips = useChartTooltips()
+        const { t } = useAppI18n()
         // Use shallowRef for better performance with large objects
         const stats = shallowRef<GitHubStats>({ ...defaultStats });
         const loading = ref(false);
@@ -393,7 +334,7 @@ export default defineComponent({
                     lastMetricsHash.value = currentHash;
                     lastDateRange.value = currentDateRange;
                 } catch (err: unknown) {
-                    error.value = err instanceof Error ? err.message : 'Failed to fetch GitHub statistics';
+                    error.value = err instanceof Error ? err.message : t.value('usageInsights.errorLoad');
                     console.error('Error fetching GitHub stats:', err);
                 } finally {
                     loading.value = false;
@@ -406,108 +347,59 @@ export default defineComponent({
 
         // Static table headers (avoid recreating on every render)
         const codeCompletionHeaders = [
-            { title: 'Model Name', key: 'name' },
-            { title: 'Editor', key: 'editor' },
-            { title: 'Type', key: 'model_type' },
-            { title: 'Total Users with Activity', key: 'total_engaged_users' }
+            { title: t.value('usageInsights.colModel'), key: 'name' },
+            { title: t.value('usageInsights.colEditor'), key: 'editor' },
+            { title: t.value('usageInsights.colType'), key: 'model_type' },
+            { title: t.value('usageInsights.colTotalUsers'), key: 'total_engaged_users' }
         ];
 
         const ideChatHeaders = [
-            { title: 'Model Name', key: 'name' },
-            { title: 'Editor', key: 'editor' },
-            { title: 'Type', key: 'model_type' },
-            { title: 'Total Users with Activity', key: 'total_engaged_users' },
-            { title: 'Total Chats', key: 'total_chats' },
-            { title: 'Insertions', key: 'total_chat_insertion_events' },
-            { title: 'Copy Events', key: 'total_chat_copy_events' }
+            { title: t.value('usageInsights.colModel'), key: 'name' },
+            { title: t.value('usageInsights.colEditor'), key: 'editor' },
+            { title: t.value('usageInsights.colType'), key: 'model_type' },
+            { title: t.value('usageInsights.colTotalUsers'), key: 'total_engaged_users' },
+            { title: t.value('usageInsights.colTotalChats'), key: 'total_chats' },
+            { title: t.value('usageInsights.colInsertions'), key: 'total_chat_insertion_events' },
+            { title: t.value('usageInsights.colCopyEvents'), key: 'total_chat_copy_events' }
         ];
 
-        const dotcomChatHeaders = [
-            { title: 'Model Name', key: 'name' },
-            { title: 'Type', key: 'model_type' },
-            { title: 'Total Users with Activity', key: 'total_engaged_users' },
-            { title: 'Total Chats', key: 'total_chats' }
-        ];
-
-        const dotcomPRHeaders = [
-            { title: 'Model Name', key: 'name' },
-            { title: 'Repository', key: 'repository' },
-            { title: 'Type', key: 'model_type' },
-            { title: 'Total Users with Activity', key: 'total_engaged_users' },
-            { title: 'PR Summaries', key: 'total_pr_summaries_created' }
-        ];
-
-        // Optimized chart options with performance settings
-        const chartOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: {
-                duration: 0 // Disable animations for better performance
-            },
+        const chartOptions = brandLineChartOptions({
+            animation: { duration: 0 },
+            interaction: { mode: 'index', intersect: false },
             scales: {
                 y: {
                     beginAtZero: true,
                     title: {
                         display: true,
-                        text: 'Users with Activity'
+                        text: t.value('usageInsights.yAxisUsers'),
+                        color: '#343546',
+                        font: { family: "'Assistant', Arial, sans-serif", size: 12 }
                     }
                 }
             },
             plugins: {
                 title: {
                     display: true,
-                    text: 'Copilot Feature Usage Over Time'
+                    text: t.value('usageInsights.chartFeatureUsage'),
+                    color: '#343546',
+                    font: { family: "'Assistant', Arial, sans-serif", size: 14, weight: 'bold' }
                 },
                 legend: {
                     display: true,
-                    position: 'top' as const
+                    position: 'top'
                 }
-            },
-            interaction: {
-                intersect: false
             }
-        };
-
-        const barChartOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: {
-                duration: 0 // Disable animations for better performance
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Number of Models'
-                    }
-                }
-            },
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Model Usage Distribution'
-                },
-                legend: {
-                    display: true,
-                    position: 'top' as const
-                }
-            },
-            interaction: {
-                intersect: false
-            }
-        };
+        });
 
         return {
+            t,
+            chartTooltips,
             stats,
             loading,
             error,
             codeCompletionHeaders,
             ideChatHeaders,
-            dotcomChatHeaders,
-            dotcomPRHeaders,
-            chartOptions,
-            barChartOptions
+            chartOptions
         };
     }
 });

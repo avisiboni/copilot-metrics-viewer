@@ -1,103 +1,121 @@
-import type { CopilotMetrics } from "@/model/Copilot_Metrics";
+import type { CopilotMetrics } from '@/model/Copilot_Metrics';
+import { brandChartPalette } from '@/utils/brand-colors';
+import { usageNumber } from '../../shared/types/copilot-usage';
 import { getMetricsData } from '../../shared/utils/metrics-util';
+import { safeApiErrorMessage } from '../../shared/utils/safe-error-message';
+
+function apiLineDataset(label: string, data: number[], index: number) {
+  const c = brandChartPalette[index % brandChartPalette.length]!;
+  return {
+    label,
+    data,
+    borderColor: c.border,
+    backgroundColor: c.bg,
+    borderWidth: 2,
+    tension: 0.25,
+    fill: false
+  };
+}
 
 interface GitHubStats {
   totalIdeCodeCompletionUsers: number;
   totalIdeChatUsers: number;
-  totalDotcomChatUsers: number;
-  totalDotcomPRUsers: number;
-  totalPRSummariesCreated: number;
+  totalCliUsers: number;
+  totalCodeReviewActiveUsers: number;
+  totalCodeReviewPassiveUsers: number;
+  totalAgentLocAdded: number;
+  totalAgentLocDeleted: number;
   totalIdeCodeCompletionModels: number;
   totalIdeChatModels: number;
-  totalDotcomChatModels: number;
-  totalDotcomPRModels: number;
-  ideCodeCompletionModels: any[];
-  ideChatModels: any[];
-  dotcomChatModels: any[];
-  dotcomPRModels: any[];
-  agentModeChartData: any[];
-  modelUsageChartData: any[];
+  ideCodeCompletionModels: Array<Record<string, unknown>>;
+  ideChatModels: Array<Record<string, unknown>>;
+  featureUsageChartData: {
+    labels: string[];
+    datasets: Array<Record<string, unknown>>;
+  };
+  activeUsersChartData: {
+    labels: string[];
+    datasets: Array<Record<string, unknown>>;
+  };
+  chatModeChartData: {
+    labels: string[];
+    datasets: Array<Record<string, unknown>>;
+  };
+  cliChartData: {
+    labels: string[];
+    datasets: Array<Record<string, unknown>>;
+  };
 }
 
 export default defineEventHandler(async (event) => {
   try {
     const metricsData = await getMetricsData(event);
-    // Calculate GitHub.com statistics
-    const stats = calculateGitHubStats(metricsData);
-    return stats;
+    return calculateUsageInsights(metricsData);
   } catch (error) {
     const logger = console;
     logger.error('Error in github-stats endpoint:', error);
-    return new Response('Error fetching metrics data: ' + (error instanceof Error ? error.message : String(error)), { status: 500 });
+    const statusCode = (error && typeof error === 'object' && 'statusCode' in error)
+      ? (error as { statusCode: number }).statusCode
+      : 500;
+    return new Response(
+      safeApiErrorMessage(error, 'Error fetching metrics data'),
+      { status: statusCode }
+    );
   }
 });
 
-function calculateGitHubStats(metrics: CopilotMetrics[]): GitHubStats {
-  // Calculate totals with optimized loops
-  const totals = metrics.reduce((acc, metric) => {
-    acc.totalIdeCodeCompletionUsers += metric.copilot_ide_code_completions?.total_engaged_users || 0;
-    acc.totalIdeChatUsers += metric.copilot_ide_chat?.total_engaged_users || 0;
-    acc.totalDotcomChatUsers += metric.copilot_dotcom_chat?.total_engaged_users || 0;
-    acc.totalDotcomPRUsers += metric.copilot_dotcom_pull_requests?.total_engaged_users || 0;
-    
-    // Calculate PR summaries
-    if (metric.copilot_dotcom_pull_requests?.repositories) {
-      acc.totalPRSummariesCreated += metric.copilot_dotcom_pull_requests.repositories.reduce((repoSum, repo) => {
-        return repoSum + (repo.models?.reduce((modelSum, model) => {
-          return modelSum + (model.total_pr_summaries_created || 0);
-        }, 0) || 0);
-      }, 0);
+function calculateUsageInsights(metrics: CopilotMetrics[]): GitHubStats {
+  const labels = metrics.map((metric) => metric.date);
+
+  const totals = metrics.reduce(
+    (acc, metric) => {
+      const detail = metric.usage_detail;
+      acc.totalIdeCodeCompletionUsers += metric.copilot_ide_code_completions?.total_engaged_users || 0;
+      acc.totalIdeChatUsers += metric.copilot_ide_chat?.total_engaged_users || 0;
+      acc.totalCliUsers += usageNumber(detail?.daily_active_cli_users);
+      acc.totalCodeReviewActiveUsers += usageNumber(detail?.daily_active_copilot_code_review_users);
+      acc.totalCodeReviewPassiveUsers += usageNumber(detail?.daily_passive_copilot_code_review_users);
+      acc.totalAgentLocAdded += metric.agent_edit_summary?.loc_added_sum || 0;
+      acc.totalAgentLocDeleted += metric.agent_edit_summary?.loc_deleted_sum || 0;
+      return acc;
+    },
+    {
+      totalIdeCodeCompletionUsers: 0,
+      totalIdeChatUsers: 0,
+      totalCliUsers: 0,
+      totalCodeReviewActiveUsers: 0,
+      totalCodeReviewPassiveUsers: 0,
+      totalAgentLocAdded: 0,
+      totalAgentLocDeleted: 0
     }
-    
-    return acc;
-  }, {
-    totalIdeCodeCompletionUsers: 0,
-    totalIdeChatUsers: 0,
-    totalDotcomChatUsers: 0,
-    totalDotcomPRUsers: 0,
-    totalPRSummariesCreated: 0
-  });
+  );
 
-  // Calculate unique models with optimized approach
-  const modelSets = {
-    ideCodeCompletion: new Set<string>(),
-    ideChat: new Set<string>(),
-    dotcomChat: new Set<string>(),
-    dotcomPR: new Set<string>()
-  };
-
+  const modelSets = { ideCodeCompletion: new Set<string>(), ideChat: new Set<string>() };
   const modelMaps = {
-    ideCodeCompletion: new Map(),
-    ideChat: new Map(),
-    dotcomChat: new Map(),
-    dotcomPR: new Map()
+    ideCodeCompletion: new Map<string, Record<string, unknown>>(),
+    ideChat: new Map<string, Record<string, unknown>>()
   };
 
-  // Single loop to process all metrics and models
   for (const metric of metrics) {
-    // IDE Code Completions
-    metric.copilot_ide_code_completions?.editors?.forEach(editor => {
-      editor.models?.forEach(model => {
-        modelSets.ideCodeCompletion.add(model.name);
-        
-        const key = `${model.name}-${editor.name}`;
-        if (!modelMaps.ideCodeCompletion.has(key)) {
-          modelMaps.ideCodeCompletion.set(key, {
-            name: model.name,
-            editor: editor.name,
-            model_type: model.is_custom_model ? 'Custom' : 'Default',
-            total_engaged_users: 0
-          });
-        }
-        modelMaps.ideCodeCompletion.get(key).total_engaged_users += model.total_engaged_users;
-      });
-    });
+    const completionModels = (metric.copilot_ide_code_completions as { models?: Array<{ name: string; total_engaged_users?: number; is_custom_model?: boolean }> })?.models || [];
+    for (const model of completionModels) {
+      modelSets.ideCodeCompletion.add(model.name);
+      const key = model.name;
+      if (!modelMaps.ideCodeCompletion.has(key)) {
+        modelMaps.ideCodeCompletion.set(key, {
+          name: model.name,
+          editor: 'all ides',
+          model_type: model.is_custom_model ? 'Custom' : 'Default',
+          total_engaged_users: 0
+        });
+      }
+      const entry = modelMaps.ideCodeCompletion.get(key)!;
+      entry.total_engaged_users = (entry.total_engaged_users as number) + (model.total_engaged_users || 0);
+    }
 
-    // IDE Chat
-    metric.copilot_ide_chat?.editors?.forEach(editor => {
-      editor.models?.forEach(model => {
+    metric.copilot_ide_chat?.editors?.forEach((editor) => {
+      editor.models?.forEach((model) => {
         modelSets.ideChat.add(model.name);
-        
         const key = `${model.name}-${editor.name}`;
         if (!modelMaps.ideChat.has(key)) {
           modelMaps.ideChat.set(key, {
@@ -105,133 +123,95 @@ function calculateGitHubStats(metrics: CopilotMetrics[]): GitHubStats {
             editor: editor.name,
             model_type: model.is_custom_model ? 'Custom' : 'Default',
             total_engaged_users: 0,
-            total_chats: 0,
-            total_chat_insertion_events: 0,
-            total_chat_copy_events: 0
+            total_chats: 0
           });
         }
-        const entry = modelMaps.ideChat.get(key);
-        entry.total_engaged_users += model.total_engaged_users;
-        entry.total_chats += model.total_chats;
-        entry.total_chat_insertion_events += model.total_chat_insertion_events;
-        entry.total_chat_copy_events += model.total_chat_copy_events;
-      });
-    });
-
-    // Dotcom Chat
-    metric.copilot_dotcom_chat?.models?.forEach(model => {
-      modelSets.dotcomChat.add(model.name);
-      
-      if (!modelMaps.dotcomChat.has(model.name)) {
-        modelMaps.dotcomChat.set(model.name, {
-          name: model.name,
-          model_type: model.is_custom_model ? 'Custom' : 'Default',
-          total_engaged_users: 0,
-          total_chats: 0
-        });
-      }
-      const entry = modelMaps.dotcomChat.get(model.name);
-      entry.total_engaged_users += model.total_engaged_users;
-      entry.total_chats += model.total_chats;
-    });
-
-    // Dotcom PR
-    metric.copilot_dotcom_pull_requests?.repositories?.forEach(repo => {
-      repo.models?.forEach(model => {
-        modelSets.dotcomPR.add(model.name);
-        
-        const key = `${model.name}-${repo.name}`;
-        if (!modelMaps.dotcomPR.has(key)) {
-          modelMaps.dotcomPR.set(key, {
-            name: model.name,
-            repository: repo.name,
-            model_type: model.is_custom_model ? 'Custom' : 'Default',
-            total_engaged_users: 0,
-            total_pr_summaries_created: 0
-          });
-        }
-        const entry = modelMaps.dotcomPR.get(key);
-        entry.total_engaged_users += model.total_engaged_users;
-        entry.total_pr_summaries_created += model.total_pr_summaries_created;
+        const entry = modelMaps.ideChat.get(key)!;
+        entry.total_engaged_users = (entry.total_engaged_users as number) + (model.total_engaged_users || 0);
+        entry.total_chats = (entry.total_chats as number) + (model.total_chats || 0);
       });
     });
   }
 
-  // Chart data
-  const labels = metrics.map(metric => metric.date);
-  const agentModeChartData = {
-    labels,
-    datasets: [
-      {
-        label: 'IDE Code Completions',
-        data: metrics.map(metric => metric.copilot_ide_code_completions?.total_engaged_users || 0),
-        borderColor: 'rgb(75, 192, 192)',
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        tension: 0.1
-      },
-      {
-        label: 'IDE Chat',
-        data: metrics.map(metric => metric.copilot_ide_chat?.total_engaged_users || 0),
-        borderColor: 'rgb(255, 99, 132)',
-        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        tension: 0.1
-      },
-      {
-        label: 'GitHub.com Chat',
-        data: metrics.map(metric => metric.copilot_dotcom_chat?.total_engaged_users || 0),
-        borderColor: 'rgb(153, 102, 255)',
-        backgroundColor: 'rgba(153, 102, 255, 0.2)',
-        tension: 0.1
-      },
-      {
-        label: 'GitHub.com PR',
-        data: metrics.map(metric => metric.copilot_dotcom_pull_requests?.total_engaged_users || 0),
-        borderColor: 'rgb(255, 159, 64)',
-        backgroundColor: 'rgba(255, 159, 64, 0.2)',
-        tension: 0.1
-      }
-    ]
-  };
-
-  const modelUsageChartData = {
-    labels: ['IDE Code Completions', 'IDE Chat', 'GitHub.com Chat', 'GitHub.com PR'],
-    datasets: [
-      {
-        label: 'Total Models',
-        data: [
-          modelSets.ideCodeCompletion.size,
-          modelSets.ideChat.size,
-          modelSets.dotcomChat.size,
-          modelSets.dotcomPR.size
-        ],
-        backgroundColor: [
-          'rgba(75, 192, 192, 0.6)',
-          'rgba(255, 99, 132, 0.6)',
-          'rgba(153, 102, 255, 0.6)',
-          'rgba(255, 159, 64, 0.6)'
-        ],
-        borderColor: [
-          'rgb(75, 192, 192)',
-          'rgb(255, 99, 132)',
-          'rgb(153, 102, 255)',
-          'rgb(255, 159, 64)'
-        ],
-        borderWidth: 1
-      }
-    ]
-  };
+  const chatModeLabels = ['ask', 'edit', 'plan', 'agent', 'custom', 'unknown'];
+  const chatModeDatasets = chatModeLabels.map((mode, index) =>
+    apiLineDataset(
+      `Chat: ${mode}`,
+      metrics.map((metric) => {
+        const breakdown = (metric.copilot_ide_chat as {
+          chat_mode_breakdown?: Array<{ mode: string; total_chats?: number }>
+        })?.chat_mode_breakdown;
+        const modeData = breakdown?.find((item) => item.mode === mode);
+        return modeData?.total_chats || 0;
+      }),
+      index
+    )
+  );
 
   return {
     ...totals,
     totalIdeCodeCompletionModels: modelSets.ideCodeCompletion.size,
     totalIdeChatModels: modelSets.ideChat.size,
-    totalDotcomChatModels: modelSets.dotcomChat.size,
-    totalDotcomPRModels: modelSets.dotcomPR.size,
     ideCodeCompletionModels: Array.from(modelMaps.ideCodeCompletion.values()),
     ideChatModels: Array.from(modelMaps.ideChat.values()),
-    dotcomChatModels: Array.from(modelMaps.dotcomChat.values()),
-    dotcomPRModels: Array.from(modelMaps.dotcomPR.values()),
-    agentModeChartData,
-    modelUsageChartData
+    featureUsageChartData: {
+      labels,
+      datasets: [
+        apiLineDataset(
+          'IDE Completions (acceptances)',
+          metrics.map((m) => m.copilot_ide_code_completions?.total_code_acceptances || 0),
+          0
+        ),
+        apiLineDataset(
+          'IDE Chat (prompts)',
+          metrics.map((m) => m.copilot_ide_chat?.total_chats || 0),
+          1
+        ),
+        apiLineDataset(
+          'Agent LoC added',
+          metrics.map((m) => m.agent_edit_summary?.loc_added_sum || 0),
+          2
+        )
+      ]
+    },
+    activeUsersChartData: {
+      labels,
+      datasets: [
+        apiLineDataset(
+          'DAU',
+          metrics.map((m) => usageNumber(m.usage_detail?.daily_active_users ?? m.total_active_users)),
+          0
+        ),
+        apiLineDataset(
+          'WAU',
+          metrics.map((m) => usageNumber(m.usage_detail?.weekly_active_users)),
+          2
+        ),
+        apiLineDataset(
+          'MAU',
+          metrics.map((m) => usageNumber(m.usage_detail?.monthly_active_users)),
+          3
+        )
+      ]
+    },
+    chatModeChartData: {
+      labels,
+      datasets: chatModeDatasets
+    },
+    cliChartData: {
+      labels,
+      datasets: [
+        apiLineDataset(
+          'CLI active users',
+          metrics.map((m) => usageNumber(m.usage_detail?.daily_active_cli_users)),
+          1
+        ),
+        apiLineDataset(
+          'CLI requests',
+          metrics.map((m) => usageNumber(m.usage_detail?.totals_by_cli?.request_count)),
+          4
+        )
+      ]
+    }
   };
 }

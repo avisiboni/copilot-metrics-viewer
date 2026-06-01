@@ -1,28 +1,35 @@
 <template>
   <div>
+    <BrandPageSkeleton
+      v-if="teamsInitialLoading"
+      layout="teams"
+      :aria-label="t('teams.loading')"
+    />
+
+    <template v-else>
     <!-- Team Selection Section -->
     <v-container>
       <v-row>
         <v-col cols="12">
           <v-card class="mb-4">
             <v-card-title class="text-h5">
-              Teams Comparison
+              {{ t('teams.title') }}
             </v-card-title>
             <v-card-subtitle>
-              Select teams to compare metrics across your {{ scopeType }}
+              {{ t('teams.subtitle', { scope: scopeType }) }}
             </v-card-subtitle>
             <v-card-text>
               <v-row>
                 <v-col cols="12" md="8">
                   <v-autocomplete
 v-model="selectedTeams" :items="availableTeams" item-value="slug" item-title="name"
-                    label="Search and select teams to compare" multiple chips clearable variant="outlined" :menu-props="{
+                    :label="t('teams.searchLabel')" multiple chips clearable variant="outlined" :menu-props="{
                       contentClass: 'teams-select-menu',
                       maxHeight: 360,
                       scrim: false,
                       closeOnContentClick: false,
                       offset: 8
-                    }" :hint="`Type to filter and select multiple teams from your ${scopeType} to compare their metrics`" persistent-hint>
+                    }" :hint="t('teams.searchHint', { scope: scopeType })" persistent-hint>
                     <template #item="{ props, item }">
                       <v-list-item v-bind="props" :title="item.raw.name" :subtitle="item.raw.description" />
                     </template>
@@ -35,7 +42,7 @@ v-model="selectedTeams" :items="availableTeams" item-value="slug" item-title="na
                   <v-btn
 v-if="selectedTeams.length > 0" color="primary" variant="outlined" size="small"
                     @click="clearSelection">
-                    Clear All
+                    {{ t('teams.clearAll') }}
                   </v-btn>
                 </v-col>
               </v-row>
@@ -50,13 +57,13 @@ v-if="selectedTeams.length > 0" color="primary" variant="outlined" size="small"
       <v-row>
         <v-col cols="12">
           <v-card class="mb-4">
-            <v-card-title class="text-h6">Selected Teams</v-card-title>
+            <v-card-title class="text-h6">{{ t('teams.selectedTeams') }}</v-card-title>
             <v-card-text>
               <v-chip-group>
                 <v-chip
 v-for="team in selectedTeamObjects" :key="team.slug" :href="getTeamDetailUrl(team.slug)"
                   class="selected-team-chip" target="_blank" link>
-                  {{ team.name }} - View Details
+                  {{ team.name }} - {{ t('teams.viewDetails') }}
                   <v-icon end>mdi-open-in-new</v-icon>
                 </v-chip>
               </v-chip-group>
@@ -68,44 +75,33 @@ v-for="team in selectedTeamObjects" :key="team.slug" :href="getTeamDetailUrl(tea
 
     <!-- Charts and Metrics Display -->
     <div v-if="selectedTeams.length > 0">
+      <template v-if="teamMetricsLoading">
+        <BrandKpiTilesSkeleton :count="2" />
+        <section class="brand-page-panel">
+          <BrandChartSkeleton v-for="n in 4" :key="`teams-chart-${n}`" />
+        </section>
+      </template>
+      <template v-else>
       <!-- Summary Cards -->
       <div class="tiles-container">
-        <v-card
-elevation="4" color="white" variant="elevated" class="mx-auto my-3"
-          style="width: 300px; height: 175px;">
+        <v-card variant="flat" class="brand-kpi-card">
+          <BrandKpiTooltip :text="t('teams.kpiTooltipTeams')" />
           <v-card-item>
             <div class="tiles-text">
               <div class="spacing-25" />
-              <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-                <template #activator="{ props }">
-                  <div v-bind="props" class="text-h6 mb-1">Teams Selected</div>
-                </template>
-                <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                  <span class="text-caption" style="font-size: 10px !important;">Number of teams currently selected for
-                    comparison</span>
-                </v-card>
-              </v-tooltip>
+              <div class="text-h6 mb-1">{{ t('teams.teamsSelected') }}</div>
               <div class="text-caption">{{ dateRangeDesc }}</div>
               <p class="text-h4">{{ selectedTeams.length }}</p>
             </div>
           </v-card-item>
         </v-card>
 
-        <v-card
-elevation="4" color="white" variant="elevated" class="mx-auto my-3"
-          style="width: 300px; height: 175px;">
+        <v-card variant="flat" class="brand-kpi-card">
+          <BrandKpiTooltip :text="t('teams.kpiTooltipUsers')" />
           <v-card-item>
             <div class="tiles-text">
               <div class="spacing-10" />
-              <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-                <template #activator="{ props }">
-                  <div v-bind="props" class="text-h6 mb-1">Total Active Users</div>
-                </template>
-                <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-                  <span class="text-caption" style="font-size: 10px !important;">Combined total active users across all
-                    selected teams</span>
-                </v-card>
-              </v-tooltip>
+              <div class="text-h6 mb-1">{{ t('teams.totalActiveUsers') }}</div>
               <div class="text-caption">{{ dateRangeDesc }}</div>
               <p class="text-h4">{{ totalActiveUsers }}</p>
             </div>
@@ -114,154 +110,110 @@ elevation="4" color="white" variant="elevated" class="mx-auto my-3"
       </div>
 
       <!-- Charts Section -->
-      <v-main class="p-1" style="min-height: 300px;">
-        <v-container style="min-height: 300px;" class="px-4 elevation-2">
-          <!-- Acceptance Rate by Count Chart -->
-          <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-            <template #activator="{ props }">
-              <h2 v-bind="props" class="mb-1">Acceptance Rate by Count (%)</h2>
-            </template>
-            <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-              <span class="text-caption" style="font-size: 10px !important;">Comparison of acceptance rates across
-                selected
-                teams over time</span>
-            </v-card>
-          </v-tooltip>
+      <section class="brand-page-panel">
+          <BrandChartTitle
+            :title="t('teams.chartAcceptanceCount')"
+            :tooltip="chartTooltips.teamsAcceptanceRateByCount"
+          />
           <LineChart :data="acceptanceRateCountChartData" :options="chartOptions" />
 
-          <!-- Total Suggestions and Acceptances Chart -->
-          <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-            <template #activator="{ props }">
-              <h2 v-bind="props" class="mb-1">Total Suggestions Count | Total Acceptances Count</h2>
-            </template>
-            <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-              <span class="text-caption" style="font-size: 10px !important;">Total suggestions and acceptances count
-                over
-                time for selected teams</span>
-            </v-card>
-          </v-tooltip>
+          <BrandChartTitle
+            :title="t('teams.chartSuggestions')"
+            :tooltip="chartTooltips.teamsTotalSuggestions"
+          />
           <LineChart :data="suggestionsAcceptancesChartData" :options="chartOptions" />
 
-          <!-- Acceptance Rate by Lines Chart -->
-          <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-            <template #activator="{ props }">
-              <h2 v-bind="props" class="mb-1">Acceptance Rate by Lines (%)</h2>
-            </template>
-            <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-              <span class="text-caption" style="font-size: 10px !important;">Comparison of line-based acceptance rates
-                across selected teams</span>
-            </v-card>
-          </v-tooltip>
+          <BrandChartTitle
+            :title="t('teams.chartAcceptanceLines')"
+            :tooltip="chartTooltips.teamsAcceptanceRateByLines"
+          />
           <LineChart :data="acceptanceRateLinesChartData" :options="chartOptions" />
 
-          <!-- Total Lines Suggested and Accepted Chart -->
-          <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-            <template #activator="{ props }">
-              <h2 v-bind="props" class="mb-1">Total Lines Suggested | Total Lines Accepted</h2>
-            </template>
-            <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-              <span class="text-caption" style="font-size: 10px !important;">Total lines of code suggested and accepted
-                over
-                time for selected teams</span>
-            </v-card>
-          </v-tooltip>
+          <BrandChartTitle
+            :title="t('teams.chartLines')"
+            :tooltip="chartTooltips.teamsLinesSuggestedAccepted"
+          />
           <LineChart :data="linesSuggestedAcceptedChartData" :options="chartOptions" />
 
-          <!-- Active Users Chart -->
-          <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-            <template #activator="{ props }">
-              <h2 v-bind="props" class="mb-1">Total Active Users</h2>
-            </template>
-            <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-              <span class="text-caption" style="font-size: 10px !important;">Number of active users over time for
-                selected
-                teams</span>
-            </v-card>
-          </v-tooltip>
+          <BrandChartTitle
+            :title="t('teams.chartActiveUsers')"
+            :tooltip="chartTooltips.teamsActiveUsers"
+          />
           <LineChart :data="activeUsersChartData" :options="chartOptions" />
 
-          <!-- Feature Usage Charts -->
-          <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-            <template #activator="{ props }">
-              <h2 v-bind="props" class="mb-1">IDE Code Completions Usage</h2>
-            </template>
-            <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-              <span class="text-caption" style="font-size: 10px !important;">Users with IDE code completions activity
-                across
-                selected teams</span>
-            </v-card>
-          </v-tooltip>
+          <BrandChartTitle
+            :title="t('teams.chartIdeCompletions')"
+            :tooltip="chartTooltips.teamsIdeCompletions"
+          />
           <LineChart :data="ideCompletionsChartData" :options="chartOptions" />
 
-          <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-            <template #activator="{ props }">
-              <h2 v-bind="props" class="mb-1">IDE Chat Usage</h2>
-            </template>
-            <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-              <span class="text-caption" style="font-size: 10px !important;">Users with IDE chat activity across
-                selected
-                teams</span>
-            </v-card>
-          </v-tooltip>
+          <BrandChartTitle
+            :title="t('teams.chartIdeChat')"
+            :tooltip="chartTooltips.teamsIdeChat"
+          />
           <LineChart :data="ideChatChartData" :options="chartOptions" />
 
-          <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-            <template #activator="{ props }">
-              <h2 v-bind="props" class="mb-1">GitHub.com Chat Usage</h2>
-            </template>
-            <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-              <span class="text-caption" style="font-size: 10px !important;">Users with GitHub.com chat activity across
-                selected teams</span>
-            </v-card>
-          </v-tooltip>
+          <BrandChartTitle
+            :title="t('teams.chartDotcomChat')"
+            :tooltip="chartTooltips.teamsDotcomChat"
+          />
           <LineChart :data="githubChatChartData" :options="chartOptions" />
 
-          <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-            <template #activator="{ props }">
-              <h2 v-bind="props" class="mb-1">GitHub.com PR Usage</h2>
-            </template>
-            <v-card class="pa-2" style="background-color: #f0f0f0; max-width: 350px;">
-              <span class="text-caption" style="font-size: 10px !important;">Users with GitHub.com PR activity across
-                selected teams</span>
-            </v-card>
-          </v-tooltip>
+          <BrandChartTitle
+            :title="t('teams.chartDotcomPr')"
+            :tooltip="chartTooltips.teamsDotcomPr"
+          />
           <LineChart :data="githubPrChartData" :options="chartOptions" />
-        </v-container>
-      </v-main>
+      </section>
 
       <!-- Language and Editor Comparison Charts -->
       <v-container>
         <v-row>
           <v-col cols="12" md="6">
             <v-card class="pa-4">
-              <v-card-title class="text-h6">Language Usage by Team</v-card-title>
+              <v-card-title class="pa-4 pb-0">
+                <BrandChartTitle
+                  :title="t('teams.chartLanguage')"
+                  :tooltip="chartTooltips.teamsLanguageUsage"
+                  heading-tag="div"
+                  heading-class="text-h6"
+                />
+              </v-card-title>
               <v-card-text>
                 <div v-if="languageBarChartData.datasets.length > 0" class="bar-chart-container">
                   <BarChart :data="languageBarChartData" :options="barChartOptions" />
                 </div>
                 <div v-else class="text-center text-medium-emphasis py-8">
                   <v-icon size="48" color="grey-lighten-1">mdi-chart-bar</v-icon>
-                  <p class="mt-2">No language data available for selected teams</p>
+                  <p class="mt-2">{{ t('teams.noLanguageData') }}</p>
                 </div>
               </v-card-text>
             </v-card>
           </v-col>
           <v-col cols="12" md="6">
             <v-card class="pa-4">
-              <v-card-title class="text-h6">Editor Usage by Team</v-card-title>
+              <v-card-title class="pa-4 pb-0">
+                <BrandChartTitle
+                  :title="t('teams.chartEditor')"
+                  :tooltip="chartTooltips.teamsEditorUsage"
+                  heading-tag="div"
+                  heading-class="text-h6"
+                />
+              </v-card-title>
               <v-card-text>
                 <div v-if="editorBarChartData.datasets.length > 0" class="bar-chart-container">
                   <BarChart :data="editorBarChartData" :options="barChartOptions" />
                 </div>
                 <div v-else class="text-center text-medium-emphasis py-8">
                   <v-icon size="48" color="grey-lighten-1">mdi-chart-bar</v-icon>
-                  <p class="mt-2">No editor data available for selected teams</p>
+                  <p class="mt-2">{{ t('teams.noEditorData') }}</p>
                 </div>
               </v-card-text>
             </v-card>
           </v-col>
         </v-row>
       </v-container>
+      </template>
     </div>
 
     <!-- Empty State -->
@@ -271,15 +223,16 @@ elevation="4" color="white" variant="elevated" class="mx-auto my-3"
           <v-card class="text-center pa-8">
             <v-card-text>
               <v-icon size="64" color="grey-lighten-1">mdi-account-group-outline</v-icon>
-              <h3 class="text-h5 mt-4 mb-2">No Teams Selected</h3>
+              <h3 class="text-h5 mt-4 mb-2">{{ t('teams.noTeamsTitle') }}</h3>
               <p class="text-body-1 text-medium-emphasis">
-                Select one or more teams from the dropdown above to view and compare their metrics.
+                {{ t('teams.noTeamsText') }}
               </p>
             </v-card-text>
           </v-card>
         </v-col>
       </v-row>
     </v-container>
+    </template>
   </div>
 </template>
 
@@ -291,6 +244,12 @@ import type { ChartData, ChartDataset } from 'chart.js'
 import type { MetricsApiResponse } from '@/types/metricsApiResponse';
 import type { Metrics } from '@/model/Metrics';
 import type { CopilotMetrics } from '@/model/Copilot_Metrics';
+import { brandChartPalette } from '@/utils/brand-colors';
+import { brandBarChartOptionsWithLegend, brandLineChartOptions } from '@/utils/chart-theme';
+import BrandPageSkeleton from '@/components/BrandPageSkeleton.vue';
+import { useChartTooltips } from '@/utils/chart-tooltips';
+import BrandKpiTilesSkeleton from '@/components/BrandKpiTilesSkeleton.vue';
+import BrandChartSkeleton from '@/components/BrandChartSkeleton.vue';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -330,12 +289,14 @@ type LineMetricKey = 'acceptance_rate_by_count' | 'acceptance_rate_by_lines' | '
 
 export default defineComponent({
   name: 'TeamsComponent',
-  components: { LineChart, BarChart },
+  components: { LineChart, BarChart, BrandPageSkeleton, BrandKpiTilesSkeleton, BrandChartSkeleton },
   props: {
     dateRange: { type: Object as PropType<DateRange>, required: false, default: () => ({}) },
     dateRangeDescription: { type: String, default: '' }
   },
   setup(props) {
+    const chartTooltips = useChartTooltips()
+    const { t } = useAppI18n()
     const availableTeams = ref<Team[]>([])
     const selectedTeams = ref<string[]>([])
 
@@ -354,28 +315,20 @@ export default defineComponent({
     const languageBarChartData = ref<ChartData<'bar', number[], string>>({ labels: [], datasets: [] })
     const editorBarChartData = ref<ChartData<'bar', number[], string>>({ labels: [], datasets: [] })
 
-    const chartOptions = {
-      responsive: true,
-      maintainAspectRatio: true,
-      scales: { y: { beginAtZero: true } },
-      layout: { padding: { left: 50, right: 50, top: 50, bottom: 50 } }
-    }
-    const barChartOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
+    const chartOptions = brandLineChartOptions()
+    const barChartOptions = brandBarChartOptionsWithLegend({
       scales: {
         y: { beginAtZero: true, ticks: { precision: 0 } },
         x: { ticks: { maxRotation: 0, autoSkip: true } }
-      },
-      plugins: { legend: { position: 'top' as const } },
-      layout: { padding: { left: 12, right: 12, top: 8, bottom: 8 } },
-      elements: { bar: { borderWidth: 1 } }
-    }
+      }
+    })
 
     const selectedTeamObjects = computed(() => availableTeams.value.filter(team => selectedTeams.value.includes(team.slug)))
     const scopeType = computed(() => {
       const config = useRuntimeConfig()
-      return config.public.scope === 'enterprise' ? 'enterprise' : 'organization'
+      return config.public.scope === 'enterprise'
+        ? t.value('teams.scopeEnterprise')
+        : t.value('teams.scopeOrganization')
     })
   // Aggregate total active users across selected teams (latest day for each)
   const aggregatedTotalActiveUsers = ref(0)
@@ -390,25 +343,35 @@ export default defineComponent({
     }
 
 
+    const teamsInitialLoading = ref(true)
+    const teamMetricsLoading = ref(false)
+
     const loadTeams = async () => {
       const route = useRoute();
       const options = Options.fromRoute(route, props.dateRange.since, props.dateRange.until);
       const params = options.toParams();
 
-      const teams = await $fetch<Team[]>('/api/teams', { params })
-      availableTeams.value = teams
+      try {
+        const teams = await $fetch<Team[]>('/api/teams', { params })
+        availableTeams.value = teams
+      } finally {
+        teamsInitialLoading.value = false
+      }
     }
-    // Load metrics for a single team via /api/metrics (old + new formats)
-    const loadMetricsForTeam = async (teamSlug: string) => {
+    const loadMetricsForTeams = async (teamSlugs: string[]) => {
       const route = useRoute();
       const options = Options.fromRoute(route, props.dateRange.since, props.dateRange.until);
-      // Force scope to team variant based on current broader scope
-      if (options.scope === 'enterprise') options.scope = 'team-enterprise';
-      else if (options.scope === 'organization') options.scope = 'team-organization';
-      options.githubTeam = teamSlug;
-      const params = options.toParams();
-      const response = await $fetch<MetricsApiResponse>('/api/metrics', { params })
-      return response;
+      if (options.scope === 'team-organization' || options.scope === 'team-enterprise') {
+        options.scope = options.githubEnt ? 'enterprise' : 'organization';
+      }
+      const params = {
+        ...options.toParams(),
+        teams: teamSlugs.join(',')
+      };
+      const response = await $fetch<{
+        teams: Array<{ slug: string; metrics: Metrics[]; usage: CopilotMetrics[] }>;
+      }>('/api/team-metrics', { params });
+      return response.teams;
     }
 
     const generateBarChartData = () => {
@@ -424,9 +387,10 @@ export default defineComponent({
             const langData = languageComparison.value.find(l => l.language === language && l.team === team)
             return langData ? langData.acceptance_rate : 0
           }),
-          backgroundColor: teamColors[colorIndex]!.border,
+          backgroundColor: teamColors[colorIndex]!.bg,
           borderColor: teamColors[colorIndex]!.border,
-          borderWidth: 1
+          borderWidth: 1,
+          borderRadius: 6
         }
       })
 
@@ -446,9 +410,10 @@ export default defineComponent({
             const editorData = editorComparison.value.find(e => e.editor === editor && e.team === team)
             return editorData ? editorData.active_users : 0
           }),
-          backgroundColor: teamColors[colorIndex]!.border,
+          backgroundColor: teamColors[colorIndex]!.bg,
           borderColor: teamColors[colorIndex]!.border,
-          borderWidth: 1
+          borderWidth: 1,
+          borderRadius: 6
         }
       })
 
@@ -459,16 +424,11 @@ export default defineComponent({
     }
 
     // Chart colors for different teams
-    const teamColors = [
-      { bg: 'rgba(75, 192, 192, 0.2)', border: 'rgba(75, 192, 192, 1)' },
-      { bg: 'rgba(153, 102, 255, 0.2)', border: 'rgba(153, 102, 255, 1)' },
-      { bg: 'rgba(255, 159, 64, 0.2)', border: 'rgba(255, 159, 64, 1)' },
-      { bg: 'rgba(255, 99, 132, 0.2)', border: 'rgba(255, 99, 132, 1)' },
-      { bg: 'rgba(54, 162, 235, 0.2)', border: 'rgba(54, 162, 235, 1)' }
-    ]
+    const teamColors = [...brandChartPalette]
 
   const updateChartData = async () => {
       if (selectedTeams.value.length === 0) {
+        teamMetricsLoading.value = false
         // Clear all charts
         acceptanceRateCountChartData.value = { labels: [], datasets: [] }
         suggestionsAcceptancesChartData.value = { labels: [], datasets: [] }
@@ -486,15 +446,15 @@ export default defineComponent({
         return
       }
 
-      // Fetch metrics for each selected team individually
-      const perTeamResponses = await Promise.all(selectedTeams.value.map(slug => loadMetricsForTeam(slug)))
+      teamMetricsLoading.value = true
+      try {
+      const perTeamResponses = await loadMetricsForTeams(selectedTeams.value)
 
-      // Build a structure for quick lookup
       interface PerTeamData { slug: string; metrics: Metrics[]; usage: CopilotMetrics[] }
-      const perTeamData: PerTeamData[] = perTeamResponses.map((resp, idx) => ({
-        slug: selectedTeams.value[idx]!,
-        metrics: (resp.metrics as Metrics[]) || [],
-        usage: (resp.usage as CopilotMetrics[]) || []
+      const perTeamData: PerTeamData[] = perTeamResponses.map((resp) => ({
+        slug: resp.slug,
+        metrics: resp.metrics || [],
+        usage: resp.usage || []
       }))
 
       // Collect unique days across all teams
@@ -512,7 +472,7 @@ export default defineComponent({
           const teamName = getTeamName(teamData.slug)
           const colorIndex = index % teamColors.length
           return {
-            label: `${teamName} - ${label}`,
+            label: t.value(label, { team: teamName }),
             data: days.map(day => {
               const dayData = teamData.metrics.find((d) => d.day === day)
               return dayData ? (dayData[metricKey] || 0) : 0
@@ -526,7 +486,7 @@ export default defineComponent({
 
       acceptanceRateCountChartData.value = {
         labels: days,
-        datasets: createMetricsDatasets('acceptance_rate_by_count', 'Acceptance Rate (%)')
+        datasets: createMetricsDatasets('acceptance_rate_by_count', 'teams.legendAcceptanceRate')
       }
 
       // Suggestions & Acceptances datasets
@@ -535,7 +495,7 @@ export default defineComponent({
         const teamName = getTeamName(teamData.slug)
         const colorIndex = index % teamColors.length
         const suggestionsDataset: ChartDataset<'line', number[]> = {
-          label: `${teamName} - Suggestions`,
+          label: t.value('teams.legendSuggestions', { team: teamName }),
           data: days.map(day => {
             const dayData = teamData.metrics.find((d) => d.day === day)
             return dayData ? (dayData.total_suggestions_count || 0) : 0
@@ -545,7 +505,7 @@ export default defineComponent({
           tension: 0.1
         }
         const acceptancesDataset: ChartDataset<'line', number[]> = {
-          label: `${teamName} - Acceptances`,
+          label: t.value('teams.legendAcceptances', { team: teamName }),
           data: days.map(day => {
             const dayData = teamData.metrics.find((d) => d.day === day)
             return dayData ? (dayData.total_acceptances_count || 0) : 0
@@ -561,7 +521,7 @@ export default defineComponent({
 
       acceptanceRateLinesChartData.value = {
         labels: days,
-        datasets: createMetricsDatasets('acceptance_rate_by_lines', 'Acceptance Rate Lines (%)')
+        datasets: createMetricsDatasets('acceptance_rate_by_lines', 'teams.legendAcceptanceRate')
       }
 
       // Lines suggested & accepted
@@ -571,7 +531,7 @@ export default defineComponent({
         const colorIndex = index % teamColors.length
         linesDatasets.push(
           {
-            label: `${teamName} - Lines Suggested`,
+            label: t.value('teams.legendLinesSuggested', { team: teamName }),
             data: days.map(day => {
               const dayData = teamData.metrics.find((d) => d.day === day)
               return dayData ? (dayData.total_lines_suggested || 0) : 0
@@ -581,7 +541,7 @@ export default defineComponent({
             tension: 0.1
           },
           {
-            label: `${teamName} - Lines Accepted`,
+            label: t.value('teams.legendLinesAccepted', { team: teamName }),
             data: days.map(day => {
               const dayData = teamData.metrics.find((d) => d.day === day)
               return dayData ? (dayData.total_lines_accepted || 0) : 0
@@ -597,7 +557,7 @@ export default defineComponent({
 
       activeUsersChartData.value = {
         labels: days,
-        datasets: createMetricsDatasets('total_active_users', 'Active Users')
+        datasets: createMetricsDatasets('total_active_users', 'teams.legendActiveUsers')
       }
 
       // Feature usage charts derived from NEW usage format (CopilotMetrics)
@@ -606,7 +566,7 @@ export default defineComponent({
           const teamName = getTeamName(teamData.slug)
             const colorIndex = index % teamColors.length
             return {
-              label: `${teamName} - ${label}`,
+              label: t.value(label, { team: teamName }),
               data: days.map(day => {
                 const usageDay = teamData.usage.find((u) => u.date === day)
                 if (!usageDay) return 0
@@ -626,10 +586,10 @@ export default defineComponent({
         })
       }
 
-      ideCompletionsChartData.value = { labels: days, datasets: createUsageDataset(['copilot_ide_code_completions', 'total_engaged_users'], 'IDE Completions Users') }
-      ideChatChartData.value = { labels: days, datasets: createUsageDataset(['copilot_ide_chat', 'total_engaged_users'], 'IDE Chat Users') }
-      githubChatChartData.value = { labels: days, datasets: createUsageDataset(['copilot_dotcom_chat', 'total_engaged_users'], 'GitHub Chat Users') }
-      githubPrChartData.value = { labels: days, datasets: createUsageDataset(['copilot_dotcom_pull_requests', 'total_engaged_users'], 'GitHub PR Users') }
+      ideCompletionsChartData.value = { labels: days, datasets: createUsageDataset(['copilot_ide_code_completions', 'total_engaged_users'], 'teams.legendIdeCompletions') }
+      ideChatChartData.value = { labels: days, datasets: createUsageDataset(['copilot_ide_chat', 'total_engaged_users'], 'teams.legendIdeChat') }
+      githubChatChartData.value = { labels: days, datasets: createUsageDataset(['usage_detail', 'daily_active_cli_users'], 'teams.legendCli') }
+      githubPrChartData.value = { labels: days, datasets: createUsageDataset(['usage_detail', 'daily_active_copilot_code_review_users'], 'teams.legendCodeReview') }
 
       // Derive language & editor comparisons from breakdown across all days per team
       const langComp: LanguageTeamData[] = []
@@ -670,6 +630,9 @@ export default defineComponent({
         }
       })
       aggregatedTotalActiveUsers.value = totalActive
+      } finally {
+        teamMetricsLoading.value = false
+      }
     }
 
     // Load teams on mount, then react to selection changes
@@ -681,8 +644,12 @@ export default defineComponent({
     }, { deep: true })
 
     return {
+      chartTooltips,
+      t,
       // derived props to avoid duplicate key in template scope
       dateRangeDesc: props.dateRangeDescription,
+      teamsInitialLoading,
+      teamMetricsLoading,
       // state
       availableTeams,
       selectedTeams,

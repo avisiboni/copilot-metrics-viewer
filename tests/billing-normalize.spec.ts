@@ -1,0 +1,45 @@
+import { describe, expect, test } from 'vitest'
+import {
+  isPremiumRequestSku,
+  normalizeBillingSku,
+  normalizeBillingUsageLineItem,
+  normalizePremiumRequestUsageItem
+} from '../shared/utils/billing-normalize'
+import { aggregatePremiumCreditsByUser } from '../shared/utils/premium-credits'
+
+describe('billing-normalize', () => {
+  test('matches premium SKU from REST', () => {
+    expect(isPremiumRequestSku('Copilot Premium Request')).toBe(true)
+    expect(isPremiumRequestSku('copilot_premium_request')).toBe(true)
+    expect(normalizeBillingSku('Copilot Enterprise')).toBe('copilot_enterprise')
+  })
+
+  test('normalizes REST usage line with camelCase', () => {
+    const item = normalizeBillingUsageLineItem({
+      product: 'copilot',
+      sku: 'Copilot Premium Request',
+      quantity: 47,
+      username: 'alice'
+    })
+    expect(item.sku).toBe('Copilot Premium Request')
+    expect(isPremiumRequestSku(item.sku)).toBe(true)
+    expect(item.username).toBe('alice')
+  })
+
+  test('aggregates from API-shaped premium items without username (org aggregate only)', () => {
+    const map = aggregatePremiumCreditsByUser({
+      available: true,
+      detailedUsage: [],
+      summaryUsage: [],
+      premiumRequestUsage: [
+        normalizePremiumRequestUsageItem({
+          product: 'Copilot',
+          sku: 'Copilot Premium Request',
+          model: 'Claude Opus 4.7',
+          grossQuantity: 100
+        })
+      ]
+    })
+    expect(map.size).toBe(0)
+  })
+})

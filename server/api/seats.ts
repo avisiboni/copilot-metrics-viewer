@@ -2,6 +2,7 @@ import { Seat } from "@/model/Seat";
 import { readFileSync } from 'fs';
 import { Options } from '@/model/Options';
 import { resolve } from 'path';
+import { shouldUseMockData } from '../../shared/utils/mock-mode';
 
 // Minimal shape of a GitHub team member object we care about
 export interface TeamMember {
@@ -87,8 +88,15 @@ function deduplicateSeats(seats: Seat[]): Seat[] {
 export default defineEventHandler(async (event) => {
 
   const logger = console;
+  const config = useRuntimeConfig(event);
   const query = getQuery(event);
-  const options = Options.fromQuery(query);
+  const options = Options.fromQuery(query, config.public);
+
+  if (shouldUseMockData(config.public, query)) {
+    options.isDataMocked = true;
+  } else {
+    options.isDataMocked = false;
+  }
 
   const apiUrl = options.getSeatsApiUrl();
   const mockedDataPath = options.getSeatsMockDataPath();

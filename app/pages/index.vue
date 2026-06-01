@@ -1,13 +1,13 @@
 <script lang="ts" setup>
 import { useRoute } from 'vue-router';
-import './assets/global.css';
+import { shouldUseMockData } from '../../shared/utils/mock-mode';
 
 const route = useRoute();
 
 // TODO: there might be a better way than overriding the config with route
 const config = useRuntimeConfig();
 
-if(route.query.mock) {
+if (shouldUseMockData(config.public, route.query)) {
   config.public.isDataMocked = true;
   config.public.usingGithubAuth = false;
 }

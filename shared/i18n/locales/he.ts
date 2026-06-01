@@ -20,6 +20,7 @@ const he: MessageTree = {
     hebrew: 'עברית',
   },
   header: {
+    /** Fallback only; runtime title uses NUXT_PUBLIC_BRAND_APP_NAME */
     appName: 'Copilot Metrics Viewer',
     scopeEnterprise: 'ארגון-על',
     scopeOrganization: 'ארגון',
@@ -552,14 +553,27 @@ const he: MessageTree = {
     breakdownAcceptanceRateByLines:
       'שיעור קבלה לפי שורות קוד לחמש ממדים מובילים. שימושי כשגודל השינוי משתנה.',
     adoptionPhases:
-      'משתמשים לפי שלב אימוץ AI מ-API מדדי שימוש Copilot (חלון 28 יום). שלב 0 = ללא cohort; 1 = קודם; 2 = סוכן; 3 = רב-סוכנים.',
+      'שלבי אימוץ Copilot ל-28 יום (≥2 ימים פעילים): ללא cohort, Code first, Agent first, Multi-agent. בכל כרטיס — מעורבים ב-cohort וספירה מדוח המשתמשים כששניהם זמינים.',
   },
   adoption: {
     panelTitle: 'קבוצות אימוץ AI',
     panelSubtitle:
       'סיווג משתמשים בחלון 28 יום מתגלגל (GitHub Copilot usage metrics API). השלבים מבוססים על אילו משטחי Copilot נוצלו בלפחות יומיים.',
+    panelTooltip:
+      'GitHub מסווג כל משתמש לשלב אימוץ מ-28 הימים האחרונים (לפחות 2 ימים פעילים): ללא cohort → Code first (בעיקר IDE) → Agent first → Multi-agent.',
+    panelTooltipDual:
+      'בכל כרטיס שני מספרים: מעורבים ב-cohort — סיכום ארגון מדוח 28 יום; בדוח משתמשים — משתמשים עם התווית בטבלת Users (כמו בעמודת השלב).',
+    dualMetricsNote:
+      'שני מונים: מעורבים ב-cohort לפי דוח ארגון (28 יום, ≥2 ימים פעילים) לעומת תוויות בדוח המשתמשים (כמו בעמודת הטבלה).',
+    kpiSectionCohort: 'מעורבים ב-cohort (דוח ארגון 28 יום)',
+    kpiSectionReport: 'מתויגים בדוח משתמשים',
     engagedUsers: 'משתמשים מעורבים',
+    engagedUsersCohort: 'מעורבים ב-cohort',
+    labeledInReport: 'בדוח משתמשים',
     chartUsersByPhase: 'משתמשים לפי שלב אימוץ',
+    chartCohortEngaged: 'מעורבים ב-cohort',
+    chartLabeledInReport: 'מתויגים בדוח',
+    colLabeledUsers: 'בדוח משתמשים',
     tableTitle: 'ממוצעים לפי cohort',
     tableSubtitle: 'ממוצעים למשתמש בכל שלב (לא סכומים).',
     colPhase: 'שלב',

@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
 export async function getTeams(event: H3Event<EventHandlerRequest>): Promise<Team[]> {
     const logger = console
     const query = getQuery(event)
-    const options = Options.fromQuery(query)
+    const options = Options.fromQuery(query, config.public)
     const config = useRuntimeConfig(event)
 
     // Fill missing scope/context from runtime config

@@ -4,6 +4,8 @@
  */
 import type { QueryObject } from 'ufo';
 import type { RouteLocationNormalizedLoadedGeneric } from 'vue-router';
+import { isEnvTruthy } from '../../shared/utils/env-boolean';
+import { shouldUseMockData } from '../../shared/utils/mock-mode';
 
 export type Scope = 'organization' | 'enterprise' | 'team-organization' | 'team-enterprise';
 
@@ -79,8 +81,7 @@ export class Options {
         if (since) options.since = since;
         if (until) options.until = until;
 
-        // Handle mocking
-        if (route.query.mock || config.public.isDataMocked) {
+        if (shouldUseMockData(config.public, route.query)) {
             options.isDataMocked = true;
         }
 
@@ -141,7 +142,10 @@ export class Options {
         return options;
     }
 
-    static fromQuery(query: QueryObject): Options {
+    static fromQuery(
+        query: QueryObject,
+        runtimePublic?: RuntimeConfig['public']
+    ): Options {
         const options = new Options({
             since: query.since as string | undefined,
             until: query.until as string | undefined,
@@ -161,7 +165,27 @@ export class Options {
             options.excludeHolidays = query.excludeHolidays === 'true';
         }
 
+        if (runtimePublic) {
+            options.applyRuntimeDefaults(runtimePublic);
+        }
+
         return options;
+    }
+
+    /** Fill scope/org/ent/team from Nuxt runtime config when not set on the query string. */
+    applyRuntimeDefaults(runtimePublic: RuntimeConfig['public']): void {
+        if (!this.scope) {
+            this.scope = (runtimePublic.scope as Scope) || 'organization';
+        }
+        if (!this.githubOrg && runtimePublic.githubOrg) {
+            this.githubOrg = runtimePublic.githubOrg;
+        }
+        if (!this.githubEnt && runtimePublic.githubEnt) {
+            this.githubEnt = runtimePublic.githubEnt;
+        }
+        if (!this.githubTeam && runtimePublic.githubTeam) {
+            this.githubTeam = runtimePublic.githubTeam;
+        }
     }
 
     /**
@@ -262,7 +286,7 @@ export class Options {
     }
 
     /**
-     * Get the API URL based on scope and configuration
+     * Get the Copilot usage metrics report API URL (replaces deprecated /copilot/metrics).
      */
     getApiUrl(): string {
         const baseUrl = 'https://api.github.com';
@@ -270,44 +294,30 @@ export class Options {
 
         switch (this.scope) {
             case 'team-organization':
-                if (!this.githubOrg || !this.githubTeam) {
-                    throw new Error('GitHub organization and team must be set for team-organization scope');
-                }
-                url = `${baseUrl}/orgs/${this.githubOrg}/team/${this.githubTeam}/copilot/metrics`;
-                break
-
             case 'organization':
                 if (!this.githubOrg) {
                     throw new Error('GitHub organization must be set for organization scope');
                 }
-                url = `${baseUrl}/orgs/${this.githubOrg}/copilot/metrics`;
+                url = `${baseUrl}/orgs/${this.githubOrg}/copilot/metrics/reports/organization-28-day/latest`;
                 break;
 
             case 'team-enterprise':
-                if (!this.githubEnt || !this.githubTeam) {
-                    throw new Error('GitHub enterprise and team must be set for team-enterprise scope');
-                }
-                url = `${baseUrl}/enterprises/${this.githubEnt}/team/${this.githubTeam}/copilot/metrics`;
-                break;
-
             case 'enterprise':
                 if (!this.githubEnt) {
                     throw new Error('GitHub enterprise must be set for enterprise scope');
                 }
-                url = `${baseUrl}/enterprises/${this.githubEnt}/copilot/metrics`;
-                break
+                url = `${baseUrl}/enterprises/${this.githubEnt}/copilot/metrics/reports/enterprise-28-day/latest`;
+                break;
 
             default:
                 throw new Error(`Invalid scope: ${this.scope}`);
         }
 
-        if (this.since || this.until) {
-            const sinceParam = this.since ? `since=${encodeURIComponent(this.since)}` : '';
-            const untilParam = this.until ? `until=${encodeURIComponent(this.until)}` : '';
-            const params = [sinceParam, untilParam].filter(Boolean).join('&');
-            url += params ? `?${params}` : '';
-        }
         return url;
+    }
+
+    getTeamMetricsApiUrl(): string {
+        return '/api/team-metrics';
     }
 
     /**

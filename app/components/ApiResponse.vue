@@ -1,11 +1,12 @@
 <template>
   <v-container>
     <div class="copy-container">
-      <v-btn @click="checkMetricsDataQuality">Check Metric data quality</v-btn>
+      <v-btn @click="checkMetricsDataQuality">{{ t('api.checkQuality') }}</v-btn>
       <v-spacer/>
-      <v-btn @click="copyToClipboard('metricsJsonText')">Copy Metrics to Clipboard</v-btn>
-      <v-btn color="primary" @click="downloadMetricsCSV">Download CSV (Summary)</v-btn>
-      <v-btn color="secondary" @click="downloadFullMetricsCSV">Download CSV (Full)</v-btn>
+      <v-btn @click="copyToClipboard('metricsJsonText')">{{ t('api.copyClipboard') }}</v-btn>
+      <v-btn color="primary" @click="downloadMetricsCSV">{{ t('api.downloadCsvSummary') }}</v-btn>
+      <v-btn color="secondary" class="ms-2" @click="downloadFullMetricsCSV">{{ t('api.downloadCsvFull') }}</v-btn>
+      <v-btn color="success" class="ms-2" @click="downloadFullMetricsNDJSON">{{ t('api.downloadNdjson') }}</v-btn>
     </div>
     <transition name="fade">
       <div v-if="showQualityMessage || showCopyMessage || showSeatMessage" :class="{'copy-message': true, 'error': isError}">{{ message }}</div>
@@ -19,7 +20,7 @@
       <br>
       
       <div class="copy-container">
-        <v-btn @click="showSeatCount">Show Assigned Seats count</v-btn>
+        <v-btn @click="showSeatCount">{{ t('api.showSeatCount') }}</v-btn>
         <transition name="fade">
           <div v-if="showSeatMessage" :class="{'copy-message': true, 'error': isError}">{{ message }}</div>
         </transition>
@@ -41,6 +42,10 @@ import type { Metrics } from '@/model/Metrics';
 
 export default defineComponent({
   name: 'ApiResponse',
+  setup() {
+    const { t } = useAppI18n()
+    return { t }
+  },
   props: {
     originalMetrics: {
       type: Array as () => CopilotMetrics[],
@@ -70,11 +75,11 @@ export default defineComponent({
       const jsonText = this.$refs[refName] as HTMLElement;
       navigator.clipboard.writeText(jsonText.innerText)
         .then(() => {
-          this.message = 'Copied to clipboard!';
+          this.message = (this.t as (k: string) => string)('api.copied');
           this.isError = false;
         })
         .catch(err => {
-          this.message = 'Could not copy text!';
+          this.message = (this.t as (k: string) => string)('api.copyFailed');
           this.isError = true;
           console.error('Could not copy text: ', err);
         });
@@ -88,7 +93,7 @@ export default defineComponent({
     showSeatCount() {
       const seatCount = this.seats.length;
       //console.log('Seat count:', seatCount);
-      this.message = `Seat count: ${seatCount}`;
+      this.message = (this.t as (k: string, p?: Record<string, number>) => string)('api.seatCount', { count: seatCount });
 
       this.showSeatMessage = true;
       setTimeout(() => {
@@ -110,10 +115,10 @@ export default defineComponent({
       const allValid = Object.values(results).every((result: any) => result.length === 0);
 
       if (allValid) {
-        this.message = 'All metrics are valid!';
+        this.message = (this.t as (k: string) => string)('api.allValid');
         this.isError = false;
       } else {
-        this.message = 'Some metrics might be inconsistent, please double check the API response.\n';
+        this.message = `${(this.t as (k: string) => string)('api.inconsistent')}\n`;
         this.isError = true;
         let typeCounter = 1;
         for (const [key, value] of Object.entries(results)) {
@@ -139,14 +144,14 @@ export default defineComponent({
           const currentDate = new Date().toISOString().split('T')[0];
           const filename = `copilot-metrics-summary-${currentDate}.csv`;
           downloadCSV(csvContent, filename);
-          this.message = 'Summary CSV file downloaded successfully!';
+          this.message = (this.t as (k: string) => string)('api.csvSummaryOk');
           this.isError = false;
         } else {
-          this.message = 'No metrics data available to export.';
+          this.message = (this.t as (k: string) => string)('api.noExportData');
           this.isError = true;
         }
       } catch (error) {
-        this.message = 'Error generating CSV file.';
+        this.message = (this.t as (k: string) => string)('api.csvError');
         this.isError = true;
         console.error('Error generating CSV:', error);
       }
@@ -166,16 +171,59 @@ export default defineComponent({
           const currentDate = new Date().toISOString().split('T')[0];
           const filename = `copilot-metrics-full-${currentDate}.csv`;
           downloadCSV(csvContent, filename);
-          this.message = 'Full CSV file downloaded successfully!';
+          this.message = (this.t as (k: string) => string)('api.csvFullOk');
           this.isError = false;
         } else {
-          this.message = 'No metrics data available to export.';
+          this.message = (this.t as (k: string) => string)('api.noExportData');
           this.isError = true;
         }
       } catch (error) {
-        this.message = 'Error generating CSV file.';
+        this.message = (this.t as (k: string) => string)('api.csvError');
         this.isError = true;
         console.error('Error generating CSV:', error);
+      }
+
+      this.showCopyMessage = true;
+      setTimeout(() => {
+        this.showCopyMessage = false;
+      }, 3000);
+    },
+
+    downloadFullMetricsNDJSON() {
+      try {
+        const rawMetrics = toRaw(this.originalMetrics) as CopilotMetrics[];
+
+        if (!rawMetrics || rawMetrics.length === 0) {
+          this.message = (this.t as (k: string) => string)('api.noExportData');
+          this.isError = true;
+          this.showCopyMessage = true;
+          setTimeout(() => {
+            this.showCopyMessage = false;
+          }, 3000);
+          return;
+        }
+
+        const ndjsonContent = rawMetrics.map((item) => JSON.stringify(item)).join('\n');
+        const currentDate = new Date().toISOString().split('T')[0];
+        const filename = `copilot-metrics-full-${currentDate}.ndjson`;
+
+        const blob = new Blob([ndjsonContent], { type: 'application/x-ndjson' });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        this.message = (this.t as (k: string) => string)('api.ndjsonOk');
+        this.isError = false;
+      } catch (error) {
+        this.message = (this.t as (k: string) => string)('api.ndjsonError');
+        this.isError = true;
+        console.error('Error generating NDJSON:', error);
       }
 
       this.showCopyMessage = true;
@@ -198,7 +246,7 @@ export default defineComponent({
   align-items: center;
 }
 .copy-message {
-  margin-left: 10px;
+  margin-inline-start: 10px;
   font-family: Roboto, sans-serif;
 }
 .copy-message.error {
