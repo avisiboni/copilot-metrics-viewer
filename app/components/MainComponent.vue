@@ -220,6 +220,15 @@
       </div>
     </div>
   </v-main>
+
+  <AiChatPanel
+    v-if="config?.public?.enableAiChat === true"
+    :current-tab="tab"
+    :query-params="aiChatQueryParams"
+    :metrics="metrics"
+    :seats="seats"
+    :total-seats="seats.length"
+  />
 </template>
 <script lang='ts'>
 import type { Metrics } from '@/model/Metrics';
@@ -241,6 +250,9 @@ import DateRangeSelector from './DateRangeSelector.vue'
 import UserMetricsViewer from './UserMetricsViewer.vue'
 import UsageBillingViewer from './UsageBillingViewer.vue'
 import BrandPageSkeleton from './BrandPageSkeleton.vue'
+import AiChatPanel from './AiChatPanel.vue'
+import type { SeatsApiResponse } from '#server/api/seats';
+import { applyHiddenTabs, applyHistoricalModeFilter } from '@/utils/tabUtils';
 import { Options } from '@/model/Options';
 import { useRoute } from 'vue-router';
 import { isEnvTruthy } from '../../shared/utils/env-boolean';
@@ -281,7 +293,8 @@ export default defineNuxtComponent({
     DateRangeSelector,
     UserMetricsViewer,
     UsageBillingViewer,
-    BrandPageSkeleton
+    BrandPageSkeleton,
+    AiChatPanel
   },
   computed: {
     skeletonLayout() {
@@ -497,8 +510,16 @@ export default defineNuxtComponent({
       const insightsIdx = this.tabItems.indexOf('usage insights');
       this.tabItems.splice(insightsIdx + 1, 0, 'teams');
     }
-    
+
     this.config = useRuntimeConfig();
+    this.tabItems = applyHiddenTabs(
+      this.tabItems,
+      String(this.config.public.hiddenTabs || '')
+    );
+    this.tabItems = applyHistoricalModeFilter(
+      this.tabItems,
+      this.config.public.enableHistoricalMode
+    );
     this.syncTabFromRoute();
   },
   async mounted() {
@@ -536,7 +557,14 @@ export default defineNuxtComponent({
         if (seatsError.value) {
           this.processError(seatsError.value as H3Error);
         } else {
-          this.seats = (seatsData.value as Seat[]) || [];
+          const resp = seatsData.value as SeatsApiResponse | Seat[] | null;
+          if (Array.isArray(resp)) {
+            this.seats = resp;
+          } else if (resp?.seats) {
+            this.seats = resp.seats;
+          } else {
+            this.seats = [];
+          }
           this.seatsReady = true;
         }
       }
@@ -551,7 +579,10 @@ export default defineNuxtComponent({
     const branding = useAppBranding();
     const brandLogoSrc = computed(() => branding.value.logoSrc);
     const brandLogoAlt = computed(() => branding.value.logoAlt);
-    const showLogoutButton = computed(() => config.public.usingGithubAuth && loggedIn.value);
+    const showLogoutButton = computed(() => {
+      const providers = String(config.public.authProviders || '').trim();
+      return (config.public.usingGithubAuth || !!providers) && loggedIn.value;
+    });
     const { t, tabLabel, apiLocale, isRtl } = useAppI18n()
     const collapseChevronIcon = computed(() =>
       isRtl.value ? 'mdi-chevron-right' : 'mdi-chevron-left'
@@ -569,7 +600,13 @@ export default defineNuxtComponent({
     const router = useRouter();
 
     const signInRequired = computed(() => {
-      return config.public.usingGithubAuth && !loggedIn.value;
+      const providers = String(config.public.authProviders || '').trim();
+      const isAuthRequired =
+        config.public.requireAuth
+        || config.public.usingGithubAuth
+        || config.public.isPublicApp
+        || !!providers;
+      return isAuthRequired && !loggedIn.value;
     });
 
     const seatsFetch = useFetch('/api/seats', {
@@ -594,6 +631,17 @@ export default defineNuxtComponent({
       sidebarOpen.value = true;
     };
 
+    const aiChatQueryParams = computed(() => {
+      const options = Options.fromRoute(route, dateRange.value.since, dateRange.value.until);
+      return {
+        scope: options.scope,
+        githubOrg: options.githubOrg,
+        githubEnt: options.githubEnt,
+        since: dateRange.value.since,
+        until: dateRange.value.until,
+      };
+    });
+
     return {
       brandLogoSrc,
       brandLogoAlt,
@@ -616,7 +664,9 @@ export default defineNuxtComponent({
       sidebarOpen,
       sidebarRail,
       expandSidebar,
-      collapseSidebarToRail
+      collapseSidebarToRail,
+      config,
+      aiChatQueryParams,
     };
   },
 })

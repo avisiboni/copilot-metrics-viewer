@@ -205,15 +205,21 @@ html[dir='rtl'] .v-field input[type='time']::-webkit-calendar-picker-indicator {
 }
 
 .brand-info-banner {
-  background-color: var(--brand-lavender) !important;
+  background-color: color-mix(in srgb, var(--brand-lavender) 55%, white) !important;
   border-inline-start: 4px solid var(--brand-primary);
-  color: var(--brand-text) !important;
+  color: var(--brand-primary-dark) !important;
+}
+
+.brand-info-banner.v-card,
+.brand-info-banner.v-card.text-caption {
+  color: var(--brand-primary-dark) !important;
 }
 
 .brand-info-banner .text-body-2,
 .brand-info-banner .text-caption,
+.brand-info-banner .v-card-title,
 .brand-info-banner strong {
-  color: var(--brand-text) !important;
+  color: var(--brand-primary-dark) !important;
 }
 
 /* Tonal alerts were rendering solid dark blocks (underlay uses on-surface at full opacity) */
@@ -321,7 +327,7 @@ html[dir='rtl'] .v-field input[type='time']::-webkit-calendar-picker-indicator {
 }
 
 .brand-metric-card--purple {
-  --kpi-bg: var(--kpi-tint-lavender-bg);
+  --kpi-bg: color-mix(in srgb, var(--kpi-tint-lavender-bg) 65%, white);
   --kpi-accent: var(--kpi-tint-lavender-accent);
 }
 
@@ -360,8 +366,14 @@ html[dir='rtl'] .v-field input[type='time']::-webkit-calendar-picker-indicator {
 }
 
 .tiles-container > .brand-kpi-card:nth-child(4n + 3) {
-  --kpi-bg: var(--kpi-tint-lavender-bg);
+  --kpi-bg: color-mix(in srgb, var(--kpi-tint-lavender-bg) 65%, white);
   --kpi-accent: var(--kpi-tint-lavender-accent);
+}
+
+.tiles-container > .brand-kpi-card:nth-child(4n + 3) .brand-kpi-card__label,
+.tiles-container > .brand-kpi-card:nth-child(4n + 3) .brand-kpi-card__value,
+.tiles-container > .brand-kpi-card:nth-child(4n + 3) .brand-kpi-card__hint {
+  color: var(--brand-primary-dark) !important;
 }
 
 .tiles-container > .brand-kpi-card:nth-child(4n + 4) {
@@ -410,8 +422,8 @@ html[dir='rtl'] .v-field input[type='time']::-webkit-calendar-picker-indicator {
 .brand-kpi-card .text-h6,
 .brand-metric-kpi .text-caption {
   font-size: 0.875rem !important;
-  font-weight: 500 !important;
-  color: #6e6e7a !important;
+  font-weight: 600 !important;
+  color: #343546 !important;
   line-height: 1.35 !important;
 }
 
@@ -441,7 +453,7 @@ html[dir='rtl'] .v-field input[type='time']::-webkit-calendar-picker-indicator {
 .brand-kpi-card .text-caption:not(.brand-kpi-card__label),
 .brand-kpi-card .text-subtitle2 {
   font-size: 0.75rem !important;
-  color: #9494a1 !important;
+  color: #52525f !important;
   line-height: 1.35 !important;
 }
 
@@ -483,10 +495,64 @@ html[dir='rtl'] .v-field input[type='time']::-webkit-calendar-picker-indicator {
 
 .brand-kpi-card--interactive.brand-kpi-card--active,
 .brand-kpi-card--interactive.brand-kpi-card--active:hover {
+  background: #ffffff !important;
   box-shadow:
     0 8px 28px rgba(100, 54, 223, 0.18),
     inset 0 0 0 2px var(--brand-primary) !important;
   transform: translateY(-1px);
+}
+
+/* KPI tiles — always dark text on pastel backgrounds (never theme primary on primary) */
+.brand-kpi-card.v-card,
+.v-card.brand-metric-kpi,
+.brand-kpi-card.v-card .v-card-item,
+.brand-kpi-card.v-card .v-card-text,
+.brand-kpi-card.v-card .tiles-text {
+  color: var(--brand-text) !important;
+}
+
+.brand-kpi-card.v-card .brand-kpi-card__label,
+.brand-kpi-card.v-card .text-h6,
+.tiles-container .brand-kpi-card .brand-kpi-card__label,
+.tiles-container .brand-kpi-card .text-h6 {
+  color: #52525f !important;
+}
+
+.brand-kpi-card.v-card .brand-kpi-card__value,
+.brand-kpi-card.v-card .text-h4,
+.brand-kpi-card.v-card .text-h5,
+.tiles-container .brand-kpi-card .brand-kpi-card__value,
+.tiles-container .brand-kpi-card .text-h4 {
+  color: #1f1230 !important;
+}
+
+.brand-kpi-card.v-card .brand-kpi-card__hint,
+.brand-kpi-card.v-card .text-caption,
+.brand-kpi-card.v-card .text-medium-emphasis,
+.tiles-container .brand-kpi-card .brand-kpi-card__hint,
+.tiles-container .brand-kpi-card .text-caption {
+  color: #6e6e7a !important;
+}
+
+.brand-kpi-card.v-card .text-primary,
+.brand-metric-kpi.text-primary,
+.brand-kpi-card.v-card .text-primary {
+  color: #1f1230 !important;
+}
+
+.brand-kpi-card--interactive.brand-kpi-card--active .brand-kpi-card__label,
+.brand-kpi-card--interactive.brand-kpi-card--active .brand-kpi-card__value,
+.brand-kpi-card--interactive.brand-kpi-card--active .brand-kpi-card__hint,
+.brand-kpi-card--interactive.brand-kpi-card--active .text-h6,
+.brand-kpi-card--interactive.brand-kpi-card--active .text-h4,
+.brand-kpi-card--interactive.brand-kpi-card--active .text-caption {
+  color: var(--brand-primary-dark) !important;
+}
+
+.v-card.brand-metric-card--purple .brand-kpi-card__label,
+.v-card.brand-metric-card--purple .brand-kpi-card__hint,
+.v-card.brand-metric-card--purple .brand-kpi-card__value {
+  color: var(--brand-primary-dark) !important;
 }
 
 .brand-kpi-card--interactive:focus-visible {
@@ -798,6 +864,17 @@ html[dir='rtl'] .v-field input[type='time']::-webkit-calendar-picker-indicator {
 }
 
 .user-usage-detail-dialog > .v-card.user-usage-detail {
+  background: #ffffff !important;
+  border: 1px solid #e4e4ec;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.2) !important;
+}
+
+/* Billing SKU detail dialog — solid white panel */
+.billing-sku-detail-dialog {
+  z-index: 2400 !important;
+}
+
+.billing-sku-detail-dialog > .v-card.billing-sku-detail {
   background: #ffffff !important;
   border: 1px solid #e4e4ec;
   box-shadow: 0 16px 48px rgba(15, 23, 42, 0.2) !important;

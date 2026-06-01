@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   aggregateFeatureAdoption,
   aggregateModelUsage,
+  aggregateSkuCosts,
   buildSummary,
   buildUsageInsightsResponse,
   consolidateUserRecords,
@@ -136,6 +137,160 @@ describe('usage-insights-aggregate', () => {
     expect(filtered.summary.totalInteractions).toBe(10)
     expect(filtered.adoptionByPhase.find((r) => r.phase === 2)?.engagedUsers).toBe(1)
     expect(filtered.adoptionByPhase.find((r) => r.phase === 1)?.engagedUsers).toBeUndefined()
+  })
+
+  it('does not double-count SKU costs from summary and detailed billing', () => {
+    const rows = aggregateSkuCosts({
+      available: true,
+      summaryUsage: [
+        {
+          product: 'Copilot',
+          sku: 'enterprise',
+          grossQuantity: 36.038,
+          grossAmount: 1405.47,
+          netAmount: 1405.47
+        }
+      ],
+      detailedUsage: [
+        {
+          product: 'Copilot',
+          sku: 'Copilot Enterprise',
+          quantity: 36.038,
+          grossAmount: 1405.47,
+          netAmount: 1405.47
+        }
+      ],
+      premiumRequestUsage: []
+    })
+    expect(rows).toHaveLength(1)
+    expect(rows[0].sku).toBe('Copilot Enterprise')
+    expect(rows[0].netAmount).toBe(1405.47)
+  })
+
+  it('merges all common GitHub billing SKU alias pairs in one response', () => {
+    const rows = aggregateSkuCosts({
+      available: true,
+      summaryUsage: [
+        {
+          product: 'Copilot',
+          sku: 'Copilot Enterprise',
+          grossQuantity: 112.604,
+          grossAmount: 4391.55,
+          netAmount: 4391.55
+        },
+        {
+          product: 'Copilot',
+          sku: 'enterprise',
+          grossQuantity: 112.604,
+          grossAmount: 4391.55,
+          netAmount: 4391.55
+        },
+        {
+          product: 'Copilot',
+          sku: 'Copilot Premium Request',
+          grossQuantity: 70438.41,
+          grossAmount: 2817.54,
+          netAmount: 1557.05
+        },
+        {
+          product: 'Copilot',
+          sku: 'premium request',
+          grossQuantity: 70438.41,
+          grossAmount: 2817.54,
+          netAmount: 1557.05
+        },
+        {
+          product: 'Actions',
+          sku: 'Actions Linux',
+          grossQuantity: 3,
+          grossAmount: 0.02,
+          netAmount: 0
+        },
+        {
+          product: 'Actions',
+          sku: 'actions linux',
+          grossQuantity: 3,
+          grossAmount: 0.02,
+          netAmount: 0
+        },
+        {
+          product: 'Copilot',
+          sku: 'Copilot AI Credits',
+          grossQuantity: 13196.938,
+          grossAmount: 131.97,
+          netAmount: 0
+        },
+        {
+          product: 'Copilot',
+          sku: 'ai unit',
+          grossQuantity: 13196.938,
+          grossAmount: 131.97,
+          netAmount: 0
+        }
+      ],
+      detailedUsage: [],
+      premiumRequestUsage: []
+    })
+    expect(rows).toHaveLength(4)
+    expect(rows.map((r) => r.sku).sort()).toEqual([
+      'Actions Linux',
+      'Copilot AI Credits',
+      'Copilot Enterprise',
+      'Copilot Premium Request'
+    ])
+    expect(rows.find((r) => r.sku === 'Copilot Enterprise')?.netAmount).toBe(4391.55)
+  })
+
+  it('still sums same SKU across periods when amounts differ', () => {
+    const rows = aggregateSkuCosts({
+      available: true,
+      summaryUsage: [
+        {
+          product: 'Copilot',
+          sku: 'enterprise',
+          grossQuantity: 10,
+          grossAmount: 100,
+          netAmount: 100
+        },
+        {
+          product: 'Copilot',
+          sku: 'enterprise',
+          grossQuantity: 5,
+          grossAmount: 50,
+          netAmount: 50
+        }
+      ],
+      detailedUsage: [],
+      premiumRequestUsage: []
+    })
+    expect(rows).toHaveLength(1)
+    expect(rows[0].netAmount).toBe(150)
+  })
+
+  it('merges enterprise SKU aliases within a single billing source', () => {
+    const rows = aggregateSkuCosts({
+      available: true,
+      summaryUsage: [
+        {
+          product: 'Copilot',
+          sku: 'enterprise',
+          grossQuantity: 10,
+          grossAmount: 100,
+          netAmount: 100
+        },
+        {
+          product: 'Copilot',
+          sku: 'Copilot Enterprise',
+          grossQuantity: 10,
+          grossAmount: 100,
+          netAmount: 100
+        }
+      ],
+      detailedUsage: [],
+      premiumRequestUsage: []
+    })
+    expect(rows).toHaveLength(1)
+    expect(rows[0].netAmount).toBe(100)
   })
 
   it('builds full response with billing unavailable', () => {

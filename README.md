@@ -1,11 +1,42 @@
 _NOTE: For information on support and assistance, click [here](https://github.com/github-copilot-resources/copilot-metrics-viewer/tree/main?tab=readme-ov-file#support)._
 
+> **ℹ️ v3.0 — New Copilot Usage Metrics API**
+>
+> As of v3.0, Copilot Metrics Viewer uses the [Copilot Usage Metrics API](https://docs.github.com/en/enterprise-cloud@latest/rest/copilot/copilot-usage-metrics). The legacy Copilot Metrics API was shut down on April 2, 2026 and is no longer available.
+>
+> **What's new in v3.0:**
+> - Uses the async Copilot Usage Metrics API for all data
+> - **Historical mode** with PostgreSQL for data beyond the 28-day rolling window
+> - **Per-user metrics** tab with individual usage breakdowns
+> - **Team metrics derived from per-user data** — no longer requires the deprecated team-level API endpoints
+> - Sync service for automated daily data collection
+>
+> Your GitHub App needs **"Organization Copilot metrics: Read"** permission. See [GitHub App Registration](./DEPLOYMENT.md#github-app-registration) for setup details.
+
 # GitHub Copilot Metrics Viewer
 <p align="center">
   <img width="150" alt="image" src="https://github.com/github-copilot-resources/copilot-metrics-viewer/assets/3329307/8473a694-217e-4aa2-a3c7-2222a321c336">
 </p>
 
-This application displays a set of charts with various metrics related to GitHub Copilot for your <i>GitHub Organization</i> or <i>Enterprise Account</i>. These visualizations are designed to provide clear representations of the data, making it easy to understand and analyze the impact and adoption of GitHub Copilot. This app utilizes the [GitHub Copilot Metrics API](https://docs.github.com/en/enterprise-cloud@latest/rest/copilot/copilot-usage?apiVersion=2022-11-28).
+This application displays a set of charts with various metrics related to GitHub Copilot for your <i>GitHub Organization</i> or <i>Enterprise Account</i>. These visualizations are designed to provide clear representations of the data, making it easy to understand and analyze the impact and adoption of GitHub Copilot. 
+
+## Operating Modes
+
+The application supports two operating modes:
+
+| Mode | Description | Requirements | Team Metrics | Data Retention |
+|------|-------------|--------------|--------------|----------------|
+| **Direct API** | Fetches metrics directly from GitHub's API on each page load | GitHub token only | ❌ Not available | Rolling 28 days |
+| **Historical Mode** | Reads from a local PostgreSQL database, synced daily | PostgreSQL + Sync service | ✅ Full history | Unlimited |
+
+**Direct API mode** is the simplest setup — no database required. It returns the latest 28-day rolling window of data from the [Copilot Usage Metrics API](https://docs.github.com/en/enterprise-cloud@latest/rest/copilot/copilot-usage-metrics). Team-scoped views are not available in this mode because team metrics are derived from per-user records stored in the database.
+
+**Historical mode** adds a PostgreSQL database and a sync service that downloads metrics daily. This enables:
+- Viewing metrics **beyond the 28-day API window**
+- **Per-user time-series history** with trend charts
+- **Team metrics** — derived from stored per-user data filtered by team membership
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for setup instructions for each mode.
 
 ## Documentation (Docusaurus)
 
@@ -36,22 +67,53 @@ Users can now filter metrics for custom date ranges up to 100 days, with an intu
   <img width="800" alt="Date Range Filter" src="./images/date-range-filter.png">
 </p>
 
-### Teams Comparison
-Compare Copilot metrics across multiple teams within your organization to understand adoption patterns and identify high-performing teams.
+### Teams Tab
+Select **one team** for a full deep-dive view with KPI tiles, time-series charts (acceptance rate, active users, feature usage, model usage), language and editor breakdowns, and a per-user activity table. Select **two or more teams** to compare them side by side.
 
+> [!NOTE]
+> GitHub's Copilot Usage Metrics API does not provide team-level endpoints. Team metrics are **derived** by fetching per-user daily metrics from the organization/enterprise endpoint, resolving team membership via the GitHub Teams API, and aggregating per-user data in-memory. This works in both Direct API mode (28-day window) and Historical mode (full history).
+
+**Single team deep dive:**
+<p align="center">
+  <img width="800" alt="Teams Single Team Deep Dive" src="./images/teams-single-team.png">
+</p>
+
+**Multi-team comparison:**
 <p align="center">
   <img width="800" alt="Teams Comparison" src="./images/teams-comparison.png">
 </p>
 
-### GitHub.com Integration & Model Analytics
-View comprehensive statistics for GitHub.com features including Chat, PR Summaries, and detailed model usage analytics. Each section provides expandable details showing model types, editors, and usage patterns.
+#### Team-Scoped Direct URLs
+
+You can link directly to a fully team-scoped dashboard — every tab (IDE metrics, chat, agents, languages, etc.) will automatically filter to that team's members only. A blue banner at the top of the page confirms the active scope and provides a quick link back to the organization view.
+
+```
+https://<your-host>/orgs/<org>/teams/<team>
+https://<your-host>/enterprises/<enterprise>/teams/<team>
+```
+
+Examples:
+- `http://localhost:3000/orgs/octo-demo-org/teams/the-a-team`
+- `http://localhost:3000/enterprises/octo-demo-ent/teams/the-a-team`
+- `http://localhost:3000/orgs/mocked-org/teams/the-a-team?mock=true` _(mock data)_
 
 <p align="center">
-  <img width="800" alt="GitHub.com Tab" src="./images/github-com-tab.png">
+  <img width="800" alt="Team-scoped dashboard showing blue banner with team name and Back to Org button" src="./images/team-scoped-dashboard.png">
 </p>
 
+### Per-User Metrics
+View individual user-level Copilot usage metrics including code completions, chat interactions, and code review activity. Summary tiles show total users, active users, and average acceptance rate.
+
+In **Historical mode** (with PostgreSQL), the User Metrics tab also displays per-user time-series history charts, allowing you to track individual adoption trends over time.
+
 <p align="center">
-  <img width="800" alt="Model Usage Details" src="./images/github-com-models-expanded.png">
+  <img width="800" alt="Per-User Metrics" src="./images/user-metrics.png">
+</p>
+### Models Tab
+View model usage analytics including model adoption over time, chat model distribution, and usage per chat mode (Ask, Agent, Edit, Inline).
+
+<p align="center">
+  <img width="800" alt="Models Tab" src="./images/models-tab.png">
 </p>
 
 ### CSV Export Functionality
@@ -65,24 +127,24 @@ Export your metrics data in multiple formats for further analysis or reporting. 
 
 ## Key Metrics
 >[!NOTE]
-> Metrics details are described in detail in [GitHub API response schema](https://docs.github.com/en/rest/copilot/copilot-metrics?apiVersion=2022-11-28#get-copilot-metrics-for-an-organization)
+> Metrics details are described in detail in the [Copilot Usage Metrics API documentation](https://docs.github.com/en/enterprise-cloud@latest/rest/copilot/copilot-usage-metrics)
 
 Here are the key metrics visualized in these charts:
 <p align="center">
   <img width="800" alt="Key Metrics Overview" src="./images/main-metrics-dashboard.png">
 </p>
 
-1. **Acceptance Rate:** This metric represents the ratio of accepted lines and suggestions to the total suggested by GitHub Copilot. This rate is an indicator of the relevance and usefulness of Copilot's suggestions. However, as with any metric, it should be used with caution as developers use Copilot in many different ways (research, confirm, verify, etc., not always "inject").
+1. **Active Users Over Time:** Tracks daily, weekly, and monthly active users across all Copilot features — IDE completions, chat, agent mode, CLI, and PR summaries.
 <p align="center">
-  <img width="800" alt="image" src="./images/Acceptance_rate_bycount.png">
+  <img width="800" alt="Active Users Over Time" src="./images/Acceptance_rate_bycount.png">
 </p>
 
-2. **Total Suggestions:** This chart illustrates the total number of code suggestions made by GitHub Copilot. It offers a view of the tool's activity and its engagement with users over time.
-
-3. **Total Acceptances:** This visualization focuses on the total number of suggestions accepted by users.
+2. **Feature Usage Over Time:** Shows user-initiated interactions per feature per day, covering IDE chat, agent mode, edit mode, inline chat, CLI, PR summaries, and more.
 <p align="center">
-  <img width="800" alt="image" src="./images/Total_suggestions_count.png">
+  <img width="800" alt="Feature Usage Over Time" src="./images/Total_suggestions_count.png">
 </p>
+
+3. **Code Completions:** Tracks total inline code suggestions shown and accepted over time.
 
 4. **Total Lines Suggested:** Showcases the total number of lines of code suggested by GitHub Copilot. This gives an idea of the volume of code generation and assistance provided.
 
@@ -151,6 +213,9 @@ Organizations can compare metrics across different teams to:
 - Share best practices across teams
 - Monitor team-specific engagement levels
 
+> [!NOTE]
+> Team metrics are derived from per-user data by resolving GitHub team membership and aggregating. The GitHub Copilot Usage Metrics API does not have dedicated team endpoints — this application computes team views automatically. In Direct API mode, team data covers the latest 28-day window. In Historical mode (with PostgreSQL), full historical team trends are available.
+
 ### Model Usage Analytics
 Detailed insights into AI model usage including:
 - IDE Code Completions by editor and model type
@@ -168,7 +233,8 @@ Public variables:
 - `NUXT_PUBLIC_SCOPE`
 - `NUXT_PUBLIC_GITHUB_ENT`
 - `NUXT_PUBLIC_GITHUB_ORG`
-- `NUXT_PUBLIC_GITHUB_TEAM`
+- `NUXT_PUBLIC_HIDDEN_TABS`
+- `NUXT_PUBLIC_ENABLE_HISTORICAL_MODE`
 
 can be overridden by route parameters, e.g.
 - `http://localhost:3000/enterprises/your-enterprise`
@@ -177,13 +243,17 @@ can be overridden by route parameters, e.g.
 - `http://localhost:3000/enterprises/your-enterprise/teams/your-team`
 - `http://localhost:3000/orgs/mocked-org?mock=true`
 
+When navigating to a team-scoped URL, a blue banner appears at the top confirming the active team scope and offering a **Back to org** button. All tabs automatically filter to team members only.
+
 #### NUXT_PUBLIC_SCOPE (Required!)
 
-The `NUXT_PUBLIC_SCOPE` environment variable in the `.env` file determines the default scope of the API calls made by the application. It can be set to 'enterprise', 'organization', 'team-organization' or 'team-enterprise'.
+The `NUXT_PUBLIC_SCOPE` environment variable in the `.env` file determines the default scope of the API calls made by the application. It can be set to `'enterprise'` or `'organization'`.
 
-- If set to 'enterprise', the application will target API calls to the GitHub Enterprise account defined in the `NUXT_PUBLIC_GITHUB_ENT` variable.
-- If set to 'organization', the application will target API calls to the GitHub Organization account defined in the `NUXT_PUBLIC_GITHUB_ORG` variable.
-- If set to 'team', the application will target API calls to GitHub Team defined in the `NUXT_PUBLIC_GITHUB_TEAM` variable under `NUXT_PUBLIC_GITHUB_ORG` GitHub Organization.
+- If set to `'enterprise'`, the application will target API calls to the GitHub Enterprise account defined in the `NUXT_PUBLIC_GITHUB_ENT` variable.
+- If set to `'organization'`, the application will target API calls to the GitHub Organization account defined in the `NUXT_PUBLIC_GITHUB_ORG` variable.
+- To view team-level metrics, use the Teams tab or navigate to `/orgs/<org>/teams/<team>` — team filtering is applied as a post-processing step.
+
+> **Note:** Legacy values `'team-organization'` and `'team-enterprise'` are still accepted and automatically normalized to `'organization'` and `'enterprise'` respectively for backward compatibility.
 
 For example, if you want to target the API calls to an organization, you would set `NUXT_PUBLIC_SCOPE=organization` in the `.env` file.
 
@@ -199,18 +269,6 @@ NUXT_PUBLIC_GITHUB_ORG=<YOUR-ORGANIZATION>
 NUXT_PUBLIC_GITHUB_ENT=
 ````
 
-#### NUXT_PUBLIC_GITHUB_TEAM
-
-The `NUXT_PUBLIC_GITHUB_TEAM` environment variable filters metrics for a specific GitHub team within an Enterprise or Organization account.
-‼️ Important ‼️ When this variable is set, all displayed metrics will pertain exclusively to the specified team. To view metrics for the entire Organization or Enterprise, remove this environment variable.
-
->[!WARNING]
-> GitHub provides Team metrics [for a given day if the team had five or more members with active Copilot licenses, as evaluated at the end of that day.](https://docs.github.com/en/rest/copilot/copilot-usage?apiVersion=2022-11-28#get-a-summary-of-copilot-usage-for-a-team).
-
-````
-NUXT_PUBLIC_GITHUB_TEAM=
-````
-
 #### NUXT_PUBLIC_IS_DATA_MOCKED
 
 Variable is false by default. To view mocked data switch it to true or use query parameter `?mock=true`.
@@ -221,13 +279,42 @@ NUXT_PUBLIC_IS_DATA_MOCKED=false
 
 #### NUXT_GITHUB_TOKEN
 
-Specifies the GitHub Personal Access Token utilized for API requests. Generate this token with the following scopes: _copilot_, _manage_billing:copilot_, _manage_billing:enterprise_, _read:enterprise_, _read:org_.
+Specifies the GitHub Personal Access Token utilized for API requests. Generate this token with the following permissions: _Read access to members_, _organization copilot metrics_, and _organization copilot seat management_.
+
+> [!IMPORTANT]
+> **v3.0 Migration:** The new Copilot Usage Metrics API requires **Read access to members, organization copilot metrics, and organization copilot seat management** permissions. Without this, the new API endpoints will return 400/403 errors. See [GitHub App Registration](DEPLOYMENT.md#github-app-registration) for setup details.
 
 Token is not used in the frontend.
 
 ````
 NUXT_GITHUB_TOKEN=
 ````
+
+#### NUXT_GITHUB_API_BASE_URL
+
+Optional. Overrides the GitHub API base URL used for all server-side API calls. Set this when accessing GitHub at **GHE.com** (GitHub Enterprise Cloud with data residency), where the API is available at a dedicated subdomain.
+
+```
+NUXT_GITHUB_API_BASE_URL=https://api.SUBDOMAIN.ghe.com
+```
+
+Defaults to `https://api.github.com` when not set. Leave unset for standard GitHub.com and GitHub Enterprise Cloud (non-data-residency) deployments.
+
+> [!NOTE]
+> **GHES (GitHub Enterprise Server) is not supported** — the Copilot usage metrics API is not available on GHES.
+
+#### NUXT_GITHUB_APP_ID / NUXT_GITHUB_APP_PRIVATE_KEY
+
+**Alternative to PAT** — use a GitHub App installation token for backend data access. When both are set, they take priority over `NUXT_GITHUB_TOKEN`. This is the recommended credential when users authenticate via Google, Microsoft, Auth0, or Keycloak (i.e., non-GitHub identity providers), since the token is machine-issued and not tied to any individual user account.
+
+The installation ID is **auto-discovered** from `NUXT_PUBLIC_GITHUB_ORG` — no manual configuration needed. If the App is installed on multiple orgs and no org is configured, users see an org picker after login.
+
+See [GitHub App Installation Token](DEPLOYMENT.md#github-app-installation-token-no-pat-required) in the deployment guide for full setup instructions.
+
+```bash
+NUXT_GITHUB_APP_ID=123456
+NUXT_GITHUB_APP_PRIVATE_KEY=-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----
+```
 
 #### NUXT_SESSION_PASSWORD (Required!)
 
@@ -237,17 +324,72 @@ For more information see [Nuxt Sessions and Authentication](https://nuxt.com/doc
 >[!WARNING]
 > This variable is required starting from version 2.0.0.
 
-#### NUXT_PUBLIC_USING_GITHUB_AUTH
+#### NUXT_PUBLIC_AUTH_PROVIDERS
 
-Default is `false`. When set to `true`, GitHub OAuth App Authentication will be performed to verify users' access to the dashboard. For this, a GitHub App must be registered and installed in the enterprise/org. See [GitHub App Registration](DEPLOYMENT.md#github-app-registration) for the steps to follow.
+Comma-separated list of active OAuth providers: `github`, `google`, `microsoft`, `auth0`, `keycloak`. Setting this variable enables authentication — users must sign in before accessing the dashboard.
 
-Variables required for GitHub Auth are:
-1. `NUXT_OAUTH_GITHUB_CLIENT_ID` - client ID of the GitHub App.
-2. `NUXT_OAUTH_GITHUB_CLIENT_SECRET` - client secret of the GitHub App.
-3. [Optional] `NUXT_OAUTH_GITHUB_CLIENT_SCOPE` for scope requests when using OAuth App instead of GitHub App. See [GitHub docs](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/differences-between-github-apps-and-oauth-apps) for details.
+```
+NUXT_PUBLIC_AUTH_PROVIDERS=github,google
+```
 
->[!WARNING]
-> Only users with permissions (scopes listed in [NUXT_GITHUB_TOKEN](#NUXT_GITHUB_TOKEN)) can view copilot metrics, GitHub uses the authenticated users permissions to make API calls for data.
+The corresponding `NUXT_OAUTH_<PROVIDER>_CLIENT_ID` and `NUXT_OAUTH_<PROVIDER>_CLIENT_SECRET` must also be set. See [Authentication](DEPLOYMENT.md#authentication-1) in DEPLOYMENT.md for full setup instructions per provider.
+
+#### NUXT_AUTHORIZED_USERS
+
+Comma-separated list of logins or email addresses that are allowed to sign in (any provider). When empty (default), all authenticated users are allowed.
+
+```
+NUXT_AUTHORIZED_USERS=alice,bob@company.com
+```
+
+#### NUXT_AUTHORIZED_EMAIL_DOMAINS
+
+Comma-separated list of email domains allowed to sign in. When empty (default), no domain restriction is applied.
+
+```
+NUXT_AUTHORIZED_EMAIL_DOMAINS=company.com
+```
+
+#### OAuth provider variables
+
+| Variable | Provider | Description |
+|---|---|---|
+| `NUXT_OAUTH_GITHUB_CLIENT_ID` | GitHub | App client ID |
+| `NUXT_OAUTH_GITHUB_CLIENT_SECRET` | GitHub | App client secret |
+| `NUXT_OAUTH_GOOGLE_CLIENT_ID` | Google | OAuth client ID |
+| `NUXT_OAUTH_GOOGLE_CLIENT_SECRET` | Google | OAuth client secret |
+| `NUXT_OAUTH_MICROSOFT_CLIENT_ID` | Microsoft | App client ID |
+| `NUXT_OAUTH_MICROSOFT_CLIENT_SECRET` | Microsoft | App client secret |
+| `NUXT_OAUTH_MICROSOFT_TENANT` | Microsoft | Azure AD tenant ID (restricts to org) |
+| `NUXT_OAUTH_AUTH0_CLIENT_ID` | Auth0 | App client ID |
+| `NUXT_OAUTH_AUTH0_CLIENT_SECRET` | Auth0 | App client secret |
+| `NUXT_OAUTH_AUTH0_DOMAIN` | Auth0 | Tenant domain, e.g. `company.auth0.com` |
+| `NUXT_OAUTH_KEYCLOAK_CLIENT_ID` | Keycloak | Client ID |
+| `NUXT_OAUTH_KEYCLOAK_CLIENT_SECRET` | Keycloak | Client secret |
+| `NUXT_OAUTH_KEYCLOAK_SERVER_URL` | Keycloak | Server URL |
+| `NUXT_OAUTH_KEYCLOAK_REALM` | Keycloak | Realm name |
+
+#### NUXT_PUBLIC_HIDDEN_TABS
+
+Comma-separated list of dashboard tab names to hide. Applies at startup without requiring a rebuild — useful for pre-built Docker deployments. The filter is case-insensitive and trims surrounding whitespace.
+
+Available tab names: `languages`, `editors`, `copilot chat`, `agent activity`, `pull requests`, `github.com`, `seat analysis`, `user metrics`, `api response`
+
+````
+# Hide the "Agent Activity" and "API Response" tabs
+NUXT_PUBLIC_HIDDEN_TABS=agent activity,api response
+````
+
+#### NUXT_PUBLIC_ENABLE_HISTORICAL_MODE
+
+Default is `false`. When set to `true`, the application uses a PostgreSQL database (configured via `DATABASE_URL`) to store and query historical Copilot metrics.
+
+> [!IMPORTANT]
+> The **Teams** tab is automatically hidden when `NUXT_PUBLIC_ENABLE_HISTORICAL_MODE` is not `true`. Team-level metrics are derived from per-user daily records in the database (`user_day_metrics` table). Without the database, the teams comparison tab would display identical org-wide data for every team.
+
+````
+NUXT_PUBLIC_ENABLE_HISTORICAL_MODE=false
+````
 
 #### HTTP_PROXY
 

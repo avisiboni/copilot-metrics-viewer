@@ -5,6 +5,7 @@ import type { ConfigOptions } from '@nuxt/test-utils/playwright'
 export default defineConfig<ConfigOptions>({
   ...baseConfig,
   timeout: 30 * 1000, // Increase timeout to 30 seconds
+  grepInvert: /@real-data/,
   expect: {
     timeout: 10 * 1000, // 10 seconds for expect assertions
   },
@@ -55,7 +56,7 @@ export default defineConfig<ConfigOptions>({
     },
   ],
   webServer: {
-    command: 'node /app/server/index.mjs',
+    command: 'NITRO_PORT=3000 node /app/server/index.mjs',
     url: 'http://127.0.0.1:3000',
     cwd: '/app',
     reuseExistingServer: false,

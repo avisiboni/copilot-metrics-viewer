@@ -33,4 +33,12 @@ playwright-logs
 
 # Test results
 test-results
+test-results-old
 results.xml
+
+cody-test-org
+AgentPlan.md
+
+# Temporary output files
+typecheck-output.txt
+errors-grouped.txt

@@ -1,8 +1,5 @@
 import { Options, type Scope } from '@/model/Options'
 import type { H3Event, EventHandlerRequest } from 'h3'
-import { shouldUseMockData } from '../../shared/utils/mock-mode'
-import { assertGitHubApiUrl } from '../../shared/utils/github-api-url'
-import { safeApiErrorMessage } from '../../shared/utils/safe-error-message'
 
 interface Team { name: string; slug: string; description: string }
 interface GitHubTeam { name: string; slug: string; description?: string }
@@ -24,7 +21,7 @@ function parseLinkHeader(linkHeader: string | null): Record<string, string> {
         const match = section.match(/^<([^>]+)>;\s*rel="([^"]+)"/)
         if (match) {
             const [, url, rel] = match
-            links[rel] = url
+            if (rel && url) links[rel] = url
         }
     }
     return links
@@ -38,35 +35,33 @@ export default defineEventHandler(async (event) => {
         return teamsData
     } catch (error: unknown) {
         logger.error('Error fetching teams data:', error)
+        const errorMessage = error instanceof Error ? error.message : String(error)
         const statusCode = (error && typeof error === 'object' && 'statusCode' in error)
             ? (error as { statusCode: number }).statusCode
             : 500
-        const errorMessage = safeApiErrorMessage(error, 'Error fetching teams data')
-        return new Response(errorMessage, { status: statusCode })
+        throw createError({ statusCode, statusMessage: 'Error fetching teams data: ' + errorMessage })
     }
 })
 
 export async function getTeams(event: H3Event<EventHandlerRequest>): Promise<Team[]> {
     const logger = console
     const query = getQuery(event)
-    const options = Options.fromQuery(query, config.public)
-    const config = useRuntimeConfig(event)
+    const options = Options.fromQuery(query)
+    const config = useRuntimeConfig()
 
     // Fill missing scope/context from runtime config
     if (!options.scope && config.public.scope) options.scope = config.public.scope as Scope
-    if (!options.githubOrg && config.public.githubOrg) options.githubOrg = config.public.githubOrg
     if (!options.githubEnt && config.public.githubEnt) options.githubEnt = config.public.githubEnt
-
-    if (shouldUseMockData(config.public, query)) {
-      options.isDataMocked = true
-    } else {
-      options.isDataMocked = false
+    // Only fall back to config githubOrg for organization scope — for enterprise scope,
+    // githubOrg is an explicit org override (Full GHEC) and should not be auto-filled from config.
+    if (!options.githubOrg && config.public.githubOrg && options.scope !== 'enterprise') {
+        options.githubOrg = config.public.githubOrg
     }
 
     if (options.isDataMocked) {
         logger.info('Using mocked data for teams')
         const teams: Team[] = [
-            { name: 'Demo Team', slug: 'demo-team', description: 'A demo team for testing' },
+            { name: 'The A Team', slug: 'the-a-team', description: 'A team of elite agents' },
             { name: 'Development Team', slug: 'dev-team', description: 'Team responsible for development' },
             { name: 'Frontend Team', slug: 'frontend-team', description: 'Team responsible for frontend development' },
             { name: 'Backend Team', slug: 'backend-team', description: 'Team responsible for backend development' },
@@ -75,13 +70,27 @@ export async function getTeams(event: H3Event<EventHandlerRequest>): Promise<Tea
         return teams
     }
 
-    if (!event.context.headers.has('Authorization')) {
+    if (!event.context.headers?.has('Authorization')) {
         logger.error('No Authentication provided')
         throw new TeamsError('No Authentication provided', 401)
     }
 
     // Build base URL based on scope
     const baseUrl = options.getTeamsApiUrl()
+
+    // Build headers: start from auth middleware headers
+    // Add enterprise API version only when using the enterprise teams endpoint
+    // (not when an org is selected in Full GHEC, which uses the standard org teams API)
+    const fetchHeaders: Record<string, string> = {}
+    if (event.context.headers instanceof Headers) {
+        for (const [key, value] of event.context.headers.entries()) {
+            fetchHeaders[key] = value
+        }
+    }
+    if (options.scope === 'enterprise' && !options.githubOrg) {
+        delete fetchHeaders['x-github-api-version']
+        fetchHeaders['X-GitHub-Api-Version'] = '2026-03-10'
+    }
 
     const allTeams: Team[] = []
     let nextUrl: string | null = `${baseUrl}?per_page=100`
@@ -90,7 +99,7 @@ export async function getTeams(event: H3Event<EventHandlerRequest>): Promise<Tea
     while (nextUrl) {
         logger.info(`Fetching teams page ${page} from ${nextUrl}`)
         const res = await $fetch.raw(nextUrl, {
-            headers: event.context.headers
+            headers: fetchHeaders
         })
 
         const data = res._data as GitHubTeam[]
@@ -103,11 +112,7 @@ export async function getTeams(event: H3Event<EventHandlerRequest>): Promise<Tea
 
         const linkHeader = res.headers.get('link') || res.headers.get('Link')
         const links = parseLinkHeader(linkHeader)
-        const next = links['next'] || null
-        if (next) {
-            assertGitHubApiUrl(next)
-        }
-        nextUrl = next
+        nextUrl = links['next'] || null
         page += 1
     }
 

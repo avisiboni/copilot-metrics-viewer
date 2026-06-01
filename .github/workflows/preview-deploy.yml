@@ -1,0 +1,464 @@
+name: Preview Deploy
+
+on:
+  pull_request:
+    types: [labeled, unlabeled, synchronize, closed]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        type: choice
+        options:
+          - deploy
+          - cleanup
+        default: deploy
+
+# Single shared managed environment for all preview deployments.
+# Only one PR can be "live" in the preview at a time (last push wins).
+env:
+  PREVIEW_ENV_NAME: cmv-preview
+  APP_NAME: cmv-app
+  DB_NAME: cmv-db
+  SYNC_NAME: cmv-sync
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    if: |
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'deploy') ||
+      (github.event_name == 'pull_request' && github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'deploy')) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy')
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      pr_number: ${{ steps.meta.outputs.pr_number }}
+      commit_sha: ${{ steps.meta.outputs.commit_sha }}
+      branch: ${{ steps.meta.outputs.branch }}
+
+    steps:
+      - name: Resolve metadata
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+            echo "commit_sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+            echo "branch=${{ github.event.pull_request.head.ref }}" >> $GITHUB_OUTPUT
+          else
+            echo "pr_number=" >> $GITHUB_OUTPUT
+            echo "commit_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.meta.outputs.commit_sha }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push app image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          provenance: false
+          tags: ghcr.io/${{ github.repository }}-preview:preview-latest
+
+      - name: Build and push sync image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.sync
+          push: true
+          provenance: false
+          tags: ghcr.io/${{ github.repository }}-sync-preview:preview-latest
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: |
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'deploy') ||
+      (github.event_name == 'pull_request' && github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'deploy')) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'deploy')
+
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+      pull-requests: write
+      deployments: write
+
+    environment:
+      name: preview
+      url: ${{ steps.app-url.outputs.url }}
+
+    env:
+      PR_NUMBER: ${{ needs.build-and-push.outputs.pr_number }}
+      COMMIT_SHA: ${{ needs.build-and-push.outputs.commit_sha }}
+      BRANCH: ${{ needs.build-and-push.outputs.branch }}
+      PREVIEW_ALLOWED_IPS: ${{ secrets.PREVIEW_ALLOWED_IPS }}
+
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure Log Analytics workspace exists
+        id: logs
+        run: |
+          WS="cmv-preview-logs"
+          if ! az monitor log-analytics workspace show \
+              --workspace-name "$WS" \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              -o none 2>/dev/null; then
+            echo "Creating Log Analytics workspace $WS..."
+            az monitor log-analytics workspace create \
+              --workspace-name "$WS" \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              --location ${{ secrets.AZURE_LOCATION }}
+          fi
+          WS_ID=$(az monitor log-analytics workspace show \
+            --workspace-name "$WS" \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query "customerId" -o tsv)
+          WS_KEY=$(az monitor log-analytics workspace get-shared-keys \
+            --workspace-name "$WS" \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query "primarySharedKey" -o tsv)
+          echo "id=${WS_ID}" >> $GITHUB_OUTPUT
+          echo "::add-mask::${WS_KEY}"
+          echo "key=${WS_KEY}" >> $GITHUB_OUTPUT
+
+      - name: Ensure ACA environment exists
+        run: |
+          if az containerapp env show \
+              --name ${{ env.PREVIEW_ENV_NAME }} \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              -o none 2>/dev/null; then
+            echo "Environment ${{ env.PREVIEW_ENV_NAME }} already exists"
+          else
+            echo "Creating environment ${{ env.PREVIEW_ENV_NAME }}..."
+            az containerapp env create \
+              --name ${{ env.PREVIEW_ENV_NAME }} \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              --location ${{ secrets.AZURE_LOCATION }} \
+              --logs-workspace-id ${{ steps.logs.outputs.id }} \
+              --logs-workspace-key ${{ steps.logs.outputs.key }}
+          fi
+
+      - name: Deploy PostgreSQL container
+        run: |
+          # Resolve the expected environment ARM resource ID
+          ENV_ID=$(az containerapp env show \
+            --name ${{ env.PREVIEW_ENV_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query "id" -o tsv)
+
+          # Check where the DB container currently lives (empty = doesn't exist)
+          CURRENT_ENV=$(az containerapp show \
+            --name ${{ env.DB_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query "properties.managedEnvironmentId" -o tsv 2>/dev/null || echo "")
+
+          if [ "$CURRENT_ENV" = "$ENV_ID" ]; then
+            echo "DB container already in correct environment ✓"
+          else
+            if [ -n "$CURRENT_ENV" ]; then
+              echo "DB container is in a different environment — deleting and recreating..."
+              az containerapp delete \
+                --name ${{ env.DB_NAME }} \
+                --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+                --yes
+            fi
+            echo "Creating DB container in ${{ env.PREVIEW_ENV_NAME }}..."
+            az containerapp create \
+              --name ${{ env.DB_NAME }} \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              --environment ${{ env.PREVIEW_ENV_NAME }} \
+              --image postgres:15-alpine \
+              --min-replicas 1 --max-replicas 1 \
+              --ingress internal --transport tcp --target-port 5432 \
+              --env-vars \
+                POSTGRES_DB=copilot_metrics \
+                POSTGRES_USER=metrics_user \
+                POSTGRES_PASSWORD=${{ secrets.PREVIEW_DB_PASSWORD }}
+          fi
+          # Wait for DB container to reach Running state (up to 3 minutes)
+          echo "Waiting for DB container to be running..."
+          for i in $(seq 1 18); do
+            STATE=$(az containerapp show \
+              --name ${{ env.DB_NAME }} \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              --query "properties.runningStatus" -o tsv 2>/dev/null || echo "unknown")
+            echo "  State: $STATE (attempt $i/18)"
+            [ "$STATE" = "Running" ] && break
+            sleep 10
+          done
+
+      - name: Build DATABASE_URL
+        id: dburl
+        run: |
+          DATABASE_URL="postgresql://metrics_user:${{ secrets.PREVIEW_DB_PASSWORD }}@${{ env.DB_NAME }}:5432/copilot_metrics"
+          echo "::add-mask::$DATABASE_URL"
+          echo "database_url=${DATABASE_URL}" >> $GITHUB_OUTPUT
+
+      - name: Build deploy info string
+        id: deploy-info
+        run: |
+          if [ -n "${{ env.PR_NUMBER }}" ]; then
+            PR_PART="PR #${{ env.PR_NUMBER }}"
+          else
+            PR_PART="${{ env.BRANCH }}"
+          fi
+          SHORT_SHA="${{ env.COMMIT_SHA }}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+          DEPLOY_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          DEPLOY_INFO="${PR_PART} | ${SHORT_SHA} | ${DEPLOY_DATE}"
+          echo "deploy_info=${DEPLOY_INFO}" >> $GITHUB_OUTPUT
+
+      - name: Deploy or update app container
+        run: |
+          # Resolve the expected environment ARM resource ID
+          ENV_ID=$(az containerapp env show \
+            --name ${{ env.PREVIEW_ENV_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query "id" -o tsv)
+
+          # Check where the app container currently lives (empty = doesn't exist)
+          CURRENT_ENV=$(az containerapp show \
+            --name ${{ env.APP_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query "properties.managedEnvironmentId" -o tsv 2>/dev/null || echo "")
+
+          if [ -n "$CURRENT_ENV" ] && [ "$CURRENT_ENV" != "$ENV_ID" ]; then
+            echo "App container is in a different environment — deleting and recreating..."
+            az containerapp delete \
+              --name ${{ env.APP_NAME }} \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              --yes
+            CURRENT_ENV=""
+          fi
+
+          if [ -z "$CURRENT_ENV" ]; then
+            az containerapp create \
+              --name ${{ env.APP_NAME }} \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              --environment ${{ env.PREVIEW_ENV_NAME }} \
+              --image ghcr.io/${{ github.repository }}-preview:preview-latest \
+              --ingress external --target-port 3000 \
+              --min-replicas 1 --max-replicas 1 \
+              --env-vars \
+                NUXT_SESSION_PASSWORD=${{ secrets.NUXT_SESSION_PASSWORD }} \
+                NUXT_GITHUB_TOKEN=${{ secrets.PREVIEW_GITHUB_TOKEN }} \
+                DATABASE_URL=${{ steps.dburl.outputs.database_url }} \
+                NUXT_PUBLIC_ENABLE_HISTORICAL_MODE=true \
+                SYNC_ENABLED=false \
+                NITRO_PORT=3000 \
+                NUXT_PUBLIC_IS_DATA_MOCKED=false \
+                NUXT_PUBLIC_SCOPE=${{ secrets.PREVIEW_SCOPE || 'organization' }} \
+                NUXT_PUBLIC_GITHUB_ORG=${{ secrets.PREVIEW_GITHUB_ORG }} \
+                NUXT_PUBLIC_ENABLE_AI_CHAT=true \
+                NUXT_AI_TOKEN=${{ secrets.PREVIEW_AI_TOKEN }} \
+                NUXT_PUBLIC_ENTRA_CLIENT_ID=${{ secrets.ENTRA_CLIENT_ID }} \
+                NUXT_PUBLIC_ENTRA_TENANT_ID=${{ secrets.ENTRA_TENANT_ID }} \
+                NUXT_PUBLIC_DEPLOY_INFO="${{ steps.deploy-info.outputs.deploy_info }}"
+          else
+            az containerapp update \
+              --name ${{ env.APP_NAME }} \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              --image ghcr.io/${{ github.repository }}-preview:preview-latest \
+              --set-env-vars \
+                NUXT_SESSION_PASSWORD=${{ secrets.NUXT_SESSION_PASSWORD }} \
+                NUXT_GITHUB_TOKEN=${{ secrets.PREVIEW_GITHUB_TOKEN }} \
+                DATABASE_URL=${{ steps.dburl.outputs.database_url }} \
+                NUXT_PUBLIC_ENABLE_HISTORICAL_MODE=true \
+                SYNC_ENABLED=false \
+                NITRO_PORT=3000 \
+                NUXT_PUBLIC_IS_DATA_MOCKED=false \
+                NUXT_PUBLIC_SCOPE=${{ secrets.PREVIEW_SCOPE || 'organization' }} \
+                NUXT_PUBLIC_GITHUB_ORG=${{ secrets.PREVIEW_GITHUB_ORG }} \
+                NUXT_PUBLIC_ENABLE_AI_CHAT=true \
+                NUXT_AI_TOKEN=${{ secrets.PREVIEW_AI_TOKEN }} \
+                NUXT_PUBLIC_ENTRA_CLIENT_ID=${{ secrets.ENTRA_CLIENT_ID }} \
+                NUXT_PUBLIC_ENTRA_TENANT_ID=${{ secrets.ENTRA_TENANT_ID }} \
+                "NUXT_PUBLIC_DEPLOY_INFO=${{ steps.deploy-info.outputs.deploy_info }}"
+          fi
+
+      - name: Restrict app ingress to allowed IPs
+        if: ${{ env.PREVIEW_ALLOWED_IPS != '' }}
+        run: |
+          az containerapp ingress access-restriction set \
+            --name ${{ env.APP_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --rule-name allow-preview-ips \
+            --ip-address "${{ secrets.PREVIEW_ALLOWED_IPS }}" \
+            --action Allow
+
+      - name: Deploy or update sync job
+        run: |
+          # Resolve the expected environment ARM resource ID
+          ENV_ID=$(az containerapp env show \
+            --name ${{ env.PREVIEW_ENV_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query "id" -o tsv)
+
+          # Check where the sync job currently lives (empty = doesn't exist)
+          CURRENT_ENV=$(az containerapp job show \
+            --name ${{ env.SYNC_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query "properties.environmentId" -o tsv 2>/dev/null || echo "")
+
+          if [ -n "$CURRENT_ENV" ] && [ "$CURRENT_ENV" != "$ENV_ID" ]; then
+            echo "Sync job is in a different environment — deleting and recreating..."
+            az containerapp job delete \
+              --name ${{ env.SYNC_NAME }} \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              --yes
+            CURRENT_ENV=""
+          fi
+
+          if [ -z "$CURRENT_ENV" ]; then
+            az containerapp job create \
+              --name ${{ env.SYNC_NAME }} \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              --environment ${{ env.PREVIEW_ENV_NAME }} \
+              --image ghcr.io/${{ github.repository }}-sync-preview:preview-latest \
+              --trigger-type Schedule \
+              --cron-expression "0 2 * * *" \
+              --replica-timeout 1800 \
+              --replica-retry-limit 1 \
+              --env-vars \
+                NUXT_GITHUB_TOKEN=${{ secrets.PREVIEW_GITHUB_TOKEN }} \
+                DATABASE_URL=${{ steps.dburl.outputs.database_url }} \
+                NUXT_PUBLIC_ENABLE_HISTORICAL_MODE=true \
+                NUXT_PUBLIC_IS_DATA_MOCKED=false \
+                NUXT_PUBLIC_SCOPE=${{ secrets.PREVIEW_SCOPE || 'organization' }} \
+                NUXT_PUBLIC_GITHUB_ORG=${{ secrets.PREVIEW_GITHUB_ORG }}
+          else
+            az containerapp job update \
+              --name ${{ env.SYNC_NAME }} \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              --image ghcr.io/${{ github.repository }}-sync-preview:preview-latest
+          fi
+
+      - name: Get app URL
+        id: app-url
+        run: |
+          APP_FQDN=$(az containerapp show \
+            --name ${{ env.APP_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" \
+            -o tsv)
+          echo "url=https://${APP_FQDN}" >> $GITHUB_OUTPUT
+
+      - name: Comment on PR with preview URL
+        if: ${{ env.PR_NUMBER != '' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = parseInt('${{ env.PR_NUMBER }}', 10);
+            if (!prNumber) return;
+            const url = '${{ steps.app-url.outputs.url }}';
+            const deployInfo = '${{ steps.deploy-info.outputs.deploy_info }}';
+            const body = `## 🚀 Preview Deployment Ready\n\n` +
+              `**Preview URL:** ${url}\n\n` +
+              `**Deployed:** ${deployInfo}\n\n` +
+              `> This is a shared preview environment. It shows the latest \`deploy\`-labeled PR.\n` +
+              `> The environment will be cleaned up when the PR is merged.`;
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body
+            });
+
+  cleanup:
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'pull_request' && github.event.action == 'unlabeled' && github.event.label.name == 'deploy') ||
+      (github.event_name == 'pull_request' && github.event.action == 'closed') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'cleanup')
+
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+      deployments: write
+
+    environment:
+      name: preview
+
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Delete sync job
+        run: |
+          az containerapp job delete \
+            --name ${{ env.SYNC_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --yes \
+            || true
+
+      - name: Delete app container
+        run: |
+          az containerapp delete \
+            --name ${{ env.APP_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --yes \
+            || true
+
+      - name: Delete PostgreSQL container
+        run: |
+          az containerapp delete \
+            --name ${{ env.DB_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --yes \
+            || true
+
+      - name: Delete managed environment
+        run: |
+          az containerapp env delete \
+            --name ${{ env.PREVIEW_ENV_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --yes \
+            || true
+
+      - name: Comment on PR about cleanup
+        if: ${{ env.PR_NUMBER != '' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = parseInt('${{ env.PR_NUMBER }}', 10);
+            if (!prNumber) return;
+            const action = '${{ github.event.action }}';
+            const reason = action === 'closed' ? 'PR was merged/closed' : 'deploy label was removed';
+            const body = `## 🧹 Preview Environment Cleaned Up\n\n` +
+              `The preview environment has been removed (${reason}).`;
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body
+            });

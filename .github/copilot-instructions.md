@@ -2,7 +2,7 @@
 name: copilot-metrics-viewer
 description: Nuxt 3 web application for GitHub Copilot usage metrics and analytics
 stack: Vue.js, TypeScript, Nuxt 3, Vuetify, Chart.js
-version: 2.1.0
+version: 3.6.1
 ---
 
 # GitHub Copilot Metrics Viewer
@@ -67,6 +67,15 @@ Always reference these instructions first and fallback to search or bash command
   - Takes 10 seconds to complete
   - Errors are in existing codebase, not blocking for development
 
+### Bug Fix Workflow (TDD)
+When fixing any bug, **always follow this order**:
+1. **Write a failing test first** that reproduces the bug — run `npm test` and confirm the new test fails
+2. **Apply the fix** to the production code
+3. **Run `npm test` again** and confirm the previously failing test now passes and no other tests regressed
+4. Commit both the fix and the test together (or test first in a separate commit)
+
+This ensures every bug has a regression guard before the fix lands.
+
 ### Code Quality
 - **Linting**: `npm run lint`
   - **KNOWN ISSUE**: Currently fails with 43 ESLint errors (mostly @typescript-eslint/no-explicit-any)
@@ -87,7 +96,7 @@ Always reference these instructions first and fallback to search or bash command
   - Uses sample data for development and testing
 - **Real GitHub data**: Requires GitHub Personal Access Token
   - `NUXT_GITHUB_TOKEN=<your_token>`
-  - Token needs scopes: copilot, manage_billing:copilot, manage_billing:enterprise, read:enterprise, read:org
+  - Token needs permissions: Read access to members, organization copilot metrics, and organization copilot seat management
 
 ### Scope Configuration
 - **NUXT_PUBLIC_SCOPE**: Sets default scope ('organization', 'enterprise', 'team-organization', 'team-enterprise')
@@ -137,6 +146,39 @@ Always test these scenarios after making changes (use development mode for relia
 3. **Basic functionality**: Start dev server and verify health endpoints respond
 4. **Linting awareness**: Run `npm run lint` (expect existing errors, don't introduce new ones)
 5. **Security check**: Ensure no secrets or credentials are committed
+6. **Version bump**: If this PR is intended as a release, ensure `package.json` version is updated (see Release Process below)
+
+## Release Process
+
+### Version Bump Rule (CRITICAL for code review)
+The CI release workflow **hard-fails** if the git tag does not match `package.json` version.
+
+**During code review, flag a missing version bump if the PR:**
+- Is labelled as a release or contains a changelog/release-notes update
+- Bumps the git tag (e.g. `v3.7.0`) without a matching change to `"version"` in `package.json`
+
+**The correct release workflow:**
+1. In a commit on `main`, bump `package.json` **and** `package-lock.json` together — always use
+   `npm version` (never edit `package.json` manually) so both files stay in sync:
+   ```bash
+   # Patch bump (3.6.1 → 3.6.2):
+   npm version patch --no-git-tag-version
+
+   # Or set an explicit version:
+   npm version 3.7.0 --no-git-tag-version
+
+   git add package.json package-lock.json
+   git commit -m "chore: bump version to 3.7.0"
+   git push origin main
+   ```
+2. Push the matching release tag:
+   ```bash
+   git tag v3.7.0
+   git push origin v3.7.0
+   ```
+3. The CI pipeline checks `tag == package.json version` and fails with a clear error if they differ.
+
+**Version format:** `MAJOR.MINOR.PATCH` (semver, no `v` prefix in `package.json`).
 
 ## Common Tasks
 

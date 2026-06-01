@@ -35,6 +35,14 @@ const tag = { tag: ['@ent', '@org', '@team'] };
             await dashboard.expectDataReturned();
         });
 
+        test('acceptance rate is reasonable', tag, async () => {
+            await dashboard.expectAcceptanceRateReasonable();
+        });
+
+        test('suggestion count is reasonable', tag, async () => {
+            await dashboard.expectSuggestionCountReasonable();
+        });
+
         test('languages visible', tag, async () => {
             const languages = await dashboard.gotoLanguagesTab();
 
@@ -54,6 +62,13 @@ const tag = { tag: ['@ent', '@org', '@team'] };
 
             await seatAnalysis.expectTotalAssignedVisible();
             await seatAnalysis.expectTotalAssignedReturned();
+        });
+
+        test('user metrics visible', tag, async () => {
+            const userMetrics = await dashboard.gotoUserMetricsTab();
+
+            await userMetrics.expectTotalUsersVisible();
+            await userMetrics.expectTotalUsersReturned();
         });
 
         test('copilot chat visible', tag, async () => {

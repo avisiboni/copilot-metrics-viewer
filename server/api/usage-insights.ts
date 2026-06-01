@@ -18,12 +18,17 @@ import {
   fetchNdjsonReport
 } from '../../shared/utils/usage-metrics-report'
 import { buildAdoptionPhaseView } from '../../shared/utils/ai-adoption-phase'
+import { shouldUseMockData } from '../../shared/utils/mock-mode'
+import { loadMockUsers28DayPayload } from '../../shared/utils/mock-users-28-day'
 
 export default defineEventHandler(async (event: H3Event<EventHandlerRequest>) => {
   const logger = console
   const config = useRuntimeConfig(event)
   const query = getQuery(event)
   const options = Options.fromQuery(query, config.public)
+  if (shouldUseMockData(config.public, query)) {
+    options.isDataMocked = true
+  }
   const premiumCreditsQuota = Number(config.public.enterprisePremiumQuota) || 1000
   if (options.scope?.includes('team')) {
     return new Response('Team scope is not supported for usage insights.', { status: 422 })
@@ -37,7 +42,7 @@ export default defineEventHandler(async (event: H3Event<EventHandlerRequest>) =>
     return new Response('GitHub enterprise is not configured.', { status: 422 })
   }
 
-  if (!event.context.headers?.has('Authorization')) {
+  if (!options.isDataMocked && !event.context.headers?.has('Authorization')) {
     return new Response('No Authentication provided', { status: 401 })
   }
 
@@ -45,6 +50,33 @@ export default defineEventHandler(async (event: H3Event<EventHandlerRequest>) =>
   const until = options.until || ''
 
   try {
+    if (options.isDataMocked) {
+      logger.info('Using mocked data for usage insights')
+      const mockPayload = loadMockUsers28DayPayload(options)
+      const rawUsers = mockPayload.day_totals.map((line) => mapFullUserRecord(line))
+      const users = consolidateUserRecords(rawUsers)
+
+      const billing = {
+        available: false as const,
+        reason: 'Billing usage is not included in mock mode.',
+        detailedUsage: [],
+        summaryUsage: [],
+        premiumRequestUsage: []
+      }
+
+      return buildUsageInsightsResponse({
+        users,
+        userTeams: [],
+        billing,
+        since: since || undefined,
+        until: until || undefined,
+        reportStartDay: mockPayload.report_start_day,
+        reportEndDay: mockPayload.report_end_day,
+        premiumCreditsQuota,
+        adoptionByPhase: buildAdoptionPhaseView([], users)
+      })
+    }
+
     const metaUrl = buildUsers28DayReportUrl(options)
     const meta = await fetchReportMeta(metaUrl, event.context.headers)
 

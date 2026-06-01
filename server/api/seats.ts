@@ -2,7 +2,27 @@ import { Seat } from "@/model/Seat";
 import { readFileSync } from 'fs';
 import { Options } from '@/model/Options';
 import { resolve } from 'path';
-import { shouldUseMockData } from '../../shared/utils/mock-mode';
+import { getLatestSeats } from '../storage/seats-storage';
+import { filterSeatsByTeamMembers } from '../utils/seats-filter';
+import { findNodeInTree, collectNodeAndDescendants, normalizeUPNtoLogin } from '../utils/entra-mock-tree';
+import type { MockTreeNode } from '../utils/entra-mock-tree';
+
+/** UI page size cap — GitHub API max is 100, so 300 = 3 GitHub calls per page. */
+const UI_MAX_PER_PAGE = 300;
+/** GitHub Billing Seats API page size limit. */
+const GITHUB_PER_PAGE = 100;
+
+/**
+ * Paginated response shape returned by this endpoint.
+ * Replaces the previous bare Seat[] so the client can drive a paginator.
+ */
+export interface SeatsApiResponse {
+  seats: Seat[];
+  total_seats: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
 
 // Minimal shape of a GitHub team member object we care about
 export interface TeamMember {
@@ -11,20 +31,75 @@ export interface TeamMember {
   [key: string]: unknown; // allow additional fields without using any
 }
 
+// Mock team membership — matches the mock teams defined in teams.ts
+// IDs 9–11 are intentionally absent from mock usage data to demonstrate
+// the inactive-member stub feature (shown with "inactive" chip in the UI).
+const MOCK_TEAM_MEMBERS: Record<string, TeamMember[]> = {
+  'the-a-team':    [{ login: 'monalisa', id: 1 }, { login: 'defunkt', id: 2 }, { login: 'octocat', id: 4 }, { login: 'octokitten', id: 5 }, { login: 'newjoiner', id: 9 }],
+  'dev-team':      [{ login: 'defunkt', id: 2 }, { login: 'octocat', id: 4 }, { login: 'octokitten', id: 5 }, { login: 'hubot', id: 8 }, { login: 'alicechen', id: 6 }, { login: 'bobmartinez', id: 7 }, { login: 'newjoiner', id: 9 }, { login: 'quietdev', id: 10 }],
+  'frontend-team': [{ login: 'codertocat', id: 3 }, { login: 'alicechen', id: 6 }, { login: 'bobmartinez', id: 7 }, { login: 'designerdev', id: 11 }],
+  'backend-team':  [{ login: 'defunkt', id: 2 }, { login: 'octocat', id: 4 }, { login: 'octokitten', id: 5 }, { login: 'hubot', id: 8 }],
+  'qa-team':       [{ login: 'hubot', id: 8 }, { login: 'alicechen', id: 6 }, { login: 'bobmartinez', id: 7 }],
+};
+
 /**
- * Fetch all members of a team (org team scope) handling GitHub API pagination.
- * For now this is limited to organization team scopes. Enterprise team member
- * listing requires resolving the parent organization; that enhancement can be
- * added later if needed.
+ * Resolve members for a "reports-to:<upn>" virtual team.
+ * If options.reportToLogins is already set (pre-resolved by the client), use it.
+ * Otherwise (mock mode only), resolve from the mock Entra org tree.
+ */
+async function resolveReportsToMembers(options: Options): Promise<TeamMember[]> {
+  // Fast path: client already resolved logins (passed via ?users=<b64>)
+  if (options.reportToLogins?.length) {
+    return options.reportToLogins.map(login => ({ login, id: 0 }));
+  }
+
+  // Mock path: resolve from the local mock Entra org tree
+  if (options.isDataMocked) {
+    const upn = options.githubTeam!.replace(/^reports-to:/i, '');
+    const treePath = resolve('public/mock-data/entra-org-tree.json');
+    let root: MockTreeNode;
+    try {
+      root = JSON.parse(readFileSync(treePath, 'utf8')) as MockTreeNode;
+    } catch {
+      return [];
+    }
+    const node = findNodeInTree(root, upn);
+    if (!node) return [];
+    return collectNodeAndDescendants(node).map(u => ({
+      login: u.githubLogin ?? normalizeUPNtoLogin(u.userPrincipalName),
+      id: 0,
+    }));
+  }
+
+  // Real MSAL mode without pre-resolved logins: cannot resolve without auth
+  return [];
+}
+
+/**
+ * Fetch all members of a team handling GitHub API pagination.
+ * Supports both organization teams (via /members) and enterprise teams
+ * (via /memberships with X-GitHub-Api-Version: 2026-03-10).
+ *
+ * Also handles virtual "reports-to:<upn>" teams by resolving from the
+ * pre-decoded login list (options.reportToLogins) or the mock Entra tree.
  *
  * @param options Options containing scope/org/team information
  * @param headers Headers (with Authorization) forwarded from the incoming request
  * @returns Array of team member objects returned by the GitHub API
  */
 export async function fetchAllTeamMembers(options: Options, headers: HeadersInit): Promise<TeamMember[]> {
-  // Only proceed for explicit team scopes with an organization + team slug
-  if (!(options.scope === 'team-organization' || options.scope === 'team-enterprise') || !options.githubTeam) {
+  if (!options.githubTeam) {
     return [];
+  }
+
+  // reports-to virtual team: resolve from pre-decoded logins or mock tree
+  if (options.githubTeam.startsWith('reports-to:')) {
+    return resolveReportsToMembers(options);
+  }
+
+  // Mock mode: return pre-defined team membership without hitting GitHub API
+  if (options.isDataMocked) {
+    return MOCK_TEAM_MEMBERS[options.githubTeam] ?? [];
   }
 
   const membersUrl = options.getTeamMembersApiUrl();
@@ -32,25 +107,57 @@ export async function fetchAllTeamMembers(options: Options, headers: HeadersInit
   let page = 1;
   const members: TeamMember[] = [];
 
-  /*
-   * Loop until an empty page (or a short page) is returned. We purposely do
-   * not rely on the Link header to keep the implementation simple & robust
-   * under mocking. If rate limiting becomes a concern this can be replaced
-   * with Link header parsing.
-   */
+  // Build headers: add API version for enterprise team memberships
+  // (not needed when using org-based teams API, e.g. Full GHEC org teams)
+  const fetchHeaders: Record<string, string> = {};
+  if (headers instanceof Headers) {
+    for (const [key, value] of headers.entries()) {
+      fetchHeaders[key] = value;
+    }
+  } else if (typeof headers === 'object') {
+    Object.assign(fetchHeaders, headers);
+  }
+  if (options.scope === 'enterprise' && !options.githubOrg) {
+    delete fetchHeaders['x-github-api-version'];
+    fetchHeaders['X-GitHub-Api-Version'] = '2026-03-10';
+  }
+
   while (true) {
     const pageData = await $fetch<TeamMember[]>(membersUrl, {
-      headers,
+      headers: fetchHeaders,
       params: { per_page: perPage, page }
     });
 
     if (!Array.isArray(pageData) || pageData.length === 0) break;
-    members.push(...pageData);
+    // Normalize: enterprise /memberships may nest user data under a `user` property
+    for (const item of pageData) {
+      const member = normalizeTeamMember(item);
+      if (member) members.push(member);
+    }
     if (pageData.length < perPage) break; // last page
     page += 1;
   }
 
   return members;
+}
+
+/**
+ * Normalize a team member response item into {login, id}.
+ * Handles both flat user objects and potentially nested membership objects.
+ */
+function normalizeTeamMember(item: Record<string, unknown>): TeamMember | null {
+  // Flat user object (standard shape from both /members and /memberships)
+  if (typeof item.login === 'string' && typeof item.id === 'number') {
+    return item as TeamMember;
+  }
+  // Nested membership object (defensive: { user: { login, id } })
+  if (item.user && typeof item.user === 'object') {
+    const user = item.user as Record<string, unknown>;
+    if (typeof user.login === 'string' && typeof user.id === 'number') {
+      return user as TeamMember;
+    }
+  }
+  return null;
 }
 
 /**
@@ -85,88 +192,179 @@ function deduplicateSeats(seats: Seat[]): Seat[] {
   return Array.from(uniqueSeats.values());
 }
 
+/** Build a SeatsApiResponse given a fully-resolved seat list and pagination params. */
+function paginateSeats(allSeats: Seat[], page: number, perPage: number): SeatsApiResponse {
+  const total_seats = allSeats.length;
+  const total_pages = Math.max(1, Math.ceil(total_seats / perPage));
+  const safePage = Math.min(Math.max(1, page), total_pages);
+  const start = (safePage - 1) * perPage;
+  return {
+    seats: allSeats.slice(start, start + perPage),
+    total_seats,
+    page: safePage,
+    per_page: perPage,
+    total_pages,
+  };
+}
+
 export default defineEventHandler(async (event) => {
 
   const logger = console;
-  const config = useRuntimeConfig(event);
   const query = getQuery(event);
-  const options = Options.fromQuery(query, config.public);
+  const options = Options.fromQuery(query);
 
-  if (shouldUseMockData(config.public, query)) {
-    options.isDataMocked = true;
-  } else {
-    options.isDataMocked = false;
-  }
+  // ── Parse UI pagination params ───────────────────────────────────────────
+  const uiPage    = Math.max(1, parseInt(String(query.page    ?? '1'),  10) || 1);
+  const uiPerPage = Math.min(UI_MAX_PER_PAGE,
+                     Math.max(1, parseInt(String(query.per_page ?? '300'), 10) || 300));
 
   const apiUrl = options.getSeatsApiUrl();
   const mockedDataPath = options.getSeatsMockDataPath();
 
+  // ── Mock mode ─────────────────────────────────────────────────────────────
   if (options.isDataMocked && mockedDataPath) {
     const path = resolve(mockedDataPath);
     const data = readFileSync(path, 'utf8');
     const dataJson = JSON.parse(data);
-    const seatsData = dataJson.seats.map((item: unknown) => new Seat(item));
-
-    // Deduplicate seats by user ID to handle enterprise scenarios where users are assigned to multiple organizations
-    const deduplicatedSeats = deduplicateSeats(seatsData);
-
+    let seatsData = deduplicateSeats(
+      dataJson.seats.map((item: unknown) => new Seat(item))
+    );
+    // Apply team filter in mock mode
+    if (options.githubTeam) {
+      const mockMembers = await fetchAllTeamMembers(options, new Headers());
+      seatsData = filterSeatsByTeamMembers(seatsData, mockMembers);
+    }
     logger.info('Using mocked data');
-    return deduplicatedSeats;
+    return paginateSeats(seatsData, uiPage, uiPerPage);
   }
 
-  if (!event.context.headers.has('Authorization')) {
+  if (!event.context.headers?.has('Authorization')) {
+    // ── Historical mode without auth — serve from DB ───────────────────────
+    if (process.env.ENABLE_HISTORICAL_MODE === 'true') {
+      // Team-scoped requests require fetching team members from GitHub, which
+      // needs auth. Without auth we cannot apply the team filter safely.
+      if (options.githubTeam) {
+        throw createError({
+          statusCode: 503,
+          statusMessage: 'Team-scoped seat data in historical mode requires authentication.',
+        });
+      }
+      logger.info('No auth in historical mode, serving latest seats from storage');
+      const scope      = options.scope      || 'organization';
+      const identifier = options.githubOrg  || options.githubEnt || '';
+      const stored = identifier ? await getLatestSeats(scope, identifier) : null;
+      const seats  = stored ? deduplicateSeats(stored) : [];
+      return paginateSeats(seats, uiPage, uiPerPage);
+    }
     logger.error('No Authentication provided');
-    return new Response('No Authentication provided', { status: 401 });
+    throw createError({ statusCode: 401, statusMessage: 'No Authentication provided' });
   }
 
-  // if scope is team - get team members
+  // ── Historical mode with auth — DB first, live fallback ───────────────────
+  if (process.env.ENABLE_HISTORICAL_MODE === 'true') {
+    const scope      = options.scope      || 'organization';
+    const identifier = options.githubOrg  || options.githubEnt || '';
+    if (identifier) {
+      const stored = await getLatestSeats(scope, identifier);
+      if (stored) {
+        logger.info(`Serving ${stored.length} seats from storage`);
+        let seats = deduplicateSeats(stored);
+        if (options.githubTeam) {
+          const teamMembers = await fetchAllTeamMembers(options, event.context.headers);
+          seats = filterSeatsByTeamMembers(seats, teamMembers);
+        }
+        return paginateSeats(seats, uiPage, uiPerPage);
+      }
+      logger.info('No seats in storage yet, falling back to live API');
+    }
+  }
+
+  // if scope is team - get team members (needed for filtering — always fetch all)
   const teamMembers: TeamMember[] = await fetchAllTeamMembers(options, event.context.headers);
 
-  const perPage = 100;
-  let page = 1;
-  let response;
-  logger.info(`Fetching 1st page of seats data from ${apiUrl}`);
+  // ── Organization scope: fetch only the GitHub pages needed for this UI page ─
+  // For enterprise and team scopes we need all pages (for deduplication / filtering),
+  // so we fall through to the "fetch all" path below.
+  const isOrgOnly = options.scope === 'organization' && !options.githubTeam;
 
+  if (isOrgOnly) {
+    // Determine which GitHub pages cover the requested UI page window
+    const offsetStart    = (uiPage - 1) * uiPerPage;
+    const offsetEnd      = offsetStart + uiPerPage;
+    const ghPageStart    = Math.floor(offsetStart / GITHUB_PER_PAGE) + 1;
+    const ghPageEnd      = Math.ceil(offsetEnd     / GITHUB_PER_PAGE);
+    const localOffset    = offsetStart - (ghPageStart - 1) * GITHUB_PER_PAGE;
+
+    let firstResponse: { seats: unknown[]; total_seats: number };
+    logger.info(`Fetching GitHub page ${ghPageStart} of seats for org scope (UI page ${uiPage})`);
+    try {
+      firstResponse = await $fetch(apiUrl, {
+        headers: event.context.headers,
+        params: { per_page: GITHUB_PER_PAGE, page: ghPageStart }
+      }) as { seats: unknown[]; total_seats: number };
+    } catch (error: unknown) {
+      logger.error('Error fetching seats data:', error);
+      const status = typeof error === 'object' && error && 'statusCode' in error
+        ? (error as { statusCode?: number }).statusCode : 500;
+      throw createError({ statusCode: status || 500, statusMessage: 'Error fetching seats data. Error: ' + String(error) });
+    }
+
+    const totalSeats = firstResponse.total_seats;
+    const totalPages = Math.max(1, Math.ceil(totalSeats / uiPerPage));
+    const ghTotalPages = Math.ceil(totalSeats / GITHUB_PER_PAGE);
+    const safeGhPageEnd = Math.min(ghPageEnd, ghTotalPages);
+
+    let fetched: Seat[] = firstResponse.seats.map((item: unknown) => new Seat(item));
+
+    for (let p = ghPageStart + 1; p <= safeGhPageEnd; p++) {
+      const resp = await $fetch(apiUrl, {
+        headers: event.context.headers,
+        params: { per_page: GITHUB_PER_PAGE, page: p }
+      }) as { seats: unknown[]; total_seats: number };
+      fetched = fetched.concat(resp.seats.map((item: unknown) => new Seat(item)));
+    }
+
+    // Deduplicate first (handles rare cases where a user appears in multiple pages),
+    // then slice to the window within these fetched pages.
+    const deduped    = deduplicateSeats(fetched);
+    const pageSeats  = deduped.slice(localOffset, localOffset + uiPerPage);
+    return {
+      seats: pageSeats,
+      total_seats: totalSeats,
+      page: uiPage,
+      per_page: uiPerPage,
+      total_pages: totalPages,
+    } satisfies SeatsApiResponse;
+  }
+
+  // ── Enterprise / team scopes: fetch all pages, then paginate in memory ────
+  let firstResponse: { seats: unknown[]; total_seats: number };
+  logger.info(`Fetching 1st page of seats data from ${apiUrl}`);
   try {
-    response = await $fetch(apiUrl, {
+    firstResponse = await $fetch(apiUrl, {
       headers: event.context.headers,
-      params: {
-        per_page: perPage,
-        page: page
-      }
-    }) as { seats: unknown[], total_seats: number };
+      params: { per_page: GITHUB_PER_PAGE, page: 1 }
+    }) as { seats: unknown[]; total_seats: number };
   } catch (error: unknown) {
     logger.error('Error fetching seats data:', error);
-    const status = typeof error === 'object' && error && 'statusCode' in error ? (error as { statusCode?: number }).statusCode : 500;
-    return new Response('Error fetching seats data. Error: ' + String(error), { status: status || 500 });
+    const status = typeof error === 'object' && error && 'statusCode' in error
+      ? (error as { statusCode?: number }).statusCode : 500;
+    throw createError({ statusCode: status || 500, statusMessage: 'Error fetching seats data. Error: ' + String(error) });
   }
 
-  let seatsData = response.seats.map((item: unknown) => new Seat(item));
+  let seatsData = firstResponse.seats.map((item: unknown) => new Seat(item));
+  const totalGhPages = Math.ceil(firstResponse.total_seats / GITHUB_PER_PAGE);
 
-  // Calculate the total pages
-  const totalSeats = response.total_seats;
-  const totalPages = Math.ceil(totalSeats / perPage);
-
-  // Fetch the remaining pages
-  for (page = 2; page <= totalPages; page++) {
-    response = await $fetch(apiUrl, {
+  for (let p = 2; p <= totalGhPages; p++) {
+    const resp = await $fetch(apiUrl, {
       headers: event.context.headers,
-      params: {
-        per_page: perPage,
-        page: page
-      }
-    }) as { seats: unknown[], total_seats: number };
-
-    seatsData = seatsData.concat(response.seats.map((item: unknown) => new Seat(item)));
+      params: { per_page: GITHUB_PER_PAGE, page: p }
+    }) as { seats: unknown[]; total_seats: number };
+    seatsData = seatsData.concat(resp.seats.map((item: unknown) => new Seat(item)));
   }
 
-  // Deduplicate seats by user ID to handle enterprise scenarios where users are assigned to multiple organizations
-  const deduplicatedSeats = deduplicateSeats(seatsData);
+  let deduplicatedSeats = deduplicateSeats(seatsData);
+  deduplicatedSeats = filterSeatsByTeamMembers(deduplicatedSeats, teamMembers);
 
-  if (teamMembers.length > 0) {
-    // Filter seats for team members only
-    return deduplicatedSeats.filter(seat => teamMembers.some(member => member.id === seat.id));
-  }
-
-  return deduplicatedSeats;
+  return paginateSeats(deduplicatedSeats, uiPage, uiPerPage);
 })

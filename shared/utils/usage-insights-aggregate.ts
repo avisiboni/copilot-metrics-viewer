@@ -19,7 +19,11 @@ import type {
 } from '../types/copilot-usage'
 import { usageNumber } from '../types/copilot-usage'
 import { buildAdoptionPhaseView, parseAiAdoptionPhase } from './ai-adoption-phase'
-import { isPremiumRequestSku } from './billing-normalize'
+import {
+  canonicalBillingSkuKey,
+  displayBillingSkuLabel,
+  isPremiumRequestSku
+} from './billing-normalize'
 import { enrichRowsWithPremiumCredits } from './premium-credits'
 import type { PremiumCreditsResolveResult } from './fetch-premium-credits-batch'
 
@@ -283,17 +287,52 @@ export function aggregateTeamUsage(
   return Array.from(map.values()).sort((a, b) => b.interactions - a.interactions)
 }
 
+function isDuplicateSkuAliasLine(
+  existing: SkuCostAggregate,
+  netAmount: number,
+  grossAmount: number,
+  quantity: number
+): boolean {
+  if (existing.netAmount === 0 && existing.grossAmount === 0 && existing.quantity === 0) {
+    return false
+  }
+  return (
+    Math.abs(existing.netAmount - netAmount) < 0.005 &&
+    Math.abs(existing.grossAmount - grossAmount) < 0.005 &&
+    Math.abs(existing.quantity - quantity) < 0.0001
+  )
+}
+
 export function aggregateSkuCosts(billing: BillingFetchResult): SkuCostAggregate[] {
   const map = new Map<string, SkuCostAggregate>()
 
-  const items = [...billing.summaryUsage, ...billing.detailedUsage]
+  // Summary is an org-level rollup of the same charges as `/usage` line items — do not sum both.
+  const items =
+    billing.summaryUsage.length > 0 ? billing.summaryUsage : billing.detailedUsage
+
   for (const item of items) {
-    const sku = String(item.sku || 'unknown')
-    const existing = map.get(sku) || { sku, netAmount: 0, grossAmount: 0, quantity: 0 }
-    existing.netAmount += usageNumber(item.netAmount)
-    existing.grossAmount += usageNumber(item.grossAmount)
-    existing.quantity += usageNumber(item.quantity ?? item.grossQuantity)
-    map.set(sku, existing)
+    const rawSku = String(item.sku || 'unknown')
+    const key = canonicalBillingSkuKey(rawSku)
+    const netAmount = usageNumber(item.netAmount)
+    const grossAmount = usageNumber(item.grossAmount)
+    const quantity = usageNumber(item.quantity ?? item.grossQuantity)
+
+    const existing = map.get(key)
+    if (existing && isDuplicateSkuAliasLine(existing, netAmount, grossAmount, quantity)) {
+      continue
+    }
+
+    const row = existing || {
+      sku: displayBillingSkuLabel(key),
+      netAmount: 0,
+      grossAmount: 0,
+      quantity: 0
+    }
+    row.sku = displayBillingSkuLabel(key)
+    row.netAmount += netAmount
+    row.grossAmount += grossAmount
+    row.quantity += quantity
+    map.set(key, row)
   }
 
   return Array.from(map.values()).sort((a, b) => b.netAmount - a.netAmount)
@@ -495,6 +534,7 @@ export function filterUsageInsightsByUser(
 
   const filteredBilling: BillingFetchResult = {
     ...data.billing,
+    summaryUsage: [],
     detailedUsage: data.billing.detailedUsage.filter(
       (item) => !item.username || String(item.username).toLowerCase() === login
     ),

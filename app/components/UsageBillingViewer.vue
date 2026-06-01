@@ -110,12 +110,32 @@
               :key="card.label"
               cols="6"
             >
-              <v-card variant="flat" :class="['brand-kpi-card', 'brand-metric-kpi', card.cardClass]">
+              <v-card
+                variant="flat"
+                :ripple="false"
+                :class="[
+                  'brand-kpi-card',
+                  'brand-metric-kpi',
+                  card.cardClass,
+                  card.opensSkuDetail && 'brand-kpi-card--interactive'
+                ]"
+                :role="card.opensSkuDetail ? 'button' : undefined"
+                :tabindex="card.opensSkuDetail ? 0 : undefined"
+                :aria-label="card.opensSkuDetail ? t('billing.kpiNetSpendOpenDetail') : undefined"
+                @click="card.opensSkuDetail ? openSkuDetail() : undefined"
+                @keydown.enter.prevent="card.opensSkuDetail ? openSkuDetail() : undefined"
+                @keydown.space.prevent="card.opensSkuDetail ? openSkuDetail() : undefined"
+              >
                 <BrandKpiTooltip :text="card.tooltip" />
                 <div class="brand-kpi-card__body">
                   <div class="brand-kpi-card__label">{{ card.label }}</div>
                   <div class="brand-kpi-card__value">{{ card.value }}</div>
-                  <div v-if="card.hint" class="brand-kpi-card__hint">{{ card.hint }}</div>
+                  <div v-if="card.hint" class="brand-kpi-card__hint">
+                    {{ card.hint }}
+                    <span v-if="card.opensSkuDetail" class="billing-kpi-open-detail">
+                      · {{ t('billing.kpiNetSpendViewDetail') }}
+                    </span>
+                  </div>
                 </div>
               </v-card>
             </v-col>
@@ -356,6 +376,13 @@
             :team-slugs="detailTeamSlugs"
           />
 
+          <BillingSkuDetailDialog
+            v-model="skuDetailDialogOpen"
+            :sku-costs="filteredView.skuCosts"
+            :total-net-spend="totalNetSpend"
+            :report-range="detailReportRange"
+          />
+
           <v-card flat class="pa-3 brand-info-banner">
             <div class="text-caption">
               <strong>{{ t('billing.dataSources') }}</strong>
@@ -380,6 +407,7 @@ import BrandAiAdoptionPanel from '@/components/BrandAiAdoptionPanel.vue'
 import BrandAiAdoptionPhaseChip from '@/components/BrandAiAdoptionPhaseChip.vue'
 import { PREMIUM_CREDITS_TABLE_DISABLED } from '../../shared/utils/premium-credits-feature'
 import UserUsageDetailDialog from '@/components/UserUsageDetailDialog.vue'
+import BillingSkuDetailDialog from '@/components/BillingSkuDetailDialog.vue'
 import { usePremiumCreditsFeature } from '@/composables/usePremiumCreditsFeature'
 import type { UserUsageLeaderboardRow } from '../../shared/types/usage-insights'
 import { billingAlertSummary } from '../../shared/utils/billing-api'
@@ -426,6 +454,7 @@ export default defineComponent({
     BrandAiAdoptionPanel,
     BrandAiAdoptionPhaseChip,
     UserUsageDetailDialog,
+    BillingSkuDetailDialog,
     BrandPageSkeleton
   },
   props: {
@@ -449,6 +478,7 @@ export default defineComponent({
     const selectedUser = ref<string | null>(null)
     const { fetchEnabled: premiumCreditsFetchEnabled } = usePremiumCreditsFeature()
     const detailDialogOpen = ref(false)
+    const skuDetailDialogOpen = ref(false)
     const detailUser = ref<UserUsageLeaderboardRow | null>(null)
     const detailTeamSlugs = ref<string[]>([])
 
@@ -646,13 +676,15 @@ export default defineComponent({
         hint?: string
         cardClass: string
         tooltip: string
+        opensSkuDetail?: boolean
       }> = [
         {
           label: t.value('billing.kpiNetSpend'),
           value: formatCurrency(totalNetSpend.value),
           hint: t.value('billing.kpiHintSku', { count: view.skuCosts.length }),
           cardClass: 'brand-metric-card--purple',
-          tooltip: t.value('billing.kpiTooltipNetSpend')
+          tooltip: t.value('billing.kpiTooltipNetSpend'),
+          opensSkuDetail: view.skuCosts.length > 0
         }
       ]
       if (premiumCreditsFetchEnabled.value) {
@@ -713,7 +745,7 @@ export default defineComponent({
     const skuChartData = computed(() => {
       const rows = (filteredView.value?.skuCosts || []).slice(0, 10)
       return {
-        labels: rows.map((r) => r.sku.replace('copilot_', '')),
+        labels: rows.map((r) => r.sku),
         datasets: [{
           label: t.value('billing.legendNetUsd'),
           data: rows.map((r) => r.netAmount),
@@ -770,6 +802,11 @@ export default defineComponent({
       }
       return props.dateRangeDescription
     })
+
+    const openSkuDetail = () => {
+      if (!(filteredView.value?.skuCosts.length)) return
+      skuDetailDialogOpen.value = true
+    }
 
     const openUserDetail = (item: UserUsageLeaderboardRow) => {
       detailUser.value = item
@@ -889,8 +926,16 @@ export default defineComponent({
       detailUser,
       detailTeamSlugs,
       detailReportRange,
+      skuDetailDialogOpen,
+      openSkuDetail,
       openUserDetail
     }
   }
 })
 </script>
+
+<style scoped>
+.billing-kpi-open-detail {
+  white-space: nowrap;
+}
+</style>

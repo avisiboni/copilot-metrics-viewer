@@ -6,7 +6,45 @@ export function normalizeBillingSku(sku: string | undefined): string {
   return String(sku || '')
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, '_')
+    .replace(/[\s-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '')
+}
+
+/**
+ * Short vs long SKU labels for the same charge (common in billing summary + line exports).
+ * Keys are normalized via {@link normalizeBillingSku}.
+ */
+const CANONICAL_BILLING_SKU_KEYS: Record<string, string> = {
+  enterprise: 'copilot_enterprise',
+  copilot_enterprise: 'copilot_enterprise',
+  premium_request: 'copilot_premium_request',
+  copilot_premium_request: 'copilot_premium_request',
+  ai_unit: 'copilot_ai_credits',
+  copilot_ai_credits: 'copilot_ai_credits',
+  actions_linux: 'actions_linux',
+  github_actions_linux: 'actions_linux'
+}
+
+const BILLING_SKU_DISPLAY_LABELS: Record<string, string> = {
+  copilot_enterprise: 'Copilot Enterprise',
+  copilot_premium_request: 'Copilot Premium Request',
+  copilot_ai_credits: 'Copilot AI Credits',
+  actions_linux: 'Actions Linux'
+}
+
+/** Canonical key for SKU rollups across billing API naming variants. */
+export function canonicalBillingSkuKey(sku: string | undefined): string {
+  const normalized = normalizeBillingSku(sku)
+  if (!normalized) return 'unknown'
+  return CANONICAL_BILLING_SKU_KEYS[normalized] ?? normalized
+}
+
+/** Human-readable SKU label for tables. */
+export function displayBillingSkuLabel(canonicalKey: string, _rawSku?: string): string {
+  const label = BILLING_SKU_DISPLAY_LABELS[canonicalKey]
+  if (label) return label
+  return canonicalKey.replace(/_/g, ' ')
 }
 
 export function isPremiumRequestSku(sku: string | undefined): boolean {

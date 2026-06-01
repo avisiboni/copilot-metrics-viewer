@@ -2,9 +2,17 @@ import { isEnvTruthy, isMockQueryParam } from './env-boolean'
 
 type MockQuery = { mock?: unknown; isDataMocked?: unknown }
 
-/** Mock data is enabled via NUXT_PUBLIC_IS_DATA_MOCKED (or equivalent runtime config). */
+/** Mock data enabled in `.env` via NUXT_PUBLIC_IS_DATA_MOCKED (build-time / server env). */
+export function isEnvMockModeConfigured(): boolean {
+  return isEnvTruthy(process.env.NUXT_PUBLIC_IS_DATA_MOCKED)
+}
+
+/**
+ * @deprecated Prefer {@link isEnvMockModeConfigured} for global mock — `config.public.isDataMocked`
+ * may be toggled at runtime from `?mock=` in development and must not be treated as env config.
+ */
 export function isMockModeConfigured(configPublic: { isDataMocked?: boolean }): boolean {
-  return isEnvTruthy(configPublic.isDataMocked)
+  return isEnvMockModeConfigured() || isEnvTruthy(configPublic.isDataMocked)
 }
 
 /**
@@ -19,8 +27,8 @@ export function isDevelopmentRuntime(): boolean {
 }
 
 /** Whether mock query parameters are permitted for this deployment. */
-export function isMockQueryAllowed(configPublic: { isDataMocked?: boolean }): boolean {
-  return isMockModeConfigured(configPublic) || isDevelopmentRuntime()
+export function isMockQueryAllowed(_configPublic?: { isDataMocked?: boolean }): boolean {
+  return isEnvMockModeConfigured() || isDevelopmentRuntime()
 }
 
 export function isMockRequestedInQuery(query: MockQuery): boolean {
@@ -32,14 +40,14 @@ export function isMockRequestedInQuery(query: MockQuery): boolean {
  * requested in development. Prevents ?mock=true auth bypass in production.
  */
 export function shouldUseMockData(
-  configPublic: { isDataMocked?: boolean },
+  _configPublic?: { isDataMocked?: boolean },
   query?: MockQuery
 ): boolean {
-  if (isMockModeConfigured(configPublic)) {
+  if (isEnvMockModeConfigured()) {
     return true
   }
   if (!query) {
     return false
   }
-  return isMockQueryAllowed(configPublic) && isMockRequestedInQuery(query)
+  return isMockQueryAllowed() && isMockRequestedInQuery(query)
 }

@@ -1,22 +1,22 @@
 import { convertToMetrics } from '@/model/MetricsToUsageConverter';
 import type { MetricsApiResponse } from "@/types/metricsApiResponse";
-import { getMetricsData } from '../../shared/utils/metrics-util';
+import { getMetricsDataV2 } from '../../shared/utils/metrics-util-v2';
 import { Options } from '@/model/Options';
 import { buildAdoptionPhaseView } from '../../shared/utils/ai-adoption-phase';
 import { fetch28DayAdoptionPhases } from '../../shared/utils/usage-metrics-report';
 
-// TODO: use for storage https://unstorage.unjs.io/drivers/azure
+function sortMetricsByDay<T extends { day: string }>(metrics: T[]): T[] {
+    return [...metrics].sort((left, right) => left.day.localeCompare(right.day));
+}
 
 export default defineEventHandler(async (event) => {
 
     const logger = console;
 
     try {
-        // usage is the new API Format
-        const usageData = await getMetricsData(event);
+        const { metrics: usageData, reportData } = await getMetricsDataV2(event);
 
-        // metrics is the old API format
-        const metricsData = convertToMetrics(usageData);
+        const metricsData = sortMetricsByDay(convertToMetrics(usageData));
 
         let adoptionByPhase = [];
         try {
@@ -33,7 +33,12 @@ export default defineEventHandler(async (event) => {
             logger.warn('Adoption phase rollup unavailable for metrics:', adoptionError);
         }
 
-        const result = { metrics: metricsData, usage: usageData, adoptionByPhase } as MetricsApiResponse;
+        const result = {
+            metrics: metricsData,
+            usage: usageData,
+            reportData,
+            adoptionByPhase
+        } as MetricsApiResponse;
         return result;
     } catch (error: unknown) {
         logger.error('Error fetching metrics data:', error);
@@ -41,7 +46,6 @@ export default defineEventHandler(async (event) => {
         const statusCode = (error && typeof error === 'object' && 'statusCode' in error)
             ? (error as { statusCode: number }).statusCode
             : 500;
-        return new Response('Error fetching metrics data: ' + errorMessage, { status: statusCode });
+        throw createError({ statusCode, statusMessage: 'Error fetching metrics data: ' + errorMessage });
     }
 })
-

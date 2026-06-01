@@ -4,13 +4,16 @@ import { EditorsTab } from "./EditorsTab";
 import { SeatAnalysisTab } from "./SeatAnalysisTab";
 import { ApiResponseTab } from "./ApiResponseTab";
 import { CopilotChatTab } from "./CopilotChatTab";
-import { GitHubTab } from "./GitHubTab";
+import { ModelsTab } from "./ModelsTab";
+import { UserMetricsTab } from "./UserMetricsTab";
 
 export class DashboardPage {
     readonly page: Page;
 
     readonly acceptanceRateByCountLabel: Locator;
+    readonly acceptanceRateByCountValue: Locator;
     readonly totalCountOfSuggestionsLabel: Locator;
+    readonly totalCountOfSuggestionsValue: Locator;
     readonly totalLinesSuggestedLabel: Locator;
     readonly totalLinesSuggestedValue: Locator;
     readonly toolbarTitle: Locator;
@@ -25,24 +28,33 @@ export class DashboardPage {
     readonly seatAnalysisTabLink: Locator;
     readonly apiResponseTabLink: Locator;
     readonly copilotChatTabLink: Locator;
-    readonly githubTabLink: Locator;
+    readonly modelsTabLink: Locator;
+    readonly userMetricsTabLink: Locator;
 
     constructor(page: Page) {
         this.page = page;
 
         this.acceptanceRateByCountLabel = page.getByText(
-            "Acceptance Rate (by count)"
+            "IDE Completion Acceptance Rate (count)"
         );
+        this.acceptanceRateByCountValue = page
+            .locator(".v-card-item")
+            .filter({ has: page.getByText("IDE Completion Acceptance Rate (count)") })
+            .locator(".kpi-value-sm");
         this.totalCountOfSuggestionsLabel = page.getByText(
-            "Total count of Suggestions (Prompts)"
+            "Total IDE Code Completions", { exact: true }
         );
-        this.totalLinesSuggestedLabel = page.getByRole("heading", {
-            name: "Total Lines Suggested | Total",
-        });
+        this.totalCountOfSuggestionsValue = page
+            .locator(".v-card-item")
+            .filter({ has: page.getByText("Total IDE Code Completions", { exact: true }) })
+            .locator(".kpi-value-sm");
+        this.totalLinesSuggestedLabel = page.getByText(
+            "Total Lines Suggested (IDE completions)", { exact: true }
+        );
         this.totalLinesSuggestedValue = page
             .locator(".v-card-item")
-            .filter({ has: page.getByText("Total Lines of code Suggested") })
-            .locator(".text-h4");
+            .filter({ has: page.getByText("Total Lines Suggested (IDE completions)", { exact: true }) })
+            .locator(".kpi-value-sm");
         this.toolbarTitle = page.locator(".toolbar-title");
 
         this.languagesTabLink = page.getByRole("tab", { name: "languages" });
@@ -50,7 +62,8 @@ export class DashboardPage {
         this.seatAnalysisTabLink = page.getByRole("tab", { name: "seat analysis" });
         this.apiResponseTabLink = page.getByRole("tab", { name: "api response" });
         this.copilotChatTabLink = page.getByRole("tab", { name: "copilot chat" });
-        this.githubTabLink = page.getByRole("tab", { name: "usage insights" });
+        this.modelsTabLink = page.getByRole("tab", { name: "models" });
+        this.userMetricsTabLink = page.getByRole("tab", { name: "user metrics" });
 
         this.teamTabLink = page.getByRole("tab", { name: "team" });
         this.teamsTabLink = page.getByRole("tab", { name: "teams" });
@@ -91,6 +104,24 @@ export class DashboardPage {
         expect(parseInt(linesAccepted as string)).toBeGreaterThan(0);
     }
 
+    async expectAcceptanceRateReasonable() {
+        const rateText = await this.acceptanceRateByCountValue.textContent();
+        expect(rateText).toBeDefined();
+        const rate = parseFloat((rateText as string).replace('%', ''));
+        // Acceptance rate should be between 1% and 80% for realistic data
+        // The old bug showed 0.4% — this catches that regression
+        expect(rate).toBeGreaterThanOrEqual(1);
+        expect(rate).toBeLessThanOrEqual(80);
+    }
+
+    async expectSuggestionCountReasonable() {
+        const countText = await this.totalCountOfSuggestionsValue.textContent();
+        expect(countText).toBeDefined();
+        const count = parseInt((countText as string).replace(/,/g, ''));
+        // Should have some completions, but not inflated by agent_edit
+        expect(count).toBeGreaterThan(0);
+    }
+
     async gotoLanguagesTab() {
         await this.languagesTabLink.click();
         return new LanguagesTab(this.page);
@@ -116,9 +147,21 @@ export class DashboardPage {
         return new CopilotChatTab(this.page);
     }
 
-    async gotoGitHubTab() {
-        await this.githubTabLink.click();
-        return new GitHubTab(this.page);
+    async gotoModelsTab() {
+        await this.modelsTabLink.click();
+        const tab = new ModelsTab(this.page);
+        // Wait for the models-container info panel heading (always present)
+        await tab.statisticsTitle.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+        // Then wait for async chart data to load (best-effort — non-fatal)
+        await this.page.locator('.models-container .v-card-title').first().waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+        return tab;
+    }
+
+    async gotoUserMetricsTab() {
+        await this.userMetricsTabLink.click();
+        const tab = new UserMetricsTab(this.page);
+        await tab.totalUsersLabel.waitFor({ state: 'visible', timeout: 15000 });
+        return tab;
     }
 
     async gotoTeamsTab() {

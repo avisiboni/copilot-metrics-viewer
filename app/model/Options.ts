@@ -4,10 +4,43 @@
  */
 import type { QueryObject } from 'ufo';
 import type { RouteLocationNormalizedLoadedGeneric } from 'vue-router';
-import { isEnvTruthy } from '../../shared/utils/env-boolean';
 import { shouldUseMockData } from '../../shared/utils/mock-mode';
 
-export type Scope = 'organization' | 'enterprise' | 'team-organization' | 'team-enterprise';
+export type Scope = 'organization' | 'enterprise';
+
+/**
+ * Returns the GitHub API base URL.
+ * Reads NUXT_GITHUB_API_BASE_URL from the environment so GHE.com users can
+ * point the app at their dedicated subdomain (e.g. https://api.SUBDOMAIN.ghe.com).
+ * Falls back to the standard https://api.github.com.
+ *
+ * NOTE: NUXT_GITHUB_API_BASE_URL is a server-only variable and is never exposed to
+ *       the browser bundle. The URL-building methods below are only called from
+ *       server-side API handlers; client-side callers never invoke them.
+ *       When this module is bundled for the client, process.env.NUXT_GITHUB_API_BASE_URL
+ *       resolves to undefined and the fallback 'https://api.github.com' is used.
+ */
+function getGitHubApiBaseUrl(): string {
+    return process.env.NUXT_GITHUB_API_BASE_URL || 'https://api.github.com';
+}
+
+/**
+ * Encode a list of logins as URL-safe base64 (comma-joined, then base64url).
+ */
+export function encodeUsersParam(logins: string[]): string {
+    const joined = logins.join(',')
+    const b64 = typeof btoa !== 'undefined' ? btoa(joined) : Buffer.from(joined).toString('base64')
+    return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+}
+
+/**
+ * Decode a URL-safe base64 users param back to a list of logins.
+ */
+export function decodeUsersParam(b64: string): string[] {
+    const padded = b64.replace(/-/g, '+').replace(/_/g, '/')
+    const decoded = typeof atob !== 'undefined' ? atob(padded) : Buffer.from(padded, 'base64').toString('utf-8')
+    return decoded.split(',').filter(Boolean)
+}
 
 export interface OptionsData {
     since?: string;
@@ -19,6 +52,8 @@ export interface OptionsData {
     scope?: Scope;
     excludeHolidays?: boolean;
     locale?: string;
+    /** Pre-resolved GitHub logins for a "reports-to" virtual team. */
+    reportToLogins?: string[];
 }
 
 export interface RuntimeConfig {
@@ -58,6 +93,8 @@ export class Options {
     public scope?: Scope;
     public excludeHolidays?: boolean;
     public locale?: string;
+    /** Pre-resolved GitHub logins for a "reports-to" virtual team. */
+    public reportToLogins?: string[];
 
     constructor(data: OptionsData = {}) {
         this.since = data.since;
@@ -69,6 +106,7 @@ export class Options {
         this.scope = data.scope;
         this.excludeHolidays = data.excludeHolidays;
         this.locale = data.locale;
+        this.reportToLogins = data.reportToLogins;
     }
 
     /**
@@ -88,28 +126,47 @@ export class Options {
         // Handle GitHub organization/enterprise/team parameters
         if (route.params.org) {
             options.githubOrg = route.params.org as string;
-
-            if (route.params.team) {
-                options.githubTeam = route.params.team as string;
-                options.scope = 'team-organization';
-            } else {
-                options.scope = 'organization';
+            options.scope = 'organization';
+            if (route.params.team) options.githubTeam = route.params.team as string;
+            // reports-to virtual team: treat as a team-scoped view
+            if (route.params.upn) {
+                options.githubTeam = `reports-to:${route.params.upn as string}`;
+                const usersB64 = route.query.users as string | undefined;
+                if (usersB64) options.reportToLogins = decodeUsersParam(usersB64);
             }
         } else if (route.params.ent) {
             options.githubEnt = route.params.ent as string;
-
-            if (route.params.team) {
-                options.githubTeam = route.params.team as string;
-                options.scope = 'team-enterprise';
-            } else {
-                options.scope = 'enterprise';
+            options.scope = 'enterprise';
+            if (route.params.team) options.githubTeam = route.params.team as string;
+            // reports-to virtual team: treat as a team-scoped view
+            if (route.params.upn) {
+                options.githubTeam = `reports-to:${route.params.upn as string}`;
+                const usersB64 = route.query.users as string | undefined;
+                if (usersB64) options.reportToLogins = decodeUsersParam(usersB64);
             }
         } else {
             // Use defaults from runtime config
-            options.scope = (config.public.scope as Scope) || 'organization';
-            if (config.public.githubOrg) options.githubOrg = config.public.githubOrg;
-            if (config.public.githubEnt) options.githubEnt = config.public.githubEnt;
-            if (config.public.githubTeam) options.githubTeam = config.public.githubTeam;
+            // Normalize legacy 'team-organization'/'team-enterprise' values to base scope
+            const rawScope = config.public.scope as string;
+            if (rawScope === 'team-organization') {
+                options.scope = 'organization';
+            } else if (rawScope === 'team-enterprise') {
+                options.scope = 'enterprise';
+            } else if (rawScope === 'organization' || rawScope === 'enterprise') {
+                options.scope = rawScope;
+            } else {
+                options.scope = 'organization';
+            }
+            // In mock mode with no URL-based org/ent, use a fixed mock identity
+            // so the UI never shows a real org name when browsing demo data
+            if (options.isDataMocked) {
+                options.githubOrg = 'octodemo';
+                options.scope = 'organization';
+            } else {
+                if (config.public.githubOrg) options.githubOrg = config.public.githubOrg;
+                if (config.public.githubEnt) options.githubEnt = config.public.githubEnt;
+                if (config.public.githubTeam) options.githubTeam = config.public.githubTeam as string;
+            }
         }
 
         return options;
@@ -120,13 +177,17 @@ export class Options {
      * Create Options from URLSearchParams
      */
     static fromURLSearchParams(params: URLSearchParams): Options {
+        const rawScope = params.get('scope');
+        const scope = rawScope === 'team-organization' ? 'organization'
+            : rawScope === 'team-enterprise' ? 'enterprise'
+            : (rawScope as Scope) || undefined;
         const options = new Options({
             since: params.get('since') || undefined,
             until: params.get('until') || undefined,
             githubOrg: params.get('githubOrg') || undefined,
             githubEnt: params.get('githubEnt') || undefined,
             githubTeam: params.get('githubTeam') || undefined,
-            scope: (params.get('scope') as Scope) || undefined,
+            scope,
             locale: params.get('locale') || undefined
         });
 
@@ -139,20 +200,24 @@ export class Options {
             options.excludeHolidays = params.get('excludeHolidays') === 'true';
         }
 
+        const usersB64 = params.get('users');
+        if (usersB64) options.reportToLogins = decodeUsersParam(usersB64);
+
         return options;
     }
 
-    static fromQuery(
-        query: QueryObject,
-        runtimePublic?: RuntimeConfig['public']
-    ): Options {
+    static fromQuery(query: QueryObject, runtimePublic?: RuntimeConfig['public']): Options {
+        const rawScope = query.scope as string | undefined;
+        const scope = rawScope === 'team-organization' ? 'organization'
+            : rawScope === 'team-enterprise' ? 'enterprise'
+            : (rawScope as Scope) || undefined;
         const options = new Options({
             since: query.since as string | undefined,
             until: query.until as string | undefined,
             githubOrg: query.githubOrg as string | undefined,
             githubEnt: query.githubEnt as string | undefined,
             githubTeam: query.githubTeam as string | undefined,
-            scope: (query.scope as Scope) || undefined,
+            scope,
             locale: query.locale as string | undefined
         });
 
@@ -165,27 +230,14 @@ export class Options {
             options.excludeHolidays = query.excludeHolidays === 'true';
         }
 
-        if (runtimePublic) {
-            options.applyRuntimeDefaults(runtimePublic);
+        const usersB64 = query.users as string | undefined;
+        if (usersB64) options.reportToLogins = decodeUsersParam(usersB64);
+
+        if (runtimePublic && shouldUseMockData(runtimePublic, query)) {
+            options.isDataMocked = true;
         }
 
         return options;
-    }
-
-    /** Fill scope/org/ent/team from Nuxt runtime config when not set on the query string. */
-    applyRuntimeDefaults(runtimePublic: RuntimeConfig['public']): void {
-        if (!this.scope) {
-            this.scope = (runtimePublic.scope as Scope) || 'organization';
-        }
-        if (!this.githubOrg && runtimePublic.githubOrg) {
-            this.githubOrg = runtimePublic.githubOrg;
-        }
-        if (!this.githubEnt && runtimePublic.githubEnt) {
-            this.githubEnt = runtimePublic.githubEnt;
-        }
-        if (!this.githubTeam && runtimePublic.githubTeam) {
-            this.githubTeam = runtimePublic.githubTeam;
-        }
     }
 
     /**
@@ -210,6 +262,7 @@ export class Options {
         if (this.scope) params.set('scope', this.scope);
         if (this.excludeHolidays) params.set('excludeHolidays', 'true');
         if (this.locale) params.set('locale', this.locale);
+        if (this.reportToLogins?.length) params.set('users', encodeUsersParam(this.reportToLogins));
 
         return params;
     }
@@ -225,6 +278,7 @@ export class Options {
         if (this.scope) params.scope = this.scope;
         if (this.excludeHolidays) params.excludeHolidays = String(this.excludeHolidays);
         if (this.locale) params.locale = this.locale;
+        if (this.reportToLogins?.length) params.users = encodeUsersParam(this.reportToLogins);
         return params;
     }
 
@@ -243,6 +297,7 @@ export class Options {
         if (this.scope !== undefined) result.scope = this.scope;
         if (this.excludeHolidays !== undefined) result.excludeHolidays = this.excludeHolidays;
         if (this.locale !== undefined) result.locale = this.locale;
+        if (this.reportToLogins !== undefined) result.reportToLogins = this.reportToLogins;
 
         return result;
     }
@@ -267,7 +322,8 @@ export class Options {
             githubTeam: other.githubTeam ?? this.githubTeam,
             scope: other.scope ?? this.scope,
             excludeHolidays: other.excludeHolidays ?? this.excludeHolidays,
-            locale: other.locale ?? this.locale
+            locale: other.locale ?? this.locale,
+            reportToLogins: other.reportToLogins ?? this.reportToLogins
         });
     }
 
@@ -286,55 +342,53 @@ export class Options {
     }
 
     /**
-     * Get the Copilot usage metrics report API URL (replaces deprecated /copilot/metrics).
+     * Get the API URL based on scope and configuration
      */
     getApiUrl(): string {
-        const baseUrl = 'https://api.github.com';
+        const baseUrl = getGitHubApiBaseUrl();
         let url = '';
 
         switch (this.scope) {
-            case 'team-organization':
             case 'organization':
                 if (!this.githubOrg) {
                     throw new Error('GitHub organization must be set for organization scope');
                 }
-                url = `${baseUrl}/orgs/${this.githubOrg}/copilot/metrics/reports/organization-28-day/latest`;
+                url = `${baseUrl}/orgs/${this.githubOrg}/copilot/metrics`;
                 break;
 
-            case 'team-enterprise':
             case 'enterprise':
                 if (!this.githubEnt) {
                     throw new Error('GitHub enterprise must be set for enterprise scope');
                 }
-                url = `${baseUrl}/enterprises/${this.githubEnt}/copilot/metrics/reports/enterprise-28-day/latest`;
-                break;
+                url = `${baseUrl}/enterprises/${this.githubEnt}/copilot/metrics`;
+                break
 
             default:
                 throw new Error(`Invalid scope: ${this.scope}`);
         }
 
+        if (this.since || this.until) {
+            const sinceParam = this.since ? `since=${encodeURIComponent(this.since)}` : '';
+            const untilParam = this.until ? `until=${encodeURIComponent(this.until)}` : '';
+            const params = [sinceParam, untilParam].filter(Boolean).join('&');
+            url += params ? `?${params}` : '';
+        }
         return url;
-    }
-
-    getTeamMetricsApiUrl(): string {
-        return '/api/team-metrics';
     }
 
     /**
      * Get the Seats API URL based on scope and configuration
      */
     getSeatsApiUrl(): string {
-        const baseUrl = 'https://api.github.com';
+        const baseUrl = getGitHubApiBaseUrl();
 
         switch (this.scope) {
-            case 'team-organization':
             case 'organization':
                 if (!this.githubOrg) {
                     throw new Error('GitHub organization must be set for organization scope');
                 }
                 return `${baseUrl}/orgs/${this.githubOrg}/copilot/billing/seats`;
 
-            case 'team-enterprise':
             case 'enterprise':
                 if (!this.githubEnt) {
                     throw new Error('GitHub enterprise must be set for enterprise scope');
@@ -347,23 +401,27 @@ export class Options {
     }
     
     /**
-     * Get the Teams API URL based on scope and configuration
+     * Get the Teams API URL based on scope and configuration.
+     * For enterprise scope with a githubOrg override, returns the org teams URL
+     * to support browsing org-level teams in Full GHEC enterprises.
      */
     getTeamsApiUrl(): string {
-        const baseUrl = 'https://api.github.com';
+        const baseUrl = getGitHubApiBaseUrl();
 
         switch (this.scope) {
-            case 'team-organization':
             case 'organization':
                 if (!this.githubOrg) {
                     throw new Error('GitHub organization must be set for organization scope');
                 }
                 return `${baseUrl}/orgs/${this.githubOrg}/teams`;
 
-            case 'team-enterprise':
             case 'enterprise':
                 if (!this.githubEnt) {
                     throw new Error('GitHub enterprise must be set for enterprise scope');
+                }
+                // When an org is selected (Full GHEC), list that org's teams
+                if (this.githubOrg) {
+                    return `${baseUrl}/orgs/${this.githubOrg}/teams`;
                 }
                 return `${baseUrl}/enterprises/${this.githubEnt}/teams`;
 
@@ -373,25 +431,29 @@ export class Options {
     }
 
     /**
-     * Get the Teams API URL based on scope and configuration
+     * Get the team members API URL based on scope and configuration.
+     * For enterprise scope with a githubOrg override, uses the org-level members
+     * endpoint to support org-level teams in Full GHEC enterprises.
      */
     getTeamMembersApiUrl(): string {
-        const baseUrl = 'https://api.github.com';
+        const baseUrl = getGitHubApiBaseUrl();
 
         switch (this.scope) {
-            case 'team-organization':
             case 'organization':
                 if (!this.githubOrg || !this.githubTeam) {
                     throw new Error('GitHub organization and team must be set for organization scope');
                 }
                 return `${baseUrl}/orgs/${this.githubOrg}/teams/${this.githubTeam}/members`;
 
-            case 'team-enterprise':
             case 'enterprise':
                 if (!this.githubEnt || !this.githubTeam) {
                     throw new Error('GitHub enterprise and team must be set for enterprise scope');
                 }
-                return `${baseUrl}/enterprises/${this.githubEnt}/teams/${this.githubTeam}/members`;
+                // When an org is selected (Full GHEC), use org-based team members endpoint
+                if (this.githubOrg) {
+                    return `${baseUrl}/orgs/${this.githubOrg}/teams/${this.githubTeam}/members`;
+                }
+                return `${baseUrl}/enterprises/${this.githubEnt}/teams/${this.githubTeam}/memberships`;
 
             default:
                 throw new Error(`Invalid scope: ${this.scope}`);
@@ -403,11 +465,6 @@ export class Options {
      */
     getMockDataPath(): string {
         switch (this.scope) {
-            case 'team-organization':
-            case 'organization':
-                return 'public/mock-data/organization_metrics_response_sample.json';
-
-            case 'team-enterprise':
             case 'enterprise':
                 return 'public/mock-data/enterprise_metrics_response_sample.json';
 
@@ -421,11 +478,6 @@ export class Options {
  */
     getSeatsMockDataPath(): string {
         switch (this.scope) {
-            case 'team-organization':
-            case 'organization':
-                return 'public/mock-data/organization_seats_response_sample.json';
-
-            case 'team-enterprise':
             case 'enterprise':
                 return 'public/mock-data/enterprise_seats_response_sample.json';
 
@@ -435,25 +487,31 @@ export class Options {
     }
 
     /**
+     * Get the mock data path for per-user metrics based on scope
+     */
+    getUserMetricsMockDataPath(): string {
+        switch (this.scope) {
+            case 'enterprise':
+                return 'public/mock-data/new-api/enterprise-users-28-day-report.json';
+
+            default:
+                return 'public/mock-data/new-api/organization-users-28-day-report.json';
+        }
+    }
+
+    /**
      * Validate the options
      */
     validate(): { isValid: boolean; errors: string[] } {
         const errors: string[] = [];
 
-        // Validate scope-specific requirements
-        if (this.scope === 'team-organization' || this.scope === 'team-enterprise') {
-            if (!this.githubTeam) {
-                errors.push('GitHub team must be set for team scopes');
-            }
-        }
-
-        if (this.scope === 'organization' || this.scope === 'team-organization') {
+        if (this.scope === 'organization') {
             if (!this.githubOrg) {
                 errors.push('GitHub organization must be set for organization scopes');
             }
         }
 
-        if (this.scope === 'enterprise' || this.scope === 'team-enterprise') {
+        if (this.scope === 'enterprise') {
             if (!this.githubEnt) {
                 errors.push('GitHub enterprise must be set for enterprise scopes');
             }

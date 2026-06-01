@@ -7,10 +7,12 @@ import {
 describe('mock-mode security', () => {
   afterEach(() => {
     delete process.env.NUXT_MOCK_QUERY_DEV_OVERRIDE
+    delete process.env.NUXT_PUBLIC_IS_DATA_MOCKED
   })
 
   test('production config rejects ?mock=true when public mock is off', () => {
     process.env.NUXT_MOCK_QUERY_DEV_OVERRIDE = 'false'
+    process.env.NUXT_PUBLIC_IS_DATA_MOCKED = 'false'
     const config = { isDataMocked: false }
     expect(shouldUseMockData(config, { mock: 'true' })).toBe(false)
     expect(isMockQueryAllowed(config)).toBe(false)
@@ -18,12 +20,14 @@ describe('mock-mode security', () => {
 
   test('configured mock mode allows data without query', () => {
     process.env.NUXT_MOCK_QUERY_DEV_OVERRIDE = 'false'
+    process.env.NUXT_PUBLIC_IS_DATA_MOCKED = 'true'
     expect(shouldUseMockData({ isDataMocked: true })).toBe(true)
     expect(shouldUseMockData({ isDataMocked: true }, { mock: 'false' })).toBe(true)
   })
 
   test('development allows ?mock=true when public mock is off', () => {
     process.env.NUXT_MOCK_QUERY_DEV_OVERRIDE = 'true'
+    process.env.NUXT_PUBLIC_IS_DATA_MOCKED = 'false'
     const config = { isDataMocked: false }
     expect(shouldUseMockData(config, { mock: 'true' })).toBe(true)
     expect(isMockQueryAllowed(config)).toBe(true)
