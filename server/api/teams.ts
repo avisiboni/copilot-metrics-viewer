@@ -1,5 +1,8 @@
 import { Options, type Scope } from '@/model/Options'
 import type { H3Event, EventHandlerRequest } from 'h3'
+import { shouldUseMockData } from '../../shared/utils/mock-mode'
+import { assertGitHubApiUrl } from '../../shared/utils/github-api-url'
+import { safeApiErrorMessage } from '../../shared/utils/safe-error-message'
 
 interface Team { name: string; slug: string; description: string }
 interface GitHubTeam { name: string; slug: string; description?: string }
@@ -35,11 +38,11 @@ export default defineEventHandler(async (event) => {
         return teamsData
     } catch (error: unknown) {
         logger.error('Error fetching teams data:', error)
-        const errorMessage = error instanceof Error ? error.message : String(error)
         const statusCode = (error && typeof error === 'object' && 'statusCode' in error)
             ? (error as { statusCode: number }).statusCode
             : 500
-        return new Response('Error fetching teams data: ' + errorMessage, { status: statusCode })
+        const errorMessage = safeApiErrorMessage(error, 'Error fetching teams data')
+        return new Response(errorMessage, { status: statusCode })
     }
 })
 
@@ -47,17 +50,23 @@ export async function getTeams(event: H3Event<EventHandlerRequest>): Promise<Tea
     const logger = console
     const query = getQuery(event)
     const options = Options.fromQuery(query)
-    const config = useRuntimeConfig()
+    const config = useRuntimeConfig(event)
 
     // Fill missing scope/context from runtime config
     if (!options.scope && config.public.scope) options.scope = config.public.scope as Scope
     if (!options.githubOrg && config.public.githubOrg) options.githubOrg = config.public.githubOrg
     if (!options.githubEnt && config.public.githubEnt) options.githubEnt = config.public.githubEnt
 
+    if (shouldUseMockData(config.public, query)) {
+      options.isDataMocked = true
+    } else {
+      options.isDataMocked = false
+    }
+
     if (options.isDataMocked) {
         logger.info('Using mocked data for teams')
         const teams: Team[] = [
-            { name: 'The A Team', slug: 'the-a-team', description: 'A team of elite agents' },
+            { name: 'Demo Team', slug: 'demo-team', description: 'A demo team for testing' },
             { name: 'Development Team', slug: 'dev-team', description: 'Team responsible for development' },
             { name: 'Frontend Team', slug: 'frontend-team', description: 'Team responsible for frontend development' },
             { name: 'Backend Team', slug: 'backend-team', description: 'Team responsible for backend development' },
@@ -94,7 +103,11 @@ export async function getTeams(event: H3Event<EventHandlerRequest>): Promise<Tea
 
         const linkHeader = res.headers.get('link') || res.headers.get('Link')
         const links = parseLinkHeader(linkHeader)
-        nextUrl = links['next'] || null
+        const next = links['next'] || null
+        if (next) {
+            assertGitHubApiUrl(next)
+        }
+        nextUrl = next
         page += 1
     }
 

@@ -120,9 +120,9 @@ Always test these scenarios after making changes (use development mode for relia
    - Test language breakdown, seat analysis, and chat metrics tabs
 
 3. **Different Scope URLs**:
-   - Organizations: `http://localhost:3000/orgs/octodemo`
-   - Enterprises: `http://localhost:3000/enterprises/octo-demo-ent`
-   - Teams: `http://localhost:3000/orgs/octodemo/teams/the-a-team`
+   - Organizations: `http://localhost:3000/orgs/your-org`
+   - Enterprises: `http://localhost:3000/enterprises/your-enterprise`
+   - Teams: `http://localhost:3000/orgs/your-org/teams/your-team`
 
 ### Docker Support
 - **Build**: `docker build -t copilot-metrics-viewer .`

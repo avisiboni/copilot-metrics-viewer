@@ -7,6 +7,18 @@ _NOTE: For information on support and assistance, click [here](https://github.co
 
 This application displays a set of charts with various metrics related to GitHub Copilot for your <i>GitHub Organization</i> or <i>Enterprise Account</i>. These visualizations are designed to provide clear representations of the data, making it easy to understand and analyze the impact and adoption of GitHub Copilot. This app utilizes the [GitHub Copilot Metrics API](https://docs.github.com/en/enterprise-cloud@latest/rest/copilot/copilot-usage?apiVersion=2022-11-28).
 
+## Documentation (Docusaurus)
+
+Full documentation is in the [`website/`](./website/) folder — **Hebrew (default, RTL)** and **English**:
+
+```bash
+npm run docs:dev      # http://localhost:3001
+npm run docs:dev:en   # http://localhost:3001/en
+npm run docs:build
+```
+
+In production, docs are served at **`/docs`** on the same host as the app (no separate docs subdomain). Run `npm run docs:embed` before dev, or use `npm run build` (embed is included). OpenShift: one Route, build with `--build-arg DOCUSAURUS_URL=https://your-app-host`. See [`website/README.md`](./website/README.md).
+
 ## Application Overview
 
 The GitHub Copilot Metrics Viewer provides comprehensive analytics through an intuitive dashboard interface:
@@ -159,10 +171,10 @@ Public variables:
 - `NUXT_PUBLIC_GITHUB_TEAM`
 
 can be overridden by route parameters, e.g.
-- `http://localhost:3000/enterprises/octo-demo-ent`
-- `http://localhost:3000/orgs/octo-demo-org`
-- `http://localhost:3000/orgs/octo-demo-org/teams/the-a-team`
-- `http://localhost:3000/enterprises/octo-demo-ent/teams/the-a-team`
+- `http://localhost:3000/enterprises/your-enterprise`
+- `http://localhost:3000/orgs/your-org`
+- `http://localhost:3000/orgs/your-org/teams/your-team`
+- `http://localhost:3000/enterprises/your-enterprise/teams/your-team`
 - `http://localhost:3000/orgs/mocked-org?mock=true`
 
 #### NUXT_PUBLIC_SCOPE (Required!)
