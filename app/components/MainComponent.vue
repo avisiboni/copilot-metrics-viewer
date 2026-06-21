@@ -97,6 +97,8 @@
         :loading="isLoading"
         :report-range="tabReportRange"
         :billing-range="tabBillingRange"
+        :min-date="dataRange?.earliest"
+        :max-date="dataRange?.latest"
         @date-range-changed="handleDateRangeChange"
       />
 
@@ -123,15 +125,18 @@
       <AuthState>
         <template #default="{ loggedIn }">
           <div v-show="signInRequired" class="github-login-container">
-            <NuxtLink
-              v-if="!loggedIn && signInRequired"
-              to="/auth/github"
-              external
-              class="github-login-button"
-            >
-              <v-icon start>mdi-github</v-icon>
-              {{ t('header.signInGithub') }}
-            </NuxtLink>
+            <template v-if="!loggedIn && signInRequired">
+              <NuxtLink
+                v-for="provider in activeProviders"
+                :key="provider.id"
+                :to="`${appBaseURL}auth/${provider.id}`"
+                external
+                class="github-login-button"
+              >
+                <v-icon start>{{ provider.icon }}</v-icon>
+                {{ provider.id === 'github' ? t('header.signInGithub') : `Sign in with ${provider.label}` }}
+              </NuxtLink>
+            </template>
           </div>
         </template>
         <template #placeholder>
@@ -589,9 +594,29 @@ export default defineNuxtComponent({
     const branding = useAppBranding();
     const brandLogoSrc = computed(() => branding.value.logoSrc);
     const brandLogoAlt = computed(() => branding.value.logoAlt);
+    const appBaseURL = useAppBaseURL();
+
+    const PROVIDER_META: Record<string, { label: string; icon: string }> = {
+      github: { label: 'GitHub', icon: 'mdi-github' },
+      google: { label: 'Google', icon: 'mdi-google' },
+      microsoft: { label: 'Microsoft', icon: 'mdi-microsoft' },
+      auth0: { label: 'Auth0', icon: 'mdi-lock-check' },
+      keycloak: { label: 'Keycloak', icon: 'mdi-key-chain' },
+    };
+
+    const activeProviders = computed(() => {
+      const raw = config.public.authProviders
+        || ((config.public.usingGithubAuth || config.public.isPublicApp) ? 'github' : '');
+      return raw
+        .split(',')
+        .map(s => s.trim().toLowerCase())
+        .filter(Boolean)
+        .map(id => ({ id, ...(PROVIDER_META[id] ?? { label: id, icon: 'mdi-login' }) }));
+    });
+
     const showLogoutButton = computed(() => {
       const providers = String(config.public.authProviders || '').trim();
-      return (config.public.usingGithubAuth || !!providers) && loggedIn.value;
+      return (config.public.requireAuth || config.public.usingGithubAuth || config.public.isPublicApp || !!providers) && loggedIn.value;
     });
     const { t, tabLabel, apiLocale, isRtl } = useAppI18n()
     const collapseChevronIcon = computed(() =>
@@ -632,6 +657,25 @@ export default defineNuxtComponent({
     const sidebarOpen = ref(true);
     const sidebarRail = ref(false);
 
+    const dataRange = ref<{ earliest: string; latest: string; mode: string } | null>(null);
+    const fetchDataRange = async () => {
+      try {
+        const options = Options.fromRoute(route);
+        const params = options.toParams();
+        const { since: _s, until: _u, ...identity } = params;
+        const qs = new URLSearchParams(identity).toString();
+        dataRange.value = await $fetch<{ earliest: string; latest: string; mode: string }>(
+          `/api/data-range${qs ? '?' + qs : ''}`
+        );
+      } catch (err) {
+        console.warn('Failed to fetch /api/data-range, falling back to client defaults:', err);
+        dataRange.value = null;
+      }
+    };
+    if (!signInRequired.value) {
+      fetchDataRange();
+    }
+
     const expandSidebar = () => {
       sidebarRail.value = false;
       sidebarOpen.value = true;
@@ -660,6 +704,8 @@ export default defineNuxtComponent({
       apiLocale,
       collapseChevronIcon,
       showLogoutButton,
+      activeProviders,
+      appBaseURL,
       mockedDataMessage,
       itemName,
       displayName,
@@ -678,6 +724,8 @@ export default defineNuxtComponent({
       collapseSidebarToRail,
       config,
       aiChatQueryParams,
+      dataRange,
+      fetchDataRange,
     };
   },
 })

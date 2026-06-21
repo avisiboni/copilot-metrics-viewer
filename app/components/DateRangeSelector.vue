@@ -33,6 +33,8 @@
             variant="outlined"
             density="compact"
             hide-details
+            :min="minDate"
+            :max="maxDate"
           />
           <v-text-field
             v-model="toDate"
@@ -42,6 +44,8 @@
             variant="outlined"
             density="compact"
             hide-details
+            :min="minDate"
+            :max="maxDate"
           />
           <v-checkbox
             v-model="excludeHolidays"
@@ -78,12 +82,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 interface Props {
   loading?: boolean
   reportRange?: string | null
   billingRange?: string | null
+  /** Earliest date for which data is available (YYYY-MM-DD). */
+  minDate?: string
+  /** Latest date for which data is available (YYYY-MM-DD). */
+  maxDate?: string
 }
 
 interface Emits {
@@ -99,6 +107,8 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
   reportRange: null,
   billingRange: null,
+  minDate: undefined,
+  maxDate: undefined,
 })
 
 const emit = defineEmits<Emits>()
@@ -106,11 +116,11 @@ const { t, apiLocale } = useAppI18n()
 
 const panelOpen = ref<string | undefined>(undefined)
 
-const today = new Date()
-const defaultFromDate = new Date(today.getTime() - 27 * 24 * 60 * 60 * 1000)
+/** Number of days in the default "last N days" window. */
+const DEFAULT_WINDOW_DAYS = 28
 
-const fromDate = ref(formatDate(defaultFromDate))
-const toDate = ref(formatDate(today))
+const fromDate = ref('')
+const toDate = ref('')
 const excludeHolidays = ref(false)
 
 function formatDate(date: Date): string {
@@ -119,6 +129,30 @@ function formatDate(date: Date): string {
 
 function parseDate(dateString: string): Date {
   return new Date(dateString + 'T00:00:00.000Z')
+}
+
+function computeDefaultRange(): { from: string; to: string } {
+  const now = new Date()
+  const fallbackLatest = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  const latest = props.maxDate ? parseDate(props.maxDate) : fallbackLatest
+  const earliestCandidate = new Date(latest.getTime() - (DEFAULT_WINDOW_DAYS - 1) * 24 * 60 * 60 * 1000)
+  const min = props.minDate ? parseDate(props.minDate) : earliestCandidate
+  const earliest = earliestCandidate < min ? min : earliestCandidate
+  return { from: formatDate(earliest), to: formatDate(latest) }
+}
+
+function applyDefaults() {
+  const { from, to } = computeDefaultRange()
+  fromDate.value = from
+  toDate.value = to
+}
+
+applyDefaults()
+
+function clamp(value: string): string {
+  if (props.minDate && value < props.minDate) return props.minDate
+  if (props.maxDate && value > props.maxDate) return props.maxDate
+  return value
 }
 
 function formatShortDate(date: Date): string {
@@ -131,15 +165,8 @@ function dayCount(from: Date, to: Date): number {
 
 function isLast28Days(): boolean {
   if (!fromDate.value || !toDate.value) return false
-
-  const expectedFromDate = new Date(today.getTime() - 27 * 24 * 60 * 60 * 1000)
-  const from = parseDate(fromDate.value)
-  const to = parseDate(toDate.value)
-
-  return (
-    from.toDateString() === expectedFromDate.toDateString() &&
-    to.toDateString() === today.toDateString()
-  )
+  const def = computeDefaultRange()
+  return fromDate.value === def.from && toDate.value === def.to
 }
 
 const holidayNoteShort = computed(() =>
@@ -229,17 +256,16 @@ const dateRangeText = computed(() => {
 })
 
 function resetToDefault() {
-  const now = new Date()
-  const defaultFrom = new Date(now.getTime() - 27 * 24 * 60 * 60 * 1000)
-
-  fromDate.value = formatDate(defaultFrom)
-  toDate.value = formatDate(now)
+  applyDefaults()
 }
 
 function applyDateRange() {
   if (!fromDate.value || !toDate.value) {
     return
   }
+
+  fromDate.value = clamp(fromDate.value)
+  toDate.value = clamp(toDate.value)
 
   const from = parseDate(fromDate.value)
   const to = parseDate(toDate.value)
@@ -257,6 +283,15 @@ function applyDateRange() {
     excludeHolidays: excludeHolidays.value
   })
 }
+
+watch(
+  () => [props.minDate, props.maxDate] as const,
+  ([newMin, newMax], [oldMin, oldMax]) => {
+    if (newMin === oldMin && newMax === oldMax) return
+    applyDefaults()
+    applyDateRange()
+  }
+)
 
 onMounted(() => {
   applyDateRange()
