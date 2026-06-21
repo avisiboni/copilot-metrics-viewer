@@ -12,7 +12,7 @@ withDefaults(
   {
     headingTag: 'h2',
     headingClass: 'mb-1',
-    wrapperClass: ''
+    wrapperClass: '',
   }
 )
 </script>
@@ -22,12 +22,10 @@ withDefaults(
     <component :is="headingTag" class="brand-chart-title__heading" :class="headingClass">
       {{ title }}
     </component>
-    <v-tooltip
+    <BrandTooltip
       v-if="tooltip"
+      :text="tooltip"
       location="bottom start"
-      open-on-hover
-      open-delay="200"
-      close-delay="200"
     >
       <template #activator="{ props: tipProps }">
         <button
@@ -39,9 +37,6 @@ withDefaults(
           <v-icon icon="mdi-information-outline" size="18" />
         </button>
       </template>
-      <v-card class="pa-3 brand-tooltip-card brand-kpi-tooltip__panel">
-        <p class="brand-kpi-tooltip__text">{{ tooltip }}</p>
-      </v-card>
-    </v-tooltip>
+    </BrandTooltip>
   </div>
 </template>

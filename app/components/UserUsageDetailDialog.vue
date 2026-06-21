@@ -7,7 +7,7 @@
     scrim="rgba(15, 23, 42, 0.55)"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <v-card v-if="user" class="user-usage-detail" elevation="8">
+    <v-card v-if="modelValue && user" class="user-usage-detail" elevation="8">
       <v-card-title class="user-usage-detail__header">
         <div class="brand-table-user-cell">
           <BrandUserAvatar
@@ -18,13 +18,16 @@
           <div>
             <div class="d-flex align-center flex-wrap ga-2">
               <div class="text-h6">{{ user.user_login }}</div>
-              <BrandAiAdoptionPhaseChip :phase="user.ai_adoption_phase" />
+              <BrandAiAdoptionPhaseChip
+                v-if="showAiAdoptionCohorts"
+                :phase="user.ai_adoption_phase"
+              />
             </div>
             <div v-if="user.name || user.email" class="text-body-2 text-medium-emphasis">
               {{ [user.name, user.email].filter(Boolean).join(' · ') }}
             </div>
             <div
-              v-if="user.ai_adoption_phase?.version"
+              v-if="showAiAdoptionCohorts && user.ai_adoption_phase?.version"
               class="text-caption text-medium-emphasis"
             >
               {{ t('adoption.versionLabel', { version: user.ai_adoption_phase.version }) }}
@@ -57,7 +60,26 @@
           </v-col>
         </v-row>
 
-        <v-row v-if="billingAvailable || !premiumCreditsFetchEnabled || premiumCreditsTableDisabled" class="mb-4" dense>
+        <UserUsageInsightPanel
+          v-if="usageInsight"
+          :insight="usageInsight"
+          :raw="insightRawCounts"
+          :top-model="user?.topModel ?? ''"
+        />
+
+        <v-row v-if="billingAvailable || !premiumCreditsFetchEnabled || premiumCreditsTableDisabled || aiCreditsFetchEnabled" class="mb-4" dense>
+          <v-col v-if="aiCreditsFetchEnabled" cols="12" md="6">
+            <v-card variant="outlined" class="pa-3">
+              <div class="text-subtitle-2 mb-2 d-flex align-center ga-2">
+                {{ t('userDetail.aiCreditsPeriod') }}
+              </div>
+              <BrandAiCreditsCell
+                v-if="billingAvailable"
+                :credits="user.ai_credits"
+              />
+              <span v-else class="brand-credits-cell--na">{{ t('common.na') }}</span>
+            </v-card>
+          </v-col>
           <v-col cols="12" md="6">
             <v-card variant="outlined" class="pa-3">
               <div class="text-subtitle-2 mb-2 d-flex align-center ga-2">
@@ -122,15 +144,15 @@
           </v-col>
         </v-row>
 
-        <v-alert
+        <BrandDismissibleAlert
           v-if="!hasChartData"
           type="info"
-          variant="tonal"
           density="compact"
-          class="mb-4 brand-alert brand-alert--info"
+          alert-class="mb-4 brand-alert brand-alert--info"
+          :close-label="t('common.close')"
         >
           {{ t('userDetail.noBreakdown') }}
-        </v-alert>
+        </BrandDismissibleAlert>
 
         <v-row v-else>
           <v-col cols="12" lg="7">
@@ -226,8 +248,14 @@ import {
 import type { UserUsageLeaderboardRow } from '../../shared/types/usage-insights'
 import { usageNumber } from '../../shared/types/copilot-usage'
 import BrandPremiumCreditsCell from '@/components/BrandPremiumCreditsCell.vue'
+import BrandAiCreditsCell from '@/components/BrandAiCreditsCell.vue'
 import BrandUserAvatar from '@/components/BrandUserAvatar.vue'
 import BrandAiAdoptionPhaseChip from '@/components/BrandAiAdoptionPhaseChip.vue'
+import BrandDismissibleAlert from '@/components/BrandDismissibleAlert.vue'
+import BrandChartTitle from '@/components/BrandChartTitle.vue'
+import BrandKpiTooltip from '@/components/BrandKpiTooltip.vue'
+import UserUsageInsightPanel from '@/components/UserUsageInsightPanel.vue'
+import type { UserUsageInsight } from '../../shared/types/usage-pattern'
 import { PREMIUM_CREDITS_TABLE_DISABLED } from '../../shared/utils/premium-credits-feature'
 import { useChartTooltips } from '@/utils/chart-tooltips'
 import { pieSliceColors } from '@/utils/brand-colors'
@@ -249,16 +277,32 @@ function formatFeatureLabel(feature?: string): string {
 
 export default defineComponent({
   name: 'UserUsageDetailDialog',
-  components: { Bar, Pie, BrandPremiumCreditsCell, BrandUserAvatar, BrandAiAdoptionPhaseChip },
+  components: {
+    Bar,
+    Pie,
+    BrandPremiumCreditsCell,
+    BrandAiCreditsCell,
+    BrandUserAvatar,
+    BrandAiAdoptionPhaseChip,
+    BrandDismissibleAlert,
+    BrandChartTitle,
+    BrandKpiTooltip,
+    UserUsageInsightPanel
+  },
   props: {
     modelValue: { type: Boolean, required: true },
     user: {
       type: Object as PropType<UserUsageLeaderboardRow | null>,
       default: null
     },
+    usageInsight: {
+      type: Object as PropType<UserUsageInsight | null>,
+      default: null
+    },
     reportRange: { type: String, default: '' },
     billingAvailable: { type: Boolean, default: false },
     premiumCreditsFetchEnabled: { type: Boolean, default: true },
+    aiCreditsFetchEnabled: { type: Boolean, default: true },
     teamSlugs: {
       type: Array as PropType<string[]>,
       default: () => []
@@ -268,6 +312,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const chartTooltips = useChartTooltips()
     const { t } = useAppI18n()
+    const { visible: showAiAdoptionCohorts } = useAiAdoptionCohortsFeature()
     const barChartOptions = brandBarChartOptions(brandChartOptionsInContainer)
     const pieChartOptions = brandPieChartOptions(brandChartOptionsInContainer)
     const horizontalBarOptions = computed(() => ({
@@ -308,6 +353,17 @@ export default defineComponent({
           tooltip: t.value('billing.kpiTooltipLocAdded')
         }
       ]
+    })
+
+    const insightRawCounts = computed(() => {
+      const u = props.user
+      if (!u) return null
+      return {
+        interactions: u.interactions,
+        generations: u.generations,
+        acceptances: u.acceptances,
+        locAdded: u.locAdded
+      }
     })
 
     const modelChartData = computed(() => {
@@ -408,8 +464,11 @@ export default defineComponent({
       chartTooltips,
       t,
       emit,
+      showAiAdoptionCohorts,
       premiumCreditsTableDisabled,
+      aiCreditsFetchEnabled: computed(() => props.aiCreditsFetchEnabled),
       summaryKpis,
+      insightRawCounts,
       modelChartData,
       featureChartData,
       modelFeatureChartData,

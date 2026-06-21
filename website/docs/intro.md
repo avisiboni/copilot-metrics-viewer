@@ -5,43 +5,63 @@ title: ברוכים הבאים
 
 # Copilot Metrics Viewer
 
-מערכת זו מציגה **לוח בקרה** למדדי שימוש ב-GitHub Copilot ברמת ארגון, צוות או Enterprise — גרפים, טבלאות, ייצוא CSV ותובנות חיוב (כשה-API זמין).
+מערכת זו מציגה **לוח בקרה** למדדי שימוש ב-GitHub Copilot ברמת ארגון, צוות או Enterprise — גרפים, טבלאות, ייצוא CSV, תובנות חיוב, קוהורטות AI adoption ועוזר AI.
+
+> **גרסה 3.0** — משתמשת ב-[Copilot Usage Metrics API](https://docs.github.com/en/enterprise-cloud@latest/rest/copilot/copilot-usage-metrics). ראו [מעבר ל-v3](./reference/v3-migration).
 
 ## למי מיועד התיעוד?
 
 | קהל | התחילו כאן |
 |-----|------------|
 | **משתמשי לוח הבקרה** | [מדריך למשתמש](./user-guide/overview) |
-| **מנהלי מערכת / DevOps** | [פריסה](./deployment/overview) · [OpenShift](./deployment/openshift) |
+| **מנהלי מערכת / DevOps** | [מצבי הפעלה](./setup/operating-modes) · [פריסה](./deployment/overview) |
 | **מפתחים** | [התקנה מקומית](./setup/local-development) · [תרגומים](./contributing/translations) |
 
 ## שפות
 
 - **עברית (ברירת מחדל)** — ממשק התיעוד מימין לשמאל (RTL).
-- **English** — בחרו **English** בתפריט השפה למעלה; הנתיב יתחיל ב-`/en/docs/...`.
+- **English** — בחרו **English** בתפריט השפה; הנתיב יתחיל ב-`/en/docs/...`.
 
 ## דרישות בסיסיות
 
-- חשבון **GitHub Organization** או **Enterprise** עם Copilot Metrics.
-- **טוקן** או **OAuth / GitHub App** עם הרשאות מתאימות (ראו [הרשאות](./reference/scopes)).
+- חשבון **GitHub Organization** או **Enterprise** עם Copilot.
+- **טוקן** (PAT), **GitHub App**, או **OAuth** — [אימות](./setup/authentication).
 - לעמודות **Premium credits** ו-**Usage & billing**: `manage_billing:copilot` ופלטפורמת חיוב מתקדמת.
 
-## ניווט מהיר בלוח הבקרה
+## מצבי הפעלה
+
+| מצב | תיאור קצר |
+|-----|-----------|
+| **Direct API** | ללא DB — חלון 28 יום מה-API |
+| **Historical** | PostgreSQL + sync — היסטוריה, מגמות משתמש/מושבים |
+
+[פרטים →](./setup/operating-modes)
+
+## לשוניות בלוח (סדר טיפוסי)
 
 | לשונית | תוכן |
 |--------|------|
-| Organization | שיעורי קבלה, הצעות, משתמשים פעילים |
-| Teams | השוואת צוותים |
-| Languages / Editors | פילוח לפי שפה או עורך |
+| Organization / Enterprise | KPI, קוהורטות AI adoption, גרפים כלליים |
 | Copilot Chat | מדדי צ'אט |
-| Usage insights | מודלים ותכונות |
-| Users | שימוש לפי משתמש + קרדיטים פרימיום |
-| Usage & billing | חיוב ו-PRU (כשזמין) |
-| Seat analysis | מושבים מוקצים / לא בשימוש |
-| API response | ייצוא נתונים גולמיים |
-| [רכיבי UI](./user-guide/ui-reference/overview) | הסבר לכל KPI, עמודה ודיאלוג |
-| [שינויים אחרונים](./reference/recent-features) | דיאלוג משתמש, PRU, RTL, דגל בקרוב |
+| Users | שימוש לפי משתמש, **דפוסי שימוש**, שלב אימוץ |
+| Usage & billing | חיוב, מודלים, דיאלוג פירוט משתמש, **דפוסי שימוש** |
+| Seat analysis | מושבים, מגמות חודשיות, KPI שימוש |
+| Usage insights | מודלים, Agent, תכונות |
+| Teams | צוות בודד או השוואה (ארגון/Enterprise) |
+| Languages / Editors | פילוח |
+| API response | ייצוא גולמי / CSV |
+| [עוזר AI](./user-guide/ai-chat) | צ'אט על המדדים (FAB) |
+
+ניתן להסתיר לשוניות: `NUXT_PUBLIC_HIDDEN_TABS=languages,editors`
+
+## קישורים מהירים
+
+- [דפוסי שימוש](./user-guide/usage-patterns)
+- [תצוגה לפי צוות (URL)](./user-guide/team-scoped-views)
+- [מיתוג](./setup/branding)
+- [שינויים אחרונים](./reference/recent-features)
+- [רכיבי UI](./user-guide/ui-reference/overview)
 
 :::tip
-לשינוי טווח תאריכים — לחצו על **Last 28 days** (או הטקסט בעברית בלוח) בראש העמוד ולחצו **Apply**.
+לשינוי טווח תאריכים — לחצו על **Last 28 days** בראש העמוד ולחצו **Apply**.
 :::

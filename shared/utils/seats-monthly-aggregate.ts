@@ -122,3 +122,76 @@ export function formatSeatMonthLabel(monthKey: string, locale: string): string {
     new Date(year, month - 1, 1)
   )
 }
+
+/** Calendar months strictly between two `YYYY-MM` keys (exclusive of endpoints). */
+export function calendarMonthsBetween(startMonth: string, endMonth: string): string[] {
+  const [y1, m1] = startMonth.split('-').map((part) => Number(part))
+  const [y2, m2] = endMonth.split('-').map((part) => Number(part))
+  if (!y1 || !m1 || !y2 || !m2) return []
+  const gaps: string[] = []
+  let year = y1
+  let month = m1
+  while (true) {
+    month += 1
+    if (month > 12) {
+      month = 1
+      year += 1
+    }
+    if (year === y2 && month === m2) break
+    gaps.push(`${year}-${String(month).padStart(2, '0')}`)
+  }
+  return gaps
+}
+
+/**
+ * Insert months with no new assignments so invoice rows include carry-forward totals
+ * (e.g. March with 0 new but 20 seats still assigned).
+ */
+export function fillMonthlyCountGaps(monthlyCounts: MonthlySeatCount[]): MonthlySeatCount[] {
+  if (monthlyCounts.length < 2) return [...monthlyCounts]
+  const sorted = [...monthlyCounts].sort((a, b) => a.month.localeCompare(b.month))
+  const out: MonthlySeatCount[] = []
+  for (let i = 0; i < sorted.length; i++) {
+    out.push(sorted[i])
+    if (i >= sorted.length - 1) continue
+    for (const gapMonth of calendarMonthsBetween(sorted[i].month, sorted[i + 1].month)) {
+      out.push({ month: gapMonth, total_seats: 0 })
+    }
+  }
+  return out
+}
+
+/** For historical snapshots: carry end-of-month seat count into gap months with no snapshot. */
+export function fillMonthlyCountGapsHistorical(
+  monthlyCounts: MonthlySeatCount[]
+): MonthlySeatCount[] {
+  const withGaps = fillMonthlyCountGaps(monthlyCounts)
+  if (withGaps.length === 0) return []
+  let lastTotal = 0
+  return withGaps.map((row) => {
+    if (row.total_seats === 0 && lastTotal > 0) {
+      return { month: row.month, total_seats: lastTotal, snapshot_date: row.snapshot_date }
+    }
+    lastTotal = row.total_seats
+    return row
+  })
+}
+
+export interface MonthlySeatInvoiceRowWithCost extends MonthlySeatInvoiceRow {
+  existing_cost: number
+  new_cost: number
+  monthly_cost: number
+}
+
+export function applyMonthlySeatUnitPrice(
+  rows: MonthlySeatInvoiceRow[],
+  unitPrice: number
+): MonthlySeatInvoiceRowWithCost[] {
+  const price = unitPrice > 0 ? unitPrice : 0
+  return rows.map((row) => ({
+    ...row,
+    existing_cost: row.existing_seats * price,
+    new_cost: row.new_seats * price,
+    monthly_cost: row.total_seats * price
+  }))
+}

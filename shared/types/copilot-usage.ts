@@ -164,11 +164,22 @@ export interface UserPremiumCredits {
   source: 'billing' | 'unavailable';
 }
 
+export interface UserAiCredits {
+  /** AI credits consumed in the billing period. */
+  used: number;
+  /** Net USD for AI credit usage when returned by billing API. */
+  netAmount?: number;
+  exceedsQuota?: boolean;
+  /** billing = from API; unavailable = per-user data not loaded yet or blocked */
+  source: 'billing' | 'unavailable';
+}
+
 export interface UserUsageRecord {
   day?: string;
   user_id: number;
   user_login: string;
   premium_credits?: UserPremiumCredits;
+  ai_credits?: UserAiCredits;
   name?: string | null;
   email?: string | null;
   user_initiated_interaction_count?: number;

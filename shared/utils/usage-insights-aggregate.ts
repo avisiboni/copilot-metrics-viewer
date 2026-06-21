@@ -25,7 +25,9 @@ import {
   isPremiumRequestSku
 } from './billing-normalize'
 import { enrichRowsWithPremiumCredits } from './premium-credits'
+import { enrichRowsWithAiCredits } from './ai-credits'
 import type { PremiumCreditsResolveResult } from './fetch-premium-credits-batch'
+import type { AiCreditsResolveResult } from './fetch-ai-credits-batch'
 
 const NUMERIC_USER_KEYS = [
   'user_initiated_interaction_count',
@@ -368,12 +370,17 @@ export function buildSummary(users: UserUsageRecord[]): UsageInsightsSummary {
     }
   }
 
+  const totalLocAdded = users.reduce((s, u) => s + usageNumber(u.loc_added_sum), 0)
+  const totalLocDeleted = users.reduce((s, u) => s + usageNumber(u.loc_deleted_sum), 0)
+
   return {
     userCount: users.length,
     totalInteractions: users.reduce((s, u) => s + usageNumber(u.user_initiated_interaction_count), 0),
     totalGenerations: users.reduce((s, u) => s + usageNumber(u.code_generation_activity_count), 0),
     totalAcceptances: users.reduce((s, u) => s + usageNumber(u.code_acceptance_activity_count), 0),
-    totalLocAdded: users.reduce((s, u) => s + usageNumber(u.loc_added_sum), 0),
+    totalLocAdded,
+    totalLocDeleted,
+    totalLocChanged: totalLocAdded + totalLocDeleted,
     uniqueModels: models.size,
     agentUsers: users.filter((u) => u.used_agent).length,
     chatUsers: users.filter((u) => u.used_chat).length,
@@ -391,15 +398,17 @@ export function buildUsageInsightsResponse(params: {
   reportEndDay?: string
   premiumCreditsQuota?: number
   premiumCredits?: PremiumCreditsResolveResult
+  aiCredits?: AiCreditsResolveResult
   adoptionByPhase?: AiAdoptionPhaseAggregate[]
 }): UsageInsightsResponse {
   const users = params.users
   const billing = params.billing
   const premiumCreditsQuota = params.premiumCreditsQuota ?? 1000
   const perUserDataAvailable = params.premiumCredits?.perUserDataAvailable ?? false
+  const perUserAiDataAvailable = params.aiCredits?.perUserDataAvailable ?? false
 
   const premiumByUser = aggregatePremiumByUser(billing)
-  const leaderboard = enrichRowsWithPremiumCredits(
+  const withPremium = enrichRowsWithPremiumCredits(
     buildUserLeaderboard(users),
     billing,
     premiumCreditsQuota,
@@ -410,6 +419,11 @@ export function buildUsageInsightsResponse(params: {
       creditsMap: params.premiumCredits?.creditsMap
     }
   )
+  const leaderboard = enrichRowsWithAiCredits(withPremium, billing, {
+    billingLoaded: billing.available,
+    perUserUnavailable: billing.available && !perUserAiDataAvailable,
+    creditsMap: params.aiCredits?.creditsMap
+  })
 
   return {
     reportStartDay: params.reportStartDay,
@@ -547,12 +561,13 @@ export function filterUsageInsightsByUser(
     (u) => u.user_login.toLowerCase() === login
   )
 
-  const users = enrichRowsWithPremiumCredits(
+  const withPremium = enrichRowsWithPremiumCredits(
     usersRaw,
     filteredBilling,
     data.premiumCreditsQuota ?? 1000,
     premiumByUser
   )
+  const users = enrichRowsWithAiCredits(withPremium, filteredBilling)
 
   return {
     ...data,

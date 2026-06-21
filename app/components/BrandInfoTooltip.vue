@@ -12,19 +12,13 @@ withDefaults(
   {
     location: 'bottom end',
     iconSize: 18,
-    buttonClass: 'brand-chart-title__info'
+    buttonClass: 'brand-chart-title__info',
   }
 )
 </script>
 
 <template>
-  <v-tooltip
-    v-if="text"
-    :location="location"
-    open-on-hover
-    open-delay="200"
-    close-delay="200"
-  >
+  <BrandTooltip v-if="text" :text="text" :location="location">
     <template #activator="{ props: tipProps }">
       <button
         type="button"
@@ -36,8 +30,5 @@ withDefaults(
         <v-icon icon="mdi-information-outline" :size="iconSize" />
       </button>
     </template>
-    <v-card class="pa-3 brand-tooltip-card brand-kpi-tooltip__panel">
-      <p class="brand-kpi-tooltip__text">{{ text }}</p>
-    </v-card>
-  </v-tooltip>
+  </BrandTooltip>
 </template>

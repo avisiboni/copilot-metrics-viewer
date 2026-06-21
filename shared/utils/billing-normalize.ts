@@ -52,6 +52,10 @@ export function isPremiumRequestSku(sku: string | undefined): boolean {
   return n === 'copilot_premium_request' || n === 'premium_request'
 }
 
+export function isAiCreditsSku(sku: string | undefined): boolean {
+  return canonicalBillingSkuKey(sku) === 'copilot_ai_credits'
+}
+
 function pickString(raw: Record<string, unknown>, ...keys: string[]): string | undefined {
   for (const key of keys) {
     const v = raw[key]

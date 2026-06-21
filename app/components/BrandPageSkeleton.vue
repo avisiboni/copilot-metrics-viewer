@@ -58,6 +58,7 @@
         <v-card flat class="pa-3 mb-3 brand-skeleton-banner">
           <v-skeleton-loader type="list-item-two-line" />
         </v-card>
+        <BrandKpiTilesSkeleton :count="5" class="mb-4" />
         <BrandFilterBarSkeleton />
         <BrandTableSkeleton :columns="8" :rows="12" show-toolbar />
       </section>

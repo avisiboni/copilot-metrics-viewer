@@ -4,7 +4,25 @@ title: קוהורטות AI adoption
 
 # קוהורטות AI adoption (AI adoption cohorts)
 
-תכונה חדשה ב-[Copilot usage metrics API](https://github.blog/changelog/2026-05-29-copilot-usage-metrics-api-adds-cohorts-for-ai-adoption/) (מאי 2026). הלוח **Copilot Metrics Viewer** מציג אותה בכל הלשוניות הרלוונטיות.
+תכונה חדשה ב-[Copilot usage metrics API](https://github.blog/changelog/2026-05-29-copilot-usage-metrics-api-adds-cohorts-for-ai-adoption/) (מאי 2026). הלוח **Copilot Metrics Viewer** יכול להציג אותה בלשוניות הרלוונטיות — **מוסתר כברירת מחדל**.
+
+## הצגה / הסתרה (`NUXT_PUBLIC_SHOW_AI_ADOPTION_COHORTS`)
+
+| ערך | התנהגות |
+|-----|----------|
+| **לא מוגדר / `false`** (ברירת מחדל) | אין פאנל קוהורטות, אין צ'יפ שלב בדיאלוג משתמש, אין הסברי adoption בטבלאות |
+| **`true`** | מוצגים פאנל **קוהורטות AI adoption**, צ'יפים, והערות leaderboard |
+
+```bash
+# להציג שוב (למשל כשמשתמשים גם ב-CLI, cloud agent, code review):
+NUXT_PUBLIC_SHOW_AI_ADOPTION_COHORTS=true
+```
+
+אחרי שינוי — הפעלה מחדש של `npm run dev` או פריסה מחדש.
+
+:::tip ארגון עם Copilot ב-IDE בלבד
+אם אתם משתמשים רק ב-Copilot בעורך, אפשר להשאיר `false`. דפוסי שימוש ומדדי המשתמש בטבלה מספיקים לרוב. כשתפעילו cohorts, שקלו גם `NUXT_PUBLIC_ADOPTION_IDE_ONLY=true` (ראו למטה).
+:::
 
 ## למה זה קיים
 
@@ -25,6 +43,24 @@ GitHub מסווג כל משתמש **מעורב** לשלב אחד (0–3) לפי 
 | **2** | Agent first | משטח סוכן **אחד** מבוסס GitHub: Copilot cloud agent, Copilot code review, או Copilot CLI |
 | **3** | Multi-agent | **שני משטחי סוכן ומעלה**, או שימוש ב-**GitHub Copilot app** |
 
+### מצב IDE בלבד (`NUXT_PUBLIC_ADOPTION_IDE_ONLY=true`)
+
+חל רק כש-`NUXT_PUBLIC_SHOW_AI_ADOPTION_COHORTS=true`.
+
+כשהארגון **לא** משתמש במשטחים מחוץ לעורך (אין CLI, cloud agent, code review וכו׳), הגדירו:
+
+```bash
+NUXT_PUBLIC_ADOPTION_IDE_ONLY=true
+```
+
+ואז הלוח:
+
+- מציג בפאנל האימוץ רק **ללא cohort** ו-**Code first** (בלי כרטיסי Agent first / Multi-agent).
+- מעדכן רמזים ועמודות — בלי להזכיר סולמות שלא רלוונטיים.
+- אם GitHub עדיין מסווג משתמש לשלב 2/3, בעמודת השלב מופיע **«לא רלוונטי»** (לא תווית סוכן).
+
+ברירת מחדל: `false` (כל ארבעת השלבים מוצגים).
+
 ### שדה `version`
 
 לכל סיווג (`ai_adoption_phase`) GitHub מוסיף `version` (מתחיל ב-`v1`) כדי שאפשר יהיה לשנות לוגיקת סיווג בעתיד בלי לאבד הקשר היסטורי. הלוח מציג את הגרסה בדיאלוג פירוט המשתמש.
@@ -44,7 +80,7 @@ GitHub מסווג כל משתמש **מעורב** לשלב אחד (0–3) לפי 
 
 בפועל: הוא משתמש ב-Copilot בעיקר **בתוך העורך** לכתיבת קוד, ועדיין לא עבר לשימוש עקבי בסוכני GitHub (cloud agent, code review, CLI) או בשילוב כמה סוכנים. בלוח — **ריחוף על הצ'יפ** «Code first» מציג הסבר זה.
 
-## מה הלוח מציג
+## מה הלוח מציג (כש-`NUXT_PUBLIC_SHOW_AI_ADOPTION_COHORTS=true`)
 
 ### 1. פאנל «קוהורטות AI adoption» (`BrandAiAdoptionPanel`)
 
@@ -61,20 +97,43 @@ GitHub מסווג כל משתמש **מעורב** לשלב אחד (0–3) לפי 
 |---------|--------|
 | **4 כרטיסי KPI** | מספר משתמשים מעורבים (`total_engaged_users`) בכל שלב 0–3 |
 | **גרף עמודות** | אותם מספרים לפי שלב (שלב 0 מוצג רק אם יש מעורבים בו) |
-| **טבלת Cohort averages** | ממוצעים לפי שלב — ראו טבלת מיפוי למטה |
+| **טבלת Cohort averages** | ממוצעים לפי שלב — [טבלת עמודות](#טבלת-ממוצעים-לפי-cohort) |
 
 הפאנל **מוסתר** אם אין אף משתמש מעורב בשלב כלשהו (אין נתוני cohort בדוח).
 
-### 2. עמודת «שלב AI adoption» בטבלאות משתמשים
+### טבלת ממוצעים לפי cohort
 
-![לשונית Users](/img/ui/ai-adoption-users-tab.png)
+`BrandAiAdoptionPanel` — שורה לכל שלב (0–3). ערכים הם **ממוצעים למשתמש** בשלב, לא סכומים.
 
-| מיקום | עמודה | מפתח |
-|--------|--------|------|
-| Users | שלב AI adoption | `ai_adoption_phase` |
-| Usage & billing (leaderboard) | שלב AI adoption | `ai_adoption_phase` |
+| עמודה | מפתח | הסבר |
+|--------|------|------|
+| **שלב** | `phase` | שלב 0–3 (למשל Code first) |
+| **משתמשים מעורבים** | `engagedUsers` | `total_engaged_users` בשלב |
+| **בדוח משתמשים** *(מותנה)* | `labeledUsers` | כשמוצגות שתי מדדי cohort + דוח |
+| **ממוצע אינטראקציות** | `avgInteractions` | ממוצע לאורך משתמשי השלב |
+| **ממוצע יצירות** | `avgGenerations` | ממוצע generations |
+| **ממוצע קבלות** | `avgAcceptances` | ממוצע acceptances |
+| **ממוצע שורות שנוספו** | `avgLocAdded` | ממוצע LoC added |
+| **ממוצע שורות שנמחקו** | `avgLocDeleted` | ממוצע LoC deleted |
+| **ממוצע PR שנוצרו** | `avgPrCreated` | ממוצע PR created |
+| **ממוצע PR שמוזגו** | `avgPrMerged` | ממוצע PR merged |
+| **ממוצע PR שנסקרו** | `avgPrReviewed` | ממוצע PR reviewed |
+| **ממוצע חציון דקות למיזוג** | `medianMinutesToMerge` | מדד זמן מיזוג |
 
-התצוגה: צ'יפ צבעוני (`BrandAiAdoptionPhaseChip`) — אפור (0), סגול (1), טורקיז (2), הדגשה (3).
+מפתחות: `adoption.col*`.
+
+### 2. שלב AI adoption — דיאלוג (לא עמודה בטבלה)
+
+![לשונית Users (עם cohort)](/img/ui/ai-adoption-users-tab.png)
+
+בגרסה הנוכחית **אין** עמודת «שלב AI adoption» בטבלאות Users או Usage & billing. השלב מוצג ב:
+
+| מיקום | תצוגה |
+|--------|--------|
+| [דיאלוג פירוט משתמש](./user-usage-detail-dialog) | צ'יפ `ai_adoption_phase` + `version` בכותרת |
+| באנר מידע מעל טבלת Users | הסבר על cohort (כש-`SHOW_AI_ADOPTION_COHORTS=true`) |
+
+צ'יפ: `BrandAiAdoptionPhaseChip` — אפור (0), סגול (1), טורקיז (2), הדגשה (3).
 
 ### 3. דיאלוג פירוט משתמש
 

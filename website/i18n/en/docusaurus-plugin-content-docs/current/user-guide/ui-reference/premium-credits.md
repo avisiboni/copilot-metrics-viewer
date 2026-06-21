@@ -13,7 +13,7 @@ title: Premium credits (PRU)
 | **Usage metrics** | `/copilot/metrics/reports/users-*` | Interactions, lines, Agent/Chat — **no PRU** |
 | **Billing** | `/settings/billing/premium_request/usage` | PRU by model / user |
 
-The app uses both separately. CSV export **does not** include PRU.
+The app uses both separately. CSV export **does not** include PRU. For AI credits (separate billing metric) see [AI credits](./ai-credits).
 
 ## Flag: temporary disable
 

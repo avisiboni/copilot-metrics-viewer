@@ -1,12 +1,16 @@
 <template>
   <div v-if="disabled" class="brand-credits-cell brand-credits-cell--disabled">
-    <v-tooltip :text="t('billing.premiumCreditsDisabledIpHint')" location="top" max-width="320">
+    <BrandTooltip
+      :text="t('billing.premiumCreditsDisabledIpHint')"
+      location="top"
+      :max-width="320"
+    >
       <template #activator="{ props: tipProps }">
         <span v-bind="tipProps" class="brand-credits-cell__disabled-note">
           {{ t('billing.premiumCreditsDisabledIpShort') }}
         </span>
       </template>
-    </v-tooltip>
+    </BrandTooltip>
   </div>
   <div v-else-if="comingSoon" class="brand-credits-cell brand-credits-cell--coming-soon">
     <v-chip size="small" color="primary" variant="tonal" label>

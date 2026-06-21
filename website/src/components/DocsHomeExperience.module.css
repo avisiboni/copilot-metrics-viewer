@@ -1,0 +1,273 @@
+.shell {
+  position: relative;
+  min-height: calc(100vh - var(--ifm-navbar-height) - 80px);
+  overflow: hidden;
+  background: radial-gradient(
+      ellipse 120% 80% at 70% 20%,
+      color-mix(in srgb, var(--brand-primary) 18%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 90% 60% at 20% 80%,
+      color-mix(in srgb, var(--brand-turquoise) 12%, transparent),
+      transparent 50%
+    ),
+    color-mix(in srgb, var(--brand-lavender) 30%, var(--ifm-background-color));
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: inherit;
+  padding: 3rem 1.25rem 4rem;
+  text-align: center;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.85rem;
+  margin-bottom: 1.25rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--brand-primary-dark);
+  background: color-mix(in srgb, var(--brand-primary) 12%, white);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent);
+  box-shadow: 0 4px 24px color-mix(in srgb, var(--brand-primary) 15%, transparent);
+}
+
+.badgeDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-primary-light), var(--brand-primary));
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.15);
+  }
+}
+
+.title {
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--brand-primary-dark);
+  margin: 0 0 0.75rem;
+  max-width: 20ch;
+}
+
+.titleAccent {
+  background: linear-gradient(
+    120deg,
+    var(--brand-primary) 0%,
+    var(--brand-primary-light) 45%,
+    var(--brand-turquoise) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.tagline {
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
+  max-width: 38rem;
+  margin: 0 auto 1.5rem;
+  color: var(--ifm-font-color-base);
+  opacity: 0.92;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 0.65rem;
+  margin-bottom: 2rem;
+  max-width: 36rem;
+}
+
+.chip {
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+  color: var(--brand-primary-dark);
+  background: color-mix(in srgb, white 75%, var(--brand-lavender));
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 18%, transparent);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--brand-primary) 8%, transparent);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.hint {
+  margin-top: 2rem;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-600);
+  opacity: 0.85;
+}
+
+.hint kbd {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  margin: 0 0.15rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  background: color-mix(in srgb, var(--brand-primary) 10%, white);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 22%, transparent);
+}
+
+/* Ghost Copilot suggestion near cursor */
+.ghostLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ghostSuggestion {
+  position: fixed;
+  max-width: min(420px, 90vw);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: color-mix(in srgb, var(--brand-primary) 55%, var(--ifm-font-color-base));
+  background: color-mix(in srgb, var(--brand-lavender) 40%, white);
+  border: 1px dashed color-mix(in srgb, var(--brand-primary) 35%, transparent);
+  box-shadow: 0 8px 32px color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  opacity: 0;
+  transform: translate(12px, 12px);
+}
+
+.ghostSuggestionAccepted {
+  color: var(--brand-primary-dark);
+  border-style: solid;
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 8%, white);
+}
+
+.ghostTabPill {
+  position: fixed;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-light));
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--brand-primary) 40%, transparent);
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.ghostTabKey {
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.25);
+  font-family: inherit;
+}
+
+.cursorSpark {
+  position: fixed;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  pointer-events: none;
+  z-index: 51;
+  opacity: 0;
+}
+
+.cursorSpark svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--brand-primary-light) 80%, transparent));
+}
+
+.burst {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: var(--brand-primary-light);
+  pointer-events: none;
+  z-index: 49;
+}
+
+html[data-theme='dark'] .shell {
+  background: radial-gradient(
+      ellipse 100% 70% at 70% 15%,
+      color-mix(in srgb, var(--brand-primary) 22%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 80% 50% at 15% 85%,
+      color-mix(in srgb, var(--brand-turquoise) 10%, transparent),
+      transparent 50%
+    ),
+    var(--ifm-background-color);
+}
+
+html[data-theme='dark'] .badge,
+html[data-theme='dark'] .chip {
+  color: var(--ifm-font-color-base);
+  background: color-mix(in srgb, var(--ifm-background-surface-color) 90%, var(--brand-primary) 8%);
+}
+
+html[data-theme='dark'] .title {
+  color: var(--ifm-heading-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badgeDot {
+    animation: none;
+  }
+
+  .canvas {
+    display: none;
+  }
+
+  .ghostLayer,
+  .cursorSpark {
+    display: none;
+  }
+}

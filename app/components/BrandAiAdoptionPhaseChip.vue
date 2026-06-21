@@ -1,10 +1,15 @@
 <template>
-  <v-tooltip
-    v-if="phase != null"
+  <span
+    v-if="phase != null && ideOnly && isAgentAdoptionPhase(phase)"
+    class="text-medium-emphasis"
+    :title="t('adoption.agentPhaseHiddenHint')"
+  >
+    {{ t('adoption.agentPhaseHidden') }}
+  </span>
+  <BrandTooltip
+    v-else-if="phase != null"
+    :text="hint"
     location="top"
-    open-on-hover
-    open-delay="200"
-    close-delay="200"
   >
     <template #activator="{ props: tooltipProps }">
       <v-chip
@@ -18,10 +23,7 @@
         {{ label }}
       </v-chip>
     </template>
-    <v-card class="pa-3 brand-tooltip-card brand-kpi-tooltip__panel">
-      <p class="brand-kpi-tooltip__text">{{ hint }}</p>
-    </v-card>
-  </v-tooltip>
+  </BrandTooltip>
   <span v-else class="text-medium-emphasis">{{ t('adoption.phaseUnknown') }}</span>
 </template>
 
@@ -35,19 +37,18 @@ export default defineComponent({
   props: {
     phase: {
       type: Object as () => AiAdoptionPhase | undefined,
-      default: undefined
+      default: undefined,
     },
     phaseId: {
       type: Number as () => AiAdoptionPhaseId | undefined,
-      default: undefined
-    }
+      default: undefined,
+    },
   },
   setup(props) {
     const { t } = useAppI18n()
+    const { ideOnly, isAgentAdoptionPhase } = useAdoptionIdeOnly()
 
-    const resolvedPhase = computed(
-      () => props.phase?.phase ?? props.phaseId
-    )
+    const resolvedPhase = computed(() => props.phase?.phase ?? props.phaseId)
 
     const label = computed(() => {
       const id = resolvedPhase.value
@@ -58,6 +59,9 @@ export default defineComponent({
     const hint = computed(() => {
       const id = resolvedPhase.value
       if (id === undefined) return t.value('adoption.phaseUnknown')
+      if (ideOnly.value && id === 1) {
+        return t.value('adoption.phase1HintIdeOnly')
+      }
       return t.value(`adoption.phase${id}Hint` as 'adoption.phase0Hint')
     })
 
@@ -66,7 +70,15 @@ export default defineComponent({
       return id !== undefined ? phaseChipColor(id) : 'default'
     })
 
-    return { t, label, hint, chipColor, phase: resolvedPhase }
-  }
+    return {
+      t,
+      ideOnly,
+      isAgentAdoptionPhase,
+      label,
+      hint,
+      chipColor,
+      phase: resolvedPhase,
+    }
+  },
 })
 </script>

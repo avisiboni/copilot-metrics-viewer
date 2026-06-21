@@ -73,7 +73,7 @@
         >
           <v-data-table
             :headers="tableHeaders"
-            :items="phases"
+            :items="displayPhases"
             density="comfortable"
             class="brand-data-table"
             :items-per-page="-1"
@@ -145,8 +145,6 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend)
 
-const PHASE_ORDER: AiAdoptionPhaseId[] = [0, 1, 2, 3]
-
 type PhaseHintKey =
   | 'adoption.phase0Hint'
   | 'adoption.phase1Hint'
@@ -164,25 +162,35 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useAppI18n()
+    const { ideOnly, filterPhases, phaseOrder } = useAdoptionIdeOnly()
     const barChartOptions = brandBarChartOptions(brandChartOptionsInContainer)
 
+    const displayPhases = computed(() => filterPhases(props.phases))
+
     const showDualMetrics = computed(() =>
-      props.phases.some((row) => row.labeledUsers !== undefined)
+      displayPhases.value.some((row) => row.labeledUsers !== undefined)
     )
 
-    const panelTooltip = computed(() =>
-      showDualMetrics.value ? t.value('adoption.panelTooltipDual') : t.value('adoption.panelTooltip')
-    )
+    const panelTooltip = computed(() => {
+      if (ideOnly.value) {
+        return showDualMetrics.value
+          ? t.value('adoption.panelTooltipDualIdeOnly')
+          : t.value('adoption.panelTooltipIdeOnly')
+      }
+      return showDualMetrics.value
+        ? t.value('adoption.panelTooltipDual')
+        : t.value('adoption.panelTooltip')
+    })
 
     const hasData = computed(() =>
-      props.phases.some(
+      displayPhases.value.some(
         (row) => row.engagedUsers > 0 || (row.labeledUsers ?? 0) > 0
       )
     )
 
     const kpiPhases = computed(() => {
-      const byPhase = new Map(props.phases.map((row) => [row.phase, row]))
-      return PHASE_ORDER.map((phase) => byPhase.get(phase)).filter(
+      const byPhase = new Map(displayPhases.value.map((row) => [row.phase, row]))
+      return phaseOrder.value.map((phase) => byPhase.get(phase)).filter(
         (row): row is AiAdoptionPhaseAggregate =>
           row != null &&
           (row.engagedUsers > 0 || (row.labeledUsers ?? 0) > 0 || row.phase === 0)
@@ -198,8 +206,12 @@ export default defineComponent({
     const phaseTitle = (phase: AiAdoptionPhaseId) =>
       t.value(`adoption.phase${phase}Title` as 'adoption.phase0Title')
 
-    const phaseHint = (phase: AiAdoptionPhaseId) =>
-      t.value(`adoption.phase${phase}Hint` as PhaseHintKey)
+    const phaseHint = (phase: AiAdoptionPhaseId) => {
+      if (ideOnly.value && phase === 1) {
+        return t.value('adoption.phase1HintIdeOnly')
+      }
+      return t.value(`adoption.phase${phase}Hint` as PhaseHintKey)
+    }
 
     const phaseCardClass = (phase: AiAdoptionPhaseId) => {
       switch (phase) {
@@ -294,6 +306,7 @@ export default defineComponent({
 
     return {
       t,
+      displayPhases,
       barChartOptions,
       panelTooltip,
       hasData,

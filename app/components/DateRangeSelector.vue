@@ -5,11 +5,21 @@
     variant="accordion"
   >
     <v-expansion-panel value="open">
-      <v-expansion-panel-title class="date-range-panel__title">
+      <v-expansion-panel-title class="date-range-panel__title" hide-actions>
         <div class="date-range-panel__summary">
-          <v-icon size="small" class="me-2">mdi-calendar-range</v-icon>
-          <span class="date-range-panel__applied">{{ appliedSummary }}</span>
-          <span v-if="reportSuffix" class="date-range-panel__report">{{ reportSuffix }}</span>
+          <v-icon size="small" class="date-range-panel__summary-icon">mdi-calendar-range</v-icon>
+          <div class="date-range-panel__summary-text">
+            <span class="date-range-panel__applied">{{ appliedSummary }}</span>
+            <span v-if="billingSuffix" class="date-range-panel__billing">{{ billingSuffix }}</span>
+            <span v-if="usageReportSuffix" class="date-range-panel__report">{{ usageReportSuffix }}</span>
+          </div>
+          <v-icon
+            size="small"
+            class="date-range-panel__expand-icon"
+            :class="{ 'date-range-panel__expand-icon--open': panelOpen === 'open' }"
+          >
+            mdi-chevron-down
+          </v-icon>
         </div>
       </v-expansion-panel-title>
 
@@ -73,6 +83,7 @@ import { ref } from 'vue'
 interface Props {
   loading?: boolean
   reportRange?: string | null
+  billingRange?: string | null
 }
 
 interface Emits {
@@ -86,7 +97,8 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
   loading: false,
-  reportRange: null
+  reportRange: null,
+  billingRange: null,
 })
 
 const emit = defineEmits<Emits>()
@@ -161,16 +173,32 @@ const appliedSummary = computed(() => {
   })
 })
 
-const reportSuffix = computed(() => {
+function formatRangeLabel(range: string): string {
+  return range.replace(/\s*→\s*/g, '–').replace(/^Day:\s*/i, '')
+}
+
+function rangeMatchesSelection(normalized: string): boolean {
+  if (!fromDate.value || !toDate.value) return false
+  return (
+    normalized.includes(fromDate.value) &&
+    normalized.includes(toDate.value)
+  )
+}
+
+const billingSuffix = computed(() => {
+  const billing = props.billingRange?.trim()
+  if (!billing) return ''
+  const normalized = formatRangeLabel(billing)
+  if (rangeMatchesSelection(normalized)) return ''
+  return t.value('dateRange.billingSuffix', { range: normalized })
+})
+
+const usageReportSuffix = computed(() => {
   const report = props.reportRange?.trim()
   if (!report) return ''
-
-  const normalized = report.replace(/\s*→\s*/g, '–').replace(/^Day:\s*/i, '')
-  const applied = `${fromDate.value}_${toDate.value}`
-  if (applied.includes(fromDate.value) && applied.includes(toDate.value) && normalized.includes(fromDate.value)) {
-    return ''
-  }
-  return t.value('dateRange.reportSuffix', { range: normalized })
+  const normalized = formatRangeLabel(report)
+  if (rangeMatchesSelection(normalized)) return ''
+  return t.value('dateRange.usageReportSuffix', { range: normalized })
 })
 
 const dateRangeText = computed(() => {
@@ -256,7 +284,27 @@ onMounted(() => {
 
 .date-range-panel :deep(.v-expansion-panel-title) {
   min-height: 48px;
-  padding: 10px 16px;
+  padding: 10px 14px;
+  gap: 8px;
+}
+
+.date-range-panel :deep(.v-expansion-panel-title__content) {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.date-range-panel__expand-icon {
+  flex: 0 0 auto;
+  color: var(--brand-text);
+  opacity: 0.65;
+  transition: transform 0.2s ease;
+}
+
+.date-range-panel__expand-icon--open {
+  transform: rotate(180deg);
 }
 
 .date-range-panel :deep(.v-expansion-panel-title__overlay) {
@@ -269,21 +317,44 @@ onMounted(() => {
 
 .date-range-panel__summary {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 4px 8px;
+  gap: 8px;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
   font-size: 0.8125rem;
   line-height: 1.3;
   color: var(--brand-text);
+}
+
+.date-range-panel__summary-icon {
+  flex: 0 0 auto;
+  color: var(--brand-primary);
+  opacity: 0.9;
+}
+
+.date-range-panel__summary-text {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
 }
 
 .date-range-panel__applied {
   font-weight: 600;
 }
 
+.date-range-panel__billing {
+  font-weight: 600;
+  color: var(--brand-primary);
+  font-size: 0.75rem;
+}
+
 .date-range-panel__report {
   font-weight: 500;
-  color: var(--brand-primary);
+  color: #6e6e7a;
   font-size: 0.75rem;
 }
 
@@ -294,8 +365,8 @@ onMounted(() => {
 
 .date-range-panel__toolbar {
   display: flex;
-  flex-wrap: nowrap;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: flex-end;
   gap: 8px 10px;
   overflow-x: auto;
   padding-bottom: 2px;

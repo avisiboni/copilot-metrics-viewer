@@ -25,6 +25,7 @@ Similar to Users but with:
 | Extra column | Explanation |
 |--------------|-------------|
 | **Usage** (button) | Opens [user usage detail dialog](./user-usage-detail-dialog) |
+| **Usage pattern** | Heuristic chip — [Usage patterns](../usage-patterns) |
 | **PRU cost** | Net cost for period (from billing; hidden when PRU fetch disabled) |
 
 Clicking the user name also opens the dialog.

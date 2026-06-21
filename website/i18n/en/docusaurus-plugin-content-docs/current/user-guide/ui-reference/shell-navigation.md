@@ -45,6 +45,10 @@ title: Shell & navigation
 
 **Note:** On Users, **Filter by day** switches to `users-1-day` for a single day (overrides the 28-day window).
 
+## AI assistant (FAB)
+
+Floating robot button — opens the [AI assistant](../ai-chat). Disable with `NUXT_PUBLIC_ENABLE_AI_CHAT=false`.
+
 ## Footer
 
 Link to Copilot Metrics Viewer on GitHub, version, and **Documentation** when `NUXT_PUBLIC_DOCS_URL` is set.

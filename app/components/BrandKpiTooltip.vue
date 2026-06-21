@@ -7,13 +7,7 @@ defineProps<{
 </script>
 
 <template>
-  <v-tooltip
-    v-if="text"
-    location="bottom end"
-    open-on-hover
-    open-delay="200"
-    close-delay="200"
-  >
+  <BrandTooltip v-if="text" :text="text" location="bottom end">
     <template #activator="{ props: tipProps }">
       <button
         type="button"
@@ -25,8 +19,5 @@ defineProps<{
         <v-icon icon="mdi-information-outline" size="18" />
       </button>
     </template>
-    <v-card class="pa-3 brand-tooltip-card brand-kpi-tooltip__panel">
-      <p class="brand-kpi-tooltip__text">{{ text }}</p>
-    </v-card>
-  </v-tooltip>
+  </BrandTooltip>
 </template>

@@ -4,54 +4,86 @@ title: שינויים אחרונים
 
 # שינויים אחרונים בלוח הבקרה
 
-סיכום יכולות שהתווספו לאחרונה. לפרטים מלאים — [מדריך רכיבי ממשק](../user-guide/ui-reference/overview).
+סיכום יכולות מגרסאות אחרונות (upstream + הרחבות). לפרטים — [מדריך רכיבי ממשק](../user-guide/ui-reference/overview).
+
+## v3.0 — Copilot Usage Metrics API
+
+- מעבר ל-[Usage Metrics API](https://docs.github.com/en/enterprise-cloud@latest/rest/copilot/copilot-usage-metrics)
+- [מצבי הפעלה](../setup/operating-modes): Direct API / Historical
+- מדדי צוות נגזרים מנתוני משתמש
+- [מעבר ל-v3](./v3-migration)
 
 ## קוהורטות AI adoption (מאי 2026)
 
-- **מקור:** [GitHub Changelog — Copilot usage metrics API cohorts](https://github.blog/changelog/2026-05-29-copilot-usage-metrics-api-adds-cohorts-for-ai-adoption/)
-- **משתמש:** `ai_adoption_phase` — שלבים 0–3 (No cohort → Multi-agent) + `version` (למשל `v1`)
-- **ארגון:** `totals_by_ai_adoption_phase` — משתמשים מעורבים + ממוצעי אינטראקציות, generations, acceptances, LOC, PR לפי שלב
-- **בלוח:** פאנל KPI/גרף/טבלה; עמודת שלב ב-Users וב-Usage & billing; צ'יפ + גרסה בדיאלוג משתמש
-- **תיעוד מלא (מיפוי API, מגבלות, צילומי מסך):** [קוהורטות AI adoption](../user-guide/ui-reference/ai-adoption-cohorts)
+- **מקור:** [GitHub Changelog — cohorts](https://github.blog/changelog/2026-05-29-copilot-usage-metrics-api-adds-cohorts-for-ai-adoption/)
+- **בלוח:** KPI, גרף, טבלה; צ'יפ בדיאלוג משתמש — **מוסתר כברירת מחדל** (`NUXT_PUBLIC_SHOW_AI_ADOPTION_COHORTS=true` להפעלה)
+- **תיעוד:** [קוהורטות AI adoption](../user-guide/ui-reference/ai-adoption-cohorts)
 
-## דיאלוג פירוט שימוש למשתמש (User usage detail)
+## מושבים לפי חודש (Seat analysis)
 
-- **איפה:** לשונית **Usage & billing** — לחיצה על שורת משתמש או כפתור **Usage**.
-- **מה מוצג:** KPIs (אינטראקציות, generations, acceptances, שורות שנוספו), תרשימי מודלים/תכונות, צ'יפים Agent/Chat/CLI, קרדיט פרימיום (כשה-API זמין).
-- **תיעוד:** [דיאלוג פירוט משתמש](../user-guide/ui-reference/user-usage-detail-dialog).
+- תרשים עמודות מוערם + טבלת פירוט לחשבונית (חדש/קיים/סה״כ)
+- מצב היסטורי: סה״כ בסוף חודש מצילומי מצב
+- [ניתוח מושבים](../user-guide/seat-analysis)
 
-## טעינת קרדיט פרימיום (PRU) — אצווה + מטמון
+## עוזר AI
 
-- טעינה ברקע בקבוצות של 10 משתמשים (`POST /api/user-premium-credits`).
-- מטמון שרת 10 דקות לכל משתמש/טווח.
-- אינדיקטור טעינה בעמודה **Premium credits** בלשונית Users.
+- FAB צ'אט, שאלות לפי לשונית, GitHub Models
+- `NUXT_PUBLIC_ENABLE_AI_CHAT`
+- [עוזר AI](../user-guide/ai-chat)
 
-## דגל סביבה: השבתת שליפת PRU זמנית
+## תצוגה לפי צוות (URL)
 
-```bash
-NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED=false
-```
+- `/orgs/.../teams/...` — דשבורד מלא מסונן לצוות
+- [תיעוד](../user-guide/team-scoped-views)
 
-- מבטל קריאות ל-GitHub Billing API לשליפת PRU **לפי משתמש**.
-- מציג תג **בקרוב** בעמודת Premium credits והודעה בלשוניות **Users** ו-**Usage & billing**.
-- מדדי שימוש (דוחות `users-28-day` / `users-1-day`) **ממשיכים** לעבוד.
+## 5 המובילים בשימוש יעיל ב-Copilot (Users)
 
-ראו [קרדיט פרימיום](../user-guide/ui-reference/premium-credits).
+- שורת KPI בלשונית **Users** — עד 5 משתמשים עם **ציון יעילות** (`computeCopilotQualityScore`) — דפוס + קבלה + נפח, לא «הכי פעיל» בלבד
+- משתמשים עם דפוסים רדומים / בזבוז הצעות לא מדורגים
+- לחיצה על כרטיס → דיאלוג פירוט שימוש (שם עדיין מוצג **ציון מעורבות** נפרד); לא דירוג ביצועים
+- [משתמשים](../user-guide/users) · [דפוסי שימוש](../user-guide/usage-patterns#ציון-יעילות-מול-ציון-מעורבות)
 
-## תמיכת RTL ועברית באפליקציה
+## דפוסי שימוש (Usage patterns)
 
-- `dir=rtl` על המסמך בעברית.
-- `v-locale-provider` ל-Vuetify.
-- Cookie locale ל-SSR (`copilot-metrics-viewer-locale`).
-- ממשק Assistant + תרגומים מלאים ב-`shared/i18n`.
+- עמודה **דפוס שימוש** ב-Users וב-Usage & billing
+- פאנל בדיאלוג **שימוש**: שיעורים נגזרים, נוסחאות, אחוזונים מול הארגון
+- היוריסטי — לא שדה GitHub; לאימון ולא לדירוג
+- [דפוסי שימוש](../user-guide/usage-patterns)
 
-## שיפורי לשונית Users
+## דיאלוג פירוט שימוש למשתמש
 
-- סינון לפי יום / משתמש.
-- העשרת שם ואימייל מספריית חברי הארגון (GraphQL).
-- כרטיס סטטוס חיוב (כש-PRU מופעל).
+- מ-**Usage & billing** — KPIs, מודלים, Agent/Chat/CLI, PRU
+- [דיאלוג פירוט משתמש](../user-guide/ui-reference/user-usage-detail-dialog)
+
+## קרדיט פרימיום (PRU)
+
+- טעינה באצווה, מטמון 10 דקות
+- `NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED=false` — מצב **בקרוב**
+- [קרדיט פרימיום](../user-guide/ui-reference/premium-credits)
+
+## קרדיטי AI (יוני 2026)
+
+- **מקור:** [GitHub Changelog — Budget and usage management APIs GA](https://github.blog/changelog/2026-06-04-budget-and-usage-management-apis-now-generally-available/)
+- עמודה **קרדיטי AI** ב-Users, Usage & billing, ודיאלוג שימוש
+- API: `.../settings/billing/ai_credit/usage?user=`
+- `NUXT_PUBLIC_AI_CREDITS_FETCH_ENABLED=true` (ברירת מחדל)
+- [קרדיטי AI](../user-guide/ui-reference/ai-credits)
+
+## RTL ועברית
+
+- `dir=rtl`, `shared/i18n`, cookie locale ל-SSR
+
+## Entra — סינון לפי מנהל
+
+- MSAL + Graph, `reports-to:` URLs
+- [Entra manager filter](../setup/entra-manager-filter)
+
+## מיתוג
+
+- `NUXT_PUBLIC_BRAND_*`, `brand-tokens.css`
+- [מיתוג](../setup/branding)
 
 ## תיעוד
 
-- מדריך רכיבי UI מפורט תחת [ui-reference](../user-guide/ui-reference/overview).
-- הסבר על שני האתרים: [אפליקציה ותיעוד](./app-and-docs-site).
+- [אפליקציה ואתר תיעוד](./app-and-docs-site)
+- סנכרון EN: `npm run docs:sync-en` מתוך `website/`

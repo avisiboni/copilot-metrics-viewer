@@ -96,6 +96,7 @@
         v-show="tab !== 'seat analysis' && !signInRequired"
         :loading="isLoading"
         :report-range="tabReportRange"
+        :billing-range="tabBillingRange"
         @date-range-changed="handleDateRangeChange"
       />
 
@@ -107,15 +108,17 @@
         {{ t('header.seatsBanner', { name: displayName }) }}
       </v-card>
 
-      <v-alert
+      <BrandDismissibleAlert
         v-if="apiError && !signInRequired"
         type="error"
         variant="outlined"
         density="compact"
-        class="mb-2 brand-alert brand-alert--error"
+        wrapper-class="mb-2"
+        alert-class="brand-alert brand-alert--error"
+        :close-label="t('common.close')"
       >
         {{ apiError }}
-      </v-alert>
+      </BrandDismissibleAlert>
 
       <AuthState>
         <template #default="{ loggedIn }">
@@ -197,6 +200,7 @@
                   v-if="item === 'usage & billing'"
                   :date-range="dateRange"
                   :date-range-description="dateRangeDescription"
+                  :seats="seats"
                 />
                 <SeatsAnalysisViewer v-if="item === 'seat analysis'" :seats="seats" />
                 <ApiResponse
@@ -208,14 +212,17 @@
               </v-card>
             </keep-alive>
           </v-window-item>
-          <v-alert
+          <BrandDismissibleAlert
             v-show="(metricsReady && metrics.length == 0 && tab !== 'seat analysis') || (seatsReady && seats.length == 0 && tab === 'seat analysis')"
-            density="compact"
-            :text="t('alerts.noDataText')"
-            :title="t('alerts.noDataTitle')"
             type="warning"
-            class="ma-3"
-          />
+            density="compact"
+            wrapper-class="ma-3"
+            alert-class="brand-alert brand-alert--warning"
+            :close-label="t('common.close')"
+            :title="t('alerts.noDataTitle')"
+          >
+            {{ t('alerts.noDataText') }}
+          </BrandDismissibleAlert>
         </v-window>
       </div>
     </div>
@@ -250,6 +257,7 @@ import DateRangeSelector from './DateRangeSelector.vue'
 import UserMetricsViewer from './UserMetricsViewer.vue'
 import UsageBillingViewer from './UsageBillingViewer.vue'
 import BrandPageSkeleton from './BrandPageSkeleton.vue'
+import BrandDismissibleAlert from './BrandDismissibleAlert.vue'
 import AiChatPanel from './AiChatPanel.vue'
 import type { SeatsApiResponse } from '#server/api/seats';
 import { applyHiddenTabs, applyHistoricalModeFilter } from '@/utils/tabUtils';
@@ -294,6 +302,7 @@ export default defineNuxtComponent({
     UserMetricsViewer,
     UsageBillingViewer,
     BrandPageSkeleton,
+    BrandDismissibleAlert,
     AiChatPanel
   },
   computed: {
@@ -539,8 +548,9 @@ export default defineNuxtComponent({
 
     this.$watch('tab', (tab: string) => {
       const reportTabs = ['users', 'usage & billing'];
-      if (!reportTabs.includes(tab) && this.tabReportRange) {
-        this.tabReportRange = null;
+      if (!reportTabs.includes(tab)) {
+        if (this.tabReportRange) this.tabReportRange = null;
+        if (this.tabBillingRange) this.tabBillingRange = null;
       }
     });
 
@@ -618,7 +628,7 @@ export default defineNuxtComponent({
       })
     });
 
-    const tabReportRange = provideTabReportRange();
+    const { reportRange: tabReportRange, billingRange: tabBillingRange } = provideTabReportRange();
     const sidebarOpen = ref(true);
     const sidebarRail = ref(false);
 
@@ -661,6 +671,7 @@ export default defineNuxtComponent({
       route,
       router,
       tabReportRange,
+      tabBillingRange,
       sidebarOpen,
       sidebarRail,
       expandSidebar,

@@ -206,6 +206,48 @@ export class Options {
         return options;
     }
 
+    /**
+     * Fill scope/org/ent/team from Nuxt public runtime config when the API query omits them
+     * (e.g. UserMetricsViewer only sends since/until).
+     */
+    static applyRuntimePublicDefaults(
+        options: Options,
+        runtimePublic?: RuntimeConfig['public']
+    ): void {
+        if (!runtimePublic) {
+            return;
+        }
+
+        if (!options.scope) {
+            const rawScope = runtimePublic.scope as string | undefined;
+            if (rawScope === 'team-organization') {
+                options.scope = 'organization';
+            } else if (rawScope === 'team-enterprise') {
+                options.scope = 'enterprise';
+            } else if (rawScope === 'organization' || rawScope === 'enterprise') {
+                options.scope = rawScope;
+            } else {
+                options.scope = 'organization';
+            }
+        }
+
+        if (options.isDataMocked) {
+            options.githubOrg = options.githubOrg || 'octodemo';
+            options.scope = 'organization';
+            return;
+        }
+
+        if (!options.githubOrg && runtimePublic.githubOrg) {
+            options.githubOrg = runtimePublic.githubOrg;
+        }
+        if (!options.githubEnt && runtimePublic.githubEnt) {
+            options.githubEnt = runtimePublic.githubEnt;
+        }
+        if (!options.githubTeam && runtimePublic.githubTeam) {
+            options.githubTeam = runtimePublic.githubTeam as string;
+        }
+    }
+
     static fromQuery(query: QueryObject, runtimePublic?: RuntimeConfig['public']): Options {
         const rawScope = query.scope as string | undefined;
         const scope = rawScope === 'team-organization' ? 'organization'
@@ -236,6 +278,8 @@ export class Options {
         if (runtimePublic && shouldUseMockData(runtimePublic, query)) {
             options.isDataMocked = true;
         }
+
+        Options.applyRuntimePublicDefaults(options, runtimePublic);
 
         return options;
     }

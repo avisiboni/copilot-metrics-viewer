@@ -6,9 +6,25 @@ title: User usage detail dialog
 
 ![User usage detail dialog](/img/ui/user-usage-detail-dialog.png)
 
-> **Where to open:** **Usage & billing** tab → click user name or **Usage** button on a row.
+> **Where to open:** **Users** or **Usage & billing** tab → **Usage** button on a row (or click user name on Usage & billing).
 
 Modal dialog with per-user detail for the active report range.
+
+## Usage pattern & scores
+
+**Usage pattern & scores** panel (`UserUsageInsightPanel`) — below top KPIs when data exists:
+
+| Element | Explanation |
+|---------|-------------|
+| **Pattern chip** | Label (e.g. Balanced, Volume adopter) — [Usage patterns](../usage-patterns) |
+| **Confidence** | Low / medium / high — from total activity |
+| **Engagement score** | 0–100 vs most active user in cohort |
+| **Derived rates table** | Value, org median, percentile, **formula** |
+| **Raw totals** | Interactions, generations, acceptances, LoC — with percentile and median |
+
+:::info
+Usage patterns are computed in the dashboard — not from GitHub API. For coaching, not performance ratings.
+:::
 
 ## Dialog header
 

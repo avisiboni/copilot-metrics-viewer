@@ -363,6 +363,19 @@ describe('Options', () => {
       expect(options.githubOrg).toBeUndefined()
       expect(options.scope).toBeUndefined()
     })
+
+    test('applyRuntimePublicDefaults fills scope and org when API query omits them', () => {
+      const options = new Options({ since: '2026-05-05', until: '2026-06-01' })
+      Options.applyRuntimePublicDefaults(options, {
+        scope: 'organization',
+        githubOrg: 'menora-copilot',
+        githubEnt: 'menora-insurance',
+      })
+
+      expect(options.scope).toBe('organization')
+      expect(options.githubOrg).toBe('menora-copilot')
+      expect(options.githubEnt).toBe('menora-insurance')
+    })
   })
 
   describe('serialization methods', () => {

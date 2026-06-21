@@ -18,14 +18,11 @@ title: Usage & billing
 
 ## טבלת משתמשים
 
-דומה ל-Users אך עם:
+לוח מובילים עם עמודות נוספות (מודלים, עלות PRU) לעומת Users.
 
-| עמודה נוספת | הסבר |
-|-------------|------|
-| **Usage** (כפתור) | פותח [דיאלוג פירוט משתמש](./user-usage-detail-dialog) |
-| **PRU cost** | עלות נטו לתקופה (מחיוב) |
+**רשימת עמודות מלאה:** [עמודות Usage & billing](./usage-billing-table-columns).
 
-לחיצה על שם המשתמש גם פותחת את הדיאלוג.
+לחיצה על **שימוש** או על שם המשתמש פותחת את [דיאלוג פירוט משתמש](./user-usage-detail-dialog).
 
 ## תרשימים
 
@@ -47,4 +44,8 @@ title: Usage & billing
 - עמודת **Premium credits** — תג **בקרוב**; ללא KPIs PRU וללא תרשים premium-by-model.
 - עמודת **PRU cost** מוסתרת; **Net spend** (SKU) נשאר כש-billing זמין.
 
-ראו [Premium credits](./premium-credits).
+ראו [Premium credits](./premium-credits) · [קרדיטי AI](./ai-credits).
+
+## עמודת קרדיטי AI
+
+עמודה **קרדיטי AI** בלוח המובילים (ברירת מחדל מופעלת). כמות + USD לכל משתמש. ראו [קרדיטי AI](./ai-credits).

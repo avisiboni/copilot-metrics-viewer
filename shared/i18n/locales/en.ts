@@ -83,6 +83,8 @@ const en: MessageTree = {
     selectRange: 'Select date range',
     exclHolidays: ', excl. holidays',
     reportSuffix: '· Report {range}',
+    billingSuffix: '· Billing {range}',
+    usageReportSuffix: '· Usage {range}',
     forSingleDay: 'For {date}{holidayNote}',
     overLast28: 'Over the last 28 days{holidayNote}',
     fromTo: 'From {from} to {to} ({days} days){holidayNote}',
@@ -302,6 +304,15 @@ const en: MessageTree = {
     billingNotLoadedSummary: 'Billing usage endpoints returned no data.',
     billingNotLoadedDetail:
       'Usage metrics below still reflect the users-28-day report. Enable enhanced billing and grant manage_billing:copilot on your token, then sign out and sign in again.',
+    billingRangeNoteTitle: 'Costs cover your full date range',
+    billingRangeNoteBody:
+      'Net spend and SKU charts use GitHub Billing for every month from {since} to {until}. User activity KPIs are aggregated across the same period (this can take longer for ranges over 28 days).',
+    usagePartialWindowTitle: 'Usage data still loading for full range',
+    usagePartialWindowBody:
+      'GitHub returned usage for {usageRange} so far. Billing totals already include {billingRange}. Wait for the reload to finish or enable historical mode with daily sync for faster long ranges.',
+    billingSpanNoteTitle: 'Costs cover your full date range',
+    billingSpanNoteBody:
+      'Net spend and SKU charts use GitHub Billing for {billingRange}. Usage KPIs and the user table may reflect a shorter Copilot metrics window ({usageRange}) while long ranges load.',
     kpiNetSpend: 'Total net spend (period)',
     kpiNetSpendViewDetail: 'View breakdown',
     kpiNetSpendOpenDetail: 'Open net spend breakdown by SKU',
@@ -325,6 +336,7 @@ const en: MessageTree = {
     kpiGenerations: 'Generations',
     kpiAcceptances: 'Acceptances',
     kpiLocAdded: 'LoC added',
+    kpiLocChanged: 'Lines changed with AI',
     kpiModelsUsed: 'Models used',
     kpiAgentUsers: 'Agent users',
     kpiChatUsers: 'Chat users',
@@ -333,6 +345,14 @@ const en: MessageTree = {
     chartCostBySku: 'Cost by SKU',
     chartPremiumByModel: 'Premium requests by model',
     chartTeamUsage: 'Team usage (latest user-teams day)',
+    seatCostTitle: 'Copilot seat cost by month',
+    seatCostSubtitle:
+      'Each month: (existing + new) assigned seats × {price}/seat. Existing seats are billed every month until removed.',
+    seatCostColExisting: 'Existing cost',
+    seatCostColNew: 'New cost',
+    seatCostColMonth: 'Month cost',
+    seatCostUnitPriceHint:
+      'Set NUXT_PUBLIC_COPILOT_SEAT_UNIT_PRICE (USD per seat per month) to show cost columns.',
     tableLeaderboard: 'User leaderboard',
     colUser: 'User',
     colInteractions: 'Interactions',
@@ -344,8 +364,40 @@ const en: MessageTree = {
     colAgent: 'Agent',
     colChat: 'Chat',
     colPremiumCredits: 'Premium credits',
+    colAiCredits: 'AI credits',
     colPruCost: 'PRU cost',
     colUsage: 'Usage',
+    colUserHint:
+      'GitHub login for the user. Name and email appear when the org member directory (GraphQL) returns them.',
+    colUsageHint:
+      'Opens a per-user breakdown: models, features, and activity for the selected date range.',
+    colInteractionsHint:
+      'User-initiated Copilot interactions in the period (e.g. chat turns, prompts) from the GitHub users metrics report (`user_initiated_interaction_count`).',
+    colGenerationsHint:
+      'Times Copilot produced code suggestions or edits for this user (`code_generation_activity_count`) — completions, agent edits, chat generations, etc.',
+    colAcceptancesHint:
+      'Times this user accepted a Copilot suggestion (`code_acceptance_activity_count`) — Tab on inline completions, Accept in chat, etc.',
+    colLocAddedHint:
+      'Lines of code added through Copilot features for this user in the period (`loc_added_sum`).',
+    colModelsHint:
+      'Count of distinct Copilot models this user used in the period.',
+    colTopModelHint:
+      'The model with the highest interaction count for this user in the period.',
+    colAgentHint:
+      'Whether the user used Copilot Agent-style features (e.g. agent mode, agent edits) at least once in the period.',
+    colChatHint:
+      'Whether the user used Copilot Chat (panel or inline) at least once in the period.',
+    colPruCostHint:
+      'Estimated net premium request (PRU) cost for this user in the billing period, from the GitHub Billing Usage API when available.',
+    colAiCreditsHint:
+      'AI credits consumed by this user in the billing period, from GitHub Billing ai_credit/usage API when available.',
+    aiCreditsUsed: '{count} credits',
+    aiCreditsLoading: 'Loading…',
+    aiCreditsExceedsQuota: 'Over quota',
+    aiCreditsExceedsQuotaHint: 'This user exceeded their AI credits budget or quota for the period.',
+    aiCreditsPerUserUnavailable: '(per-user AI credits not in org API)',
+    aiCreditsPerUserUnavailableHint:
+      'GitHub org billing API does not include per-user AI credit rows for enterprise-owned orgs. Set NUXT_PUBLIC_GITHUB_ENT and admin:enterprise on the PAT.',
     dataSources: 'Data sources:',
     dataSourcesBilling:
       'users-28-day, user-teams-1-day, billing usage & premium requests APIs.',
@@ -373,7 +425,7 @@ const en: MessageTree = {
     leaderboardColumnHints:
       'AI adoption phase: each user’s Copilot maturity label from the 28-day usage report (hover the chip, e.g. Code first). Premium credits: monthly PRU quota when billing API access is enabled.',
     kpiTooltipActiveUsers:
-      'Users with at least one Copilot interaction in the users report for the selected period.',
+      'Users with Copilot usage in the users-28-day report (not org seat count). GitHub “People” on Insights is org membership; monthly active users on the org report can differ day to day.',
     kpiTooltipInteractions:
       'Total model interactions (prompts, chat turns, etc.) aggregated across all users.',
     kpiTooltipGenerations:
@@ -382,6 +434,8 @@ const en: MessageTree = {
       'Total acceptances of Copilot suggestions or outputs across all users.',
     kpiTooltipLocAdded:
       'Total lines of code added via Copilot agent or completion features.',
+    kpiTooltipLocChanged:
+      'Lines added plus lines deleted (all Copilot features), matching GitHub Insights → Code generation. Added: {added}, deleted: {deleted}.',
     kpiTooltipModelsUsed:
       'Distinct Copilot models used by at least one user in the period.',
     kpiTooltipAgentUsers:
@@ -397,7 +451,7 @@ const en: MessageTree = {
     dataSourcesMetrics:
       'users-28-day/latest (models, features, activity); user-teams-1-day (team rollups);',
     dataSourcesBillingEndpoints:
-      'billing/usage, billing/usage/summary, billing/premium_request/usage.',
+      'billing/usage, billing/usage/summary, billing/premium_request/usage, billing/ai_credit/usage.',
     leaderboardReportLabel: '28-day usage report',
     premiumQuotaPerSeat: 'Premium requests (billing) · up to {quota} PRU/seat per month',
   },
@@ -439,6 +493,9 @@ const en: MessageTree = {
       'Checks the GitHub Billing Usage API for the “Premium credits” column.',
     reportDay: 'Day: {day}',
     usersWithPruInWindow: '{count} users with PRU usage in that window.',
+    usersWithAiCreditsInWindow: '{count} users with AI credit usage in that window.',
+    aiCreditsLoadingProgress:
+      'Loading per-user AI credits from billing API ({loaded}/{total})…',
     perUserPruUnavailable:
       'Billing is connected, but per-user PRU is not available yet. Enterprise-owned orgs cannot use org billing ?user=; set NUXT_PUBLIC_GITHUB_ENT and a classic PAT with admin:enterprise.',
     premiumLoadingProgress:
@@ -448,6 +505,17 @@ const en: MessageTree = {
       'Per-user premium request usage (PRU) from the GitHub Billing API is temporarily disabled. Usage metrics in this table still load from Copilot metrics reports. Set NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED=true when enterprise billing and network access are ready.',
     premiumCreditsComingSoonHint:
       'Requires enterprise billing API access for enterprise-owned organizations. See documentation → Premium credits.',
+    topUsersTitle: 'Top 5 effective Copilot users',
+    topUsersTooltip:
+      'Users ranked by effective Copilot usage: pattern and acceptance rate, weighted by real activity (interactions, generations, acceptances) in the period. Light or wasteful users are excluded. Click a card for full usage details.',
+    topUserRank: '#{rank}',
+    topUserQualityLabel: 'Effectiveness score',
+    topUserEngagementLabel: 'Engagement score',
+    topUserActivityHint:
+      '{interactions} interactions · {generations} generations · {acceptances} acceptances',
+    topUserCardTooltip:
+      'Rank {rank} by Copilot effectiveness in this period. Open full usage breakdown.',
+    topUserOpenDetail: 'Open usage details for {user}, rank {rank}',
   },
   usageInsights: {
     loading: 'Loading usage insights',
@@ -488,6 +556,8 @@ const en: MessageTree = {
   },
   userDetail: {
     premiumCredits: 'Premium credits',
+    aiCredits: 'AI credits',
+    aiCreditsPeriod: 'AI credits (billing period)',
     pruCost: 'PRU cost (period)',
     teamsSnapshot: 'Teams (latest user-teams snapshot)',
     agent: 'Agent',
@@ -587,6 +657,8 @@ const en: MessageTree = {
       'Acceptance rate by lines of code for the top five breakdown dimensions. Useful when change size varies by language or editor.',
     adoptionPhases:
       '28-day Copilot adoption phases (≥2 active days): No cohort, Code first, Agent first, Multi-agent. Each card shows org cohort count and users-report count when both are available.',
+    adoptionPhasesIdeOnly:
+      'Adoption phases (IDE only): No cohort and Code first — in-editor Copilot. Non-IDE agent phases are hidden.',
   },
   adoption: {
     panelTitle: 'AI adoption cohorts',
@@ -594,8 +666,12 @@ const en: MessageTree = {
       'How users are classified over a rolling 28-day window (GitHub Copilot usage metrics API). Phases reflect which Copilot surfaces they used on at least two days.',
     panelTooltip:
       'GitHub assigns each user an adoption phase from the last 28 days (at least 2 active days). Phases: No cohort → Code first (mainly IDE) → Agent first → Multi-agent.',
+    panelTooltipIdeOnly:
+      'GitHub classifies users by in-editor Copilot use (completions and/or IDE agent mode). Agent surfaces outside the IDE (CLI, cloud agent, etc.) are hidden — not used in your org.',
     panelTooltipDual:
       'Each card shows two numbers: Cohort engaged — org total from the 28-day rollup; In users report — users with that label in the Users table (same as the phase column).',
+    panelTooltipDualIdeOnly:
+      'IDE-only mode: only No cohort and Code first are shown. Each card compares cohort engaged vs labeled in the users report.',
     dualMetricsNote:
       'Two counts: org cohort engaged (GitHub 28-day rollup, ≥2 active days) vs users labeled in the users report (same labels as the table column).',
     kpiSectionCohort: 'Cohort engaged (org 28-day rollup)',
@@ -623,6 +699,10 @@ const en: MessageTree = {
     colAdoptionPhase: 'AI adoption phase',
     colAdoptionPhaseHint:
       'Per-user cohort from GitHub Copilot usage metrics (28-day window, ≥2 active days). Code first = mainly code completion and/or IDE agent mode; Agent first / Multi-agent = GitHub agent surfaces. Hover the chip in each row for the full definition.',
+    colAdoptionPhaseHintIdeOnly:
+      'Adoption phase from GitHub: mainly in-editor Copilot (completions / IDE agent). Non-IDE agent phases are hidden when your org does not use those surfaces.',
+    leaderboardColumnNoteIdeOnly:
+      'AI adoption phase — IDE stages only (No cohort, Code first). If GitHub labels an unused agent phase, the cell shows “Not applicable”.',
     leaderboardColumnNote:
       'The AI adoption phase column shows how each user is classified in the latest users report. Hover a chip (e.g. Code first) for what that phase means.',
     phaseUnknown: 'Not classified',
@@ -631,11 +711,191 @@ const en: MessageTree = {
     phase1Title: 'Code first',
     phase1Hint:
       'Phase 1 (Code first): the user met engagement on code completion and/or Copilot IDE agent mode on at least two days in the last 28 — they rely on in-editor coding help before broader GitHub agent surfaces.',
+    phase1HintIdeOnly:
+      'Regular in-editor Copilot use (completions and/or IDE agent mode) on at least two days in the last 28.',
+    agentPhaseHidden: 'N/A',
+    agentPhaseHiddenHint:
+      'GitHub labeled an agent phase (cloud, CLI, code review, etc.) — surfaces not used in your org.',
     phase2Title: 'Agent first',
     phase2Hint: 'One GitHub-based agent surface (cloud agent, code review, or CLI).',
     phase3Title: 'Multi-agent',
     phase3Hint: 'Two or more GitHub agent surfaces, or the GitHub Copilot app.',
     versionLabel: 'Classification version: {version}',
+  },
+  usagePattern: {
+    noInsight: '—',
+    colPattern: 'Usage pattern',
+    colPatternHint:
+      'Heuristic label from this user’s rates vs the org cohort in the current date range (not a GitHub API field). Open Usage for formulas and percentiles.',
+    panelTitle: 'Usage pattern & scores',
+    panelSubtitle: 'Compared with {count} users in the selected date range',
+    ratesTitle: 'Derived rates (your value vs org)',
+    rawCountsTitle: 'Raw totals vs org',
+    colMetric: 'Metric',
+    colValue: 'Your value',
+    colOrgMedian: 'Org median',
+    colPercentile: 'Percentile',
+    colFormula: 'How it is calculated',
+    percentileVsOrg: 'P{p} vs org',
+    medianShort: 'median {v}',
+    engagementScoreShort: 'Engagement {score}',
+    disclaimer:
+      'Patterns use org percentiles (P25/P50/P75) on derived rates and raw counts for the filtered cohort. They are guidance for coaching, not performance ratings.',
+    recommendationsTitle: 'Coaching recommendations',
+    recommendationsSubtitle: 'Suggested next steps for this person — not a performance rating.',
+    effectiveness: {
+      unknown: 'Need more data',
+      idle: 'Seat mostly idle',
+      building: 'Building the habit',
+      productive: 'Strong fit',
+      mixed: 'Mixed signals',
+      high_volume_low_fit: 'High volume, low keep rate',
+    },
+    headlines: {
+      insufficient_data: 'Not enough activity yet to coach on patterns — check back after a few days of use.',
+      underuse: 'Copilot seat looks mostly idle compared to peers — focus on activation, not optimization.',
+      light_user: 'Light but real usage — small nudges can turn this into a steady habit.',
+      high_volume_low_fit:
+        'Heavy Copilot activity with a low acceptance rate vs the org — lots of trials, few keeps. Tune how they work with suggestions.',
+      active_reviewer:
+        'They explore many suggestions but keep few — coaching on when to accept, edit, or dismiss will help.',
+      selective_accepter:
+        'They accept selectively with good fit — encourage broader tasks without forcing volume.',
+      completion_first:
+        'Inline completions carry most of the work — Chat and Agent can unlock bigger refactors.',
+      efficient_adopter:
+        'Strong acceptance and healthy volume — a natural internal champion candidate.',
+      volume_adopter:
+        'High accepted output — pair encouragement with PR quality habits so volume stays valuable.',
+      power_user:
+        'Deep, multi-surface usage — leverage them to lift the team while watching for burnout.',
+      balanced_user:
+        'Steady, typical mix vs the org — maintain rhythm and experiment with one new surface.',
+    },
+    actions: {
+      waitForActivity: 'Wait for at least a few days of Copilot use in this date range before coaching on patterns.',
+      tryShortSession: 'Ask them to complete one focused task with Copilot (e.g. a small bugfix) and review the metrics again.',
+      checkDateRange: 'Confirm the global date range includes days when they actually worked.',
+      enableCopilot: 'Verify the IDE extension is installed, signed in, and allowed by org policy.',
+      officeHours: 'Offer a 30-minute Copilot office hours slot for setup and first wins.',
+      removeBlockers: 'Check proxy, VPN, or repo access — idle seats are often technical blockers.',
+      pairOnFirstTask: 'Pair-program on one ticket so they see accept vs dismiss in context.',
+      dailyCopilotGoal: 'Suggest one Copilot-assisted task per day for two weeks (tests, docs, or small features).',
+      tryChatOnce: 'Have them try Copilot Chat on a well-scoped question (not only Tab completions).',
+      watchDemo: 'Share a 10-minute internal demo from a stronger adopter on the same stack.',
+      pickSmallTicket: 'Assign a ticket sized for experimentation without delivery pressure.',
+      repoInstructions: 'Add or refresh `.github/copilot-instructions.md` for their main repos (stack, conventions, test commands).',
+      scopedPrompts: 'Coach smaller, file-scoped asks instead of “rewrite the whole module” in one shot.',
+      tryChatRefactor: 'For multi-file work, use Chat with explicit goals and files instead of repeated inline generations.',
+      pairWithPeer: 'Pair with someone in the top quartile for acceptance rate and compare prompt style.',
+      reviewAcceptanceHabit: 'Discuss accept vs reject explicitly — many “low keep” users never dismiss, they just regenerate.',
+      acceptOrDismiss: 'Encourage accepting good hunks quickly and dismissing bad ones instead of endless regeneration.',
+      smallerEdits: 'Break work into smaller Copilot turns so each suggestion is easier to judge.',
+      compareWithEfficientPeer: 'Compare their workflow with an efficient adopter on the same team (same repo if possible).',
+      qualityIsGood: 'Affirm selective acceptance — quality over raw volume is healthy.',
+      tryLargerChatTask: 'Invite one larger Chat task (refactor, test suite, migration plan) to grow impact safely.',
+      shareSelectiveWorkflow: 'Ask them to demo how they decide what to accept — others can learn from it.',
+      optionalExpandUsage: 'Optional: gradually increase usage on harder tickets once they are comfortable.',
+      keepCompletions: 'Keep leveraging inline completions for boilerplate and small edits.',
+      tryChatForTests: 'Use Chat for unit tests, edge cases, and “explain this diff” reviews.',
+      agentForMultiFile: 'Try Agent or IDE agent mode for cross-file changes with a clear task description.',
+      documentPatterns: 'Capture 3 prompt patterns that work for their repo in team docs.',
+      championInvite: 'Invite them to a short “Copilot tips” session for the team or guild.',
+      lunchAndLearn: 'Schedule a lunch-and-learn on their workflow (15 min demo + Q&A).',
+      captureTips: 'Document their top 5 prompts in the team wiki or internal Slack channel.',
+      stretchWithAgent: 'If they only use completions, pilot one Agent task on a contained branch.',
+      prQualityCheck: 'Add a light PR checklist: tests run, no secrets, human review on large AI-assisted diffs.',
+      shareVolumePatterns: 'Have them share how they batch-accept suggestions without losing review quality.',
+      balanceSpeedAndReview: 'Balance speed with review — high LOC is fine if reviewers stay engaged.',
+      mentorOthers: 'Ask them to mentor one lighter user for two weeks.',
+      orgChampion: 'Nominate as org Copilot champion — office hours, repo templates, feedback loop to admins.',
+      crossTeamDemo: 'Run a cross-team demo on Agent + Chat surfaces they use most.',
+      exploreNewSurfaces: 'Experiment with one new surface (CLI, code review, or cloud agent) on a safe branch.',
+      guardrailForBurnout: 'Check in on sustainable pace — power users can over-rely on generation without review.',
+      maintainRhythm: 'Maintain current rhythm; revisit metrics monthly for drift.',
+      tryOneNewSurface: 'Try one new surface this quarter (Chat if completion-heavy, Agent if chat-only).',
+      monthlySelfCheck: 'Self-check: acceptance rate and PR review comments once per month.',
+      benchmarkWithMedian: 'Compare against org medians in this dashboard — aim for fit, not maximum LOC.',
+      tryChat: 'They rarely use Chat — try it for scoped questions, tests, and refactors.',
+      tryAgent: 'Agent surfaces are unused — pilot IDE agent or cloud agent on a contained task.',
+      cliWorkflow: 'They use the CLI — share team playbooks for scripts, PRs, and safe automation boundaries.',
+      modelExperiment:
+        'Their top model in this window is {model} — if acceptance stays low, try another model for their language/stack in IDE settings.',
+      lowConfidenceNote: 'Low activity in range — treat recommendations as tentative until confidence rises.',
+    },
+    confidence: {
+      low: 'Low confidence',
+      medium: 'Medium confidence',
+      high: 'High confidence',
+    },
+    rates: {
+      acceptanceRate: {
+        label: 'Acceptance rate',
+        formula: 'acceptances ÷ generations × 100 (0% if generations = 0)',
+      },
+      generationsPerInteraction: {
+        label: 'Generations per interaction',
+        formula: 'generations ÷ interactions (0 if interactions = 0)',
+      },
+      locPerAcceptance: {
+        label: 'LOC per acceptance',
+        formula: 'lines added ÷ acceptances (0 if acceptances = 0)',
+      },
+      locPerInteraction: {
+        label: 'LOC per interaction',
+        formula: 'lines added ÷ interactions (0 if interactions = 0)',
+      },
+      locPerGeneration: {
+        label: 'LOC per generation',
+        formula: 'lines added ÷ generations (0 if generations = 0)',
+      },
+    },
+    pattern: {
+      insufficient_data: {
+        title: 'Insufficient data',
+        hint: 'Too little activity in the range to classify reliably.',
+      },
+      underuse: {
+        title: 'Underuse',
+        hint: 'Low interactions, generations, and LOC vs org — seat may be idle.',
+      },
+      light_user: {
+        title: 'Light user',
+        hint: 'Low activity vs the org in this period — including a high acceptance rate on very few events.',
+      },
+      selective_accepter: {
+        title: 'Selective accepter',
+        hint: 'High acceptance with meaningful generations in the period — focused, effective uptake.',
+      },
+      completion_first: {
+        title: 'Completion-first',
+        hint: 'High LOC per interaction with fewer chat turns — inline completions dominate.',
+      },
+      active_reviewer: {
+        title: 'Active reviewer',
+        hint: 'Many interactions with lower acceptance — explores suggestions before accepting.',
+      },
+      efficient_adopter: {
+        title: 'Efficient adopter',
+        hint: 'High acceptance and solid generation volume — good suggestion fit.',
+      },
+      volume_adopter: {
+        title: 'Volume adopter',
+        hint: 'Accepts many Copilot suggestions and adds many lines of code — above most peers in the org (not a quality score).',
+      },
+      high_try_low_keep: {
+        title: 'High try, low keep',
+        hint: 'Many generations and LOC but low acceptance — lots of trials, few keeps.',
+      },
+      power_user: {
+        title: 'Power user',
+        hint: 'High generations and LOC with agent or chat usage.',
+      },
+      balanced_user: {
+        title: 'Balanced',
+        hint: 'Metrics near org medians — steady, typical usage mix.',
+      },
+    },
   },
   aiChat: {
     title: 'AI Metrics Assistant',

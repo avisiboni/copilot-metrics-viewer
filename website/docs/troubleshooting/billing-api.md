@@ -6,16 +6,18 @@ title: API חיוב
 
 ## תסמינים
 
-- עמודת **Premium credits** = `N/A`
+- עמודת **Premium credits** = `N/A` או **בקרוב**
+- עמודת **קרדיטי AI** = `N/A` או **(per-user AI credits not in org API)**
 - הודעה: **Billing API data not loaded** (ניתן לפתיחה)
 
 ## השבתה זמנית (ללא שגיאות 403 בטרמינל)
 
 ```bash
 NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED=false
+NUXT_PUBLIC_AI_CREDITS_FETCH_ENABLED=false
 ```
 
-האפליקציה תציג **בקרוב** בעמודת Premium credits; מדדי Users ימשיכו לעבוד.
+האפליקציה תציג **בקרוב** / מקף בעמודות החיוב; מדדי Users ימשיכו לעבוד.
 
 ## סיבות נפוצות
 
@@ -30,6 +32,7 @@ NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED=false
 2. התנתקו והתחברו מחדש
 3. בלשונית Users — **Check now** בכרטיס Billing status
 4. ודאו admin org + enhanced billing ב-GitHub
+5. לארגון בבעלות enterprise: `NUXT_PUBLIC_GITHUB_ENT` + enterprise billing PAT — ראו [קרדיטי AI](../user-guide/ui-reference/ai-credits)
 
 ## Scopes בדוגמה
 
@@ -37,4 +40,4 @@ NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED=false
 copilot, manage_billing:copilot, read:org
 ```
 
-שמות משתני סביבה ונתיבי API: [התייחסות](../reference/scopes).
+שמות משתני סביבה ונתיבי API: [התייחסות](../reference/scopes) · [קרדיטי AI](../user-guide/ui-reference/ai-credits) · [Premium credits](../user-guide/ui-reference/premium-credits).

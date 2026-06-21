@@ -23,7 +23,7 @@ title: Organization — KPI ותרשימים
 
 ## קוהורטות AI adoption
 
-מעל התרשימים מופיע (כשה-API מחזיר נתונים) פאנל **קוהורטות AI adoption** — KPI לפי שלב, גרף משתמשים מעורבים, וטבלת ממוצעים לפי שלב.
+מעל התרשימים מופיע (כש-`NUXT_PUBLIC_SHOW_AI_ADOPTION_COHORTS=true` וה-API מחזיר נתונים) פאנל **קוהורטות AI adoption** — KPI לפי שלב, גרף משתמשים מעורבים, וטבלת ממוצעים לפי שלב. ברירת מחדל: **מוסתר**.
 
 ![פאנל קוהורטות](/img/ui/ai-adoption-organization-panel.png)
 

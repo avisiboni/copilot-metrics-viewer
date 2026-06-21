@@ -83,6 +83,8 @@ const he: MessageTree = {
     selectRange: 'בחרו טווח תאריכים',
     exclHolidays: ', ללא חגים',
     reportSuffix: '· דוח {range}',
+    billingSuffix: '· חיוב {range}',
+    usageReportSuffix: '· שימוש {range}',
     forSingleDay: 'עבור {date}{holidayNote}',
     overLast28: 'ב-28 הימים האחרונים{holidayNote}',
     fromTo: 'מ-{from} עד {to} ({days} ימים){holidayNote}',
@@ -297,6 +299,15 @@ const he: MessageTree = {
     billingNotLoadedSummary: 'נקודות הקצה של שימוש בחיוב לא החזירו נתונים.',
     billingNotLoadedDetail:
       'מדדי השימוש למטה עדיין משקפים דוח users-28-day. הפעילו enhanced billing והעניקו manage_billing:copilot, והתנתקו והתחברו מחדש.',
+    billingRangeNoteTitle: 'העלויות מכסות את כל טווח התאריכים',
+    billingRangeNoteBody:
+      'הוצאה נטו וגרפי SKU משתמשים בחיוב GitHub לכל חודש מ-{since} עד {until}. מדדי שימוש למשתמש מצטברים על אותו תקופה (טווחים מעל 28 יום עשויים לקחת זמן).',
+    usagePartialWindowTitle: 'נתוני שימוש עדיין נטענים לטווח המלא',
+    usagePartialWindowBody:
+      'GitHub החזיר שימוש עבור {usageRange} בינתיים. סכומי החיוב כבר כוללים {billingRange}. המתינו לסיום הטעינה או הפעילו מצב היסטורי עם סנכרון יומי.',
+    billingSpanNoteTitle: 'העלויות מכסות את כל טווח התאריכים',
+    billingSpanNoteBody:
+      'הוצאה נטו וגרפי SKU משתמשים בחיוב GitHub עבור {billingRange}. מדדי שימוש וטבלת המשתמשים עשויים לשקף חלון Copilot metrics קצר יותר ({usageRange}) בזמן שטווחים ארוכים נטענים.',
     kpiNetSpend: 'סה״כ הוצאה נטו (תקופה)',
     kpiNetSpendViewDetail: 'צפייה בפירוט',
     kpiNetSpendOpenDetail: 'פתיחת פירוט הוצאה נטו לפי SKU',
@@ -320,6 +331,7 @@ const he: MessageTree = {
     kpiGenerations: 'יצירות',
     kpiAcceptances: 'קבלת הצעת קוד',
     kpiLocAdded: 'שורות קוד שנוספו',
+    kpiLocChanged: 'שורות קוד שהשתנו עם AI',
     kpiModelsUsed: 'מודלים בשימוש',
     kpiAgentUsers: 'משתמשי סוכן',
     kpiChatUsers: 'משתמשי צ׳אט',
@@ -328,6 +340,14 @@ const he: MessageTree = {
     chartCostBySku: 'עלות לפי SKU',
     chartPremiumByModel: 'בקשות פרימיום לפי מודל',
     chartTeamUsage: 'שימוש צוות (יום user-teams אחרון)',
+    seatCostTitle: 'עלות מושבי Copilot לפי חודש',
+    seatCostSubtitle:
+      'כל חודש: (קיימים + חדשים) × {price}/מושב. על מושבים קיימים משלמים בכל חודש עד להסרה.',
+    seatCostColExisting: 'עלות קיימים',
+    seatCostColNew: 'עלות חדשים',
+    seatCostColMonth: 'עלות חודש',
+    seatCostUnitPriceHint:
+      'הגדירו NUXT_PUBLIC_COPILOT_SEAT_UNIT_PRICE (דולר למושב לחודש) כדי להציג עמודות עלות.',
     tableLeaderboard: 'לוח מובילים משתמשים',
     colUser: 'משתמש',
     colInteractions: 'אינטראקציות',
@@ -339,8 +359,40 @@ const he: MessageTree = {
     colAgent: 'סוכן',
     colChat: "צ'אט",
     colPremiumCredits: 'קרדיט פרימיום',
+    colAiCredits: 'קרדיטי AI',
     colPruCost: 'עלות PRU',
     colUsage: 'שימוש',
+    colUserHint:
+      'שם המשתמש ב-GitHub. שם תצוגה ודוא״ל מופיעים כשמדריך חברי הארגון (GraphQL) מחזיר אותם.',
+    colUsageHint:
+      'פותח פירוט לפי משתמש: מודלים, תכונות ופעילות לטווח התאריכים שנבחר.',
+    colInteractionsHint:
+      'אינטראקציות Copilot שיוזם המשתמש בתקופה (למשל תורות צ׳אט, פרומפטים) מדוח המדדים של GitHub (`user_initiated_interaction_count`).',
+    colGenerationsHint:
+      'מספר פעמים ש-Copilot הפיק הצעות קוד או עריכות למשתמש (`code_generation_activity_count`) — השלמות, עריכות סוכן, יצירות בצ׳אט וכו׳.',
+    colAcceptancesHint:
+      'מספר פעמים שהמשתמש קיבל הצעת קוד מ-Copilot (`code_acceptance_activity_count`) — Tab בהשלמה, Accept בצ׳אט וכו׳.',
+    colLocAddedHint:
+      'שורות קוד שנוספו דרך תכונות Copilot למשתמש בתקופה (`loc_added_sum`).',
+    colModelsHint:
+      'מספר מודלי Copilot שונים שהמשתמש השתמש בהם בתקופה.',
+    colTopModelHint:
+      'המודל עם מספר האינטראקציות הגבוה ביותר למשתמש בתקופה.',
+    colAgentHint:
+      'האם המשתמש השתמש בתכונות מסוג סוכן של Copilot (למשל מצב סוכן, עריכות סוכן) לפחות פעם אחת בתקופה.',
+    colChatHint:
+      'האם המשתמש השתמש ב-Copilot Chat (פאנל או inline) לפחות פעם אחת בתקופה.',
+    colPruCostHint:
+      'עלות נטו משוערת של בקשות פרימיום (PRU) למשתמש בתקופת החיוב, מ-GitHub Billing Usage API כשזמין.',
+    colAiCreditsHint:
+      'קרדיטי AI שנצרכו על ידי המשתמש בתקופת החיוב, מ-GitHub Billing ai_credit/usage API כשזמין.',
+    aiCreditsUsed: '{count} קרדיטים',
+    aiCreditsLoading: 'טוען…',
+    aiCreditsExceedsQuota: 'מעל המכסה',
+    aiCreditsExceedsQuotaHint: 'המשתמש חרג מתקציב או מכסת קרדיטי AI לתקופה.',
+    aiCreditsPerUserUnavailable: '(קרדיטי AI לפי משתמש לא ב-API ארגון)',
+    aiCreditsPerUserUnavailableHint:
+      'GitHub org billing API לא כולל שורות קרדיט AI לפי משתמש בארגונים בבעלות enterprise. הגדירו NUXT_PUBLIC_GITHUB_ENT ו-admin:enterprise ב-PAT.',
     dataSources: 'מקורות נתונים:',
     dataSourcesBilling:
       'users-28-day, user-teams-1-day, billing usage ו-premium requests APIs.',
@@ -368,7 +420,7 @@ const he: MessageTree = {
     leaderboardColumnHints:
       'שלב אימוץ AI: תווית בשלות Copilot לכל משתמש מדוח 28 הימים (ריחוף על הצ\'יפ). קרדיט פרימיום: מכסת PRU חודשית כש-Billing API פעיל.',
     kpiTooltipActiveUsers:
-      'משתמשים עם לפחות אינטראקציית Copilot אחת בדוח המשתמשים לתקופה שנבחרה.',
+      'משתמשים עם שימוש ב-Copilot בדוח users-28-day (לא ספירת מושבים בארגון). «אנשים» ב-Insights של GitHub הוא חברי ארגון; MAU בדוח הארגון יכול להיות שונה.',
     kpiTooltipInteractions:
       'סה״כ אינטראקציות מודל (פרומפטים, תורות צ׳אט וכו׳) מצטברות על כל המשתמשים.',
     kpiTooltipGenerations:
@@ -377,6 +429,8 @@ const he: MessageTree = {
       'סה״כ קבלת הצעת קוד של הצעות או פלטים של Copilot על כל המשתמשים.',
     kpiTooltipLocAdded:
       'סה״כ שורות קוד שנוספו דרך תכונות סוכן או השלמות של Copilot.',
+    kpiTooltipLocChanged:
+      'שורות שנוספו + שורות שנמחקו (כל תכונות Copilot), כמו GitHub Insights → יצירת קוד. נוספו: {added}, נמחקו: {deleted}.',
     kpiTooltipModelsUsed:
       'מודלי Copilot ייחודיים שבהם השתמש לפחות משתמש אחד בתקופה.',
     kpiTooltipAgentUsers:
@@ -392,7 +446,7 @@ const he: MessageTree = {
     dataSourcesMetrics:
       'users-28-day/latest (מודלים, תכונות, פעילות); user-teams-1-day (צבירת צוותים);',
     dataSourcesBillingEndpoints:
-      'billing/usage, billing/usage/summary, billing/premium_request/usage.',
+      'billing/usage, billing/usage/summary, billing/premium_request/usage, billing/ai_credit/usage.',
     leaderboardReportLabel: 'דוח שימוש 28 יום',
     premiumQuotaPerSeat: 'בקשות פרימיום (חיוב) · עד {quota} PRU/מושב לחודש',
   },
@@ -435,6 +489,9 @@ const he: MessageTree = {
       'בודק את GitHub Billing Usage API עבור עמודת "Premium credits".',
     reportDay: 'יום: {day}',
     usersWithPruInWindow: '{count} משתמשים עם שימוש PRU בחלון זה.',
+    usersWithAiCreditsInWindow: '{count} משתמשים עם שימוש בקרדיטי AI בחלון זה.',
+    aiCreditsLoadingProgress:
+      'טוען קרדיטי AI לפי משתמש מ-API חיוב ({loaded}/{total})…',
     perUserPruUnavailable:
       'ה-API לחיוב מחובר, אך GitHub לא מחזיר שימוש פרימיום לפי משתמש לארגון בבעלות enterprise דרך REST של הארגון. הגדירו NUXT_PUBLIC_GITHUB_ENT (למשל your-enterprise) ב-PAT קלאסי עם admin:enterprise.',
     premiumLoadingProgress:
@@ -444,6 +501,17 @@ const he: MessageTree = {
       'שליפת PRU לפי משתמש מ-GitHub Billing API מושבתת זמנית. מדדי השימוש בטבלה נטענים מדוחות Copilot metrics. הגדירו NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED=true כשגישת החיוב והרשת מוכנות.',
     premiumCreditsComingSoonHint:
       'נדרש API חיוב ברמת enterprise לארגונים בבעלות enterprise. ראו תיעוד → קרדיט פרימיום.',
+    topUsersTitle: '5 המובילים בשימוש יעיל ב-Copilot',
+    topUsersTooltip:
+      'דירוג לפי שימוש יעיל: דפוס וקבלת הצעות, עם משקל לפעילות אמיתית (אינטראקציות, יצירות, קבלות) בתקופה. משתמשים עם מעט שימוש או בזבוז הצעות לא יופיעו. לחצו על כרטיס לפירוט מלא.',
+    topUserRank: 'מקום {rank}',
+    topUserQualityLabel: 'ציון יעילות',
+    topUserEngagementLabel: 'ציון מעורבות',
+    topUserActivityHint:
+      '{interactions} אינטראקציות · {generations} יצירות · {acceptances} קבלות',
+    topUserCardTooltip:
+      'דירוג {rank} לפי יעילות Copilot בתקופה. פתיחת פירוט שימוש מלא.',
+    topUserOpenDetail: 'פתיחת פירוט שימוש עבור {user}, מקום {rank}',
   },
   usageInsights: {
     loading: 'טוען תובנות שימוש',
@@ -483,6 +551,8 @@ const he: MessageTree = {
   },
   userDetail: {
     premiumCredits: 'קרדיט פרימיום',
+    aiCredits: 'קרדיטי AI',
+    aiCreditsPeriod: 'קרדיטי AI (תקופת חיוב)',
     pruCost: 'עלות PRU (תקופה)',
     teamsSnapshot: 'צוותים (צילום user-teams אחרון)',
     agent: 'סוכן',
@@ -582,6 +652,8 @@ const he: MessageTree = {
       'שיעור קבלה לפי שורות קוד לחמש ממדים מובילים. שימושי כשגודל השינוי משתנה.',
     adoptionPhases:
       'שלבי אימוץ Copilot ל-28 יום (≥2 ימים פעילים): ללא cohort, Code first, Agent first, Multi-agent. בכל כרטיס — מעורבים ב-cohort וספירה מדוח המשתמשים כששניהם זמינים.',
+    adoptionPhasesIdeOnly:
+      'שלבי אימוץ (IDE בלבד): ללא cohort ו-Code first — שימוש בעורך. שלבי סוכן מחוץ ל-IDE מוסתרים.',
   },
   adoption: {
     panelTitle: 'קבוצות אימוץ AI',
@@ -589,8 +661,12 @@ const he: MessageTree = {
       'סיווג משתמשים בחלון 28 יום מתגלגל (GitHub Copilot usage metrics API). השלבים מבוססים על אילו משטחי Copilot נוצלו בלפחות יומיים.',
     panelTooltip:
       'GitHub מסווג כל משתמש לשלב אימוץ מ-28 הימים האחרונים (לפחות 2 ימים פעילים): ללא cohort → Code first (בעיקר IDE) → Agent first → Multi-agent.',
+    panelTooltipIdeOnly:
+      'GitHub מסווג משתמשים לפי שימוש ב-Copilot בעורך (השלמות קוד ו/או Agent בעורך). שלבי סוכן מחוץ ל-IDE (CLI, ענן וכו׳) מוסתרים — לא זמינים בארגון.',
     panelTooltipDual:
       'בכל כרטיס שני מספרים: מעורבים ב-cohort — סיכום ארגון מדוח 28 יום; בדוח משתמשים — משתמשים עם התווית בטבלת Users (כמו בעמודת השלב).',
+    panelTooltipDualIdeOnly:
+      'מצב IDE בלבד: מוצגים רק «ללא cohort» ו-Code first. שני מספרים בכרטיס — מעורבים ב-cohort מול מתויגים בדוח משתמשים.',
     dualMetricsNote:
       'שני מונים: מעורבים ב-cohort לפי דוח ארגון (28 יום, ≥2 ימים פעילים) לעומת תוויות בדוח המשתמשים (כמו בעמודת הטבלה).',
     kpiSectionCohort: 'מעורבים ב-cohort (דוח ארגון 28 יום)',
@@ -618,6 +694,10 @@ const he: MessageTree = {
     colAdoptionPhase: 'שלב אימוץ AI',
     colAdoptionPhaseHint:
       'קוהורטה למשתמש מדוח מדדי שימוש Copilot (חלון 28 יום, מעורבות ב≥2 ימים). Code first = בעיקר השלמות קוד ו/או IDE agent mode; Agent first / Multi-agent = משטחי סוכן ב-GitHub. ריחוף על הצ\'יפ בשורה להסבר מלא.',
+    colAdoptionPhaseHintIdeOnly:
+      'שלב אימוץ מ-GitHub: בעיקר שימוש בעורך (השלמות קוד / Agent בעורך). שלבי סוכן מחוץ ל-IDE מוסתרים כשאינם זמינים בארגון.',
+    leaderboardColumnNoteIdeOnly:
+      'עמודת שלב אימוץ AI — רק שלבי IDE (ללא cohort, Code first). אם GitHub מסווג שלב סוכן שלא בשימוש אצלכם, מוצג «לא רלוונטי».',
     leaderboardColumnNote:
       'עמודת שלב אימוץ AI מציגה את סיווג המשתמש בדוח המשתמשים האחרון. ריחוף על צ\'יפ (למשל Code first) להסבר השלב.',
     phaseUnknown: 'לא מסווג',
@@ -626,11 +706,190 @@ const he: MessageTree = {
     phase1Title: 'קודם (Code first)',
     phase1Hint:
       'שלב 1 (Code first): המשתמש עמד בקריטריון מעורבות בהשלמות קוד ו/או Copilot IDE agent mode בלפחות יומיים ב-28 האחרונים — שימוש ממוקד בעזרה בתוך העורך לפני משטחי סוכן רחבים יותר ב-GitHub.',
+    phase1HintIdeOnly:
+      'שימוש עקבי ב-Copilot בתוך העורך (השלמות קוד ו/או Agent mode ב-IDE) בלפחות שני ימים ב-28 האחרונים.',
+    agentPhaseHidden: 'לא רלוונטי',
+    agentPhaseHiddenHint:
+      'GitHub סיווג שלב סוכן (ענן, CLI, code review וכו׳) — משטחים שלא בשימוש בארגון זה.',
     phase2Title: 'סוכן (Agent first)',
     phase2Hint: 'משטח סוכן אחד מבוסס GitHub (ענן, code review או CLI).',
     phase3Title: 'רב-סוכנים',
     phase3Hint: 'שני משטחי סוכן או יותר, או אפליקציית GitHub Copilot.',
     versionLabel: 'גרסת סיווג: {version}',
+  },
+  usagePattern: {
+    noInsight: '—',
+    colPattern: 'דפוס שימוש',
+    colPatternHint:
+      'תווית היוריסטית לפי שיעורי המשתמש מול קוהורט הארגון בטווח התאריכים (לא שדה מ-GitHub). פתחו שימוש לנוסחאות ואחוזונים.',
+    panelTitle: 'דפוס שימוש וציונים',
+    panelSubtitle: 'בהשוואה ל-{count} משתמשים בטווח הנבחר',
+    ratesTitle: 'שיעורים נגזרים (הערך שלך מול הארגון)',
+    rawCountsTitle: 'סכומים גולמיים מול הארגון',
+    colMetric: 'מדד',
+    colValue: 'הערך שלך',
+    colOrgMedian: 'חציון ארגון',
+    colPercentile: 'אחוזון',
+    colFormula: 'איך מחושב',
+    percentileVsOrg: 'P{p} מול הארגון',
+    medianShort: 'חציון {v}',
+    engagementScoreShort: 'מעורבות {score}',
+    disclaimer:
+      'הדפוסים משתמשים באחוזוני ארגון (P25/P50/P75) על שיעורים נגזרים וספירות עבור הקוהורט המסונן. הם להכוונה ואימון, לא לדירוג ביצועים.',
+    recommendationsTitle: 'המלצות אימון',
+    recommendationsSubtitle: 'צעדים מוצעים לאדם הזה — לא דירוג ביצועים.',
+    effectiveness: {
+      unknown: 'נדרשים עוד נתונים',
+      idle: 'מושב כמעט לא פעיל',
+      building: 'בונה הרגל',
+      productive: 'התאמה חזקה',
+      mixed: 'אותות מעורבים',
+      high_volume_low_fit: 'נפח גבוה, שמירה נמוכה',
+    },
+    headlines: {
+      insufficient_data: 'עדיין אין מספיק פעילות לאימון על דפוסים — בדקו שוב אחרי כמה ימי שימוש.',
+      underuse: 'מושב Copilot נראה רדום מול עמיתים — התמקדו בהפעלה, לא באופטימיזציה.',
+      light_user: 'שימוש קל אך אמיתי — דחיפות קטנות יכולות לבנות הרגל יציב.',
+      high_volume_low_fit:
+        'פעילות Copilot גבוהה עם שיעור קבלה נמוך מול הארגון — הרבה ניסיונות, מעט שמירה. כווננו את אופן העבודה עם ההצעות.',
+      active_reviewer:
+        'בודקים הרבה הצעות ושומרים מעט — אימון על מתי לקבל, לערוך או לדחות יעזור.',
+      selective_accepter:
+        'מקבלים סלקטיבית עם התאמה טובה — עודדו משימות רחבות יותר בלי לכפות נפח.',
+      completion_first:
+        'השלמות בשורה נושאות את העבודה — צ\'אט וסוכן יפתחו רפקטורים גדולים יותר.',
+      efficient_adopter: 'קבלה חזקה ונפח בריא — מועמד טבעי ל-champion פנימי.',
+      volume_adopter:
+        'פלט מקובל גבוה — חיזוק יחד עם הרגלי איכות ב-PR כדי שהנפח יישאר valuable.',
+      power_user:
+        'שימוש עמוק במספר משטחים — מנפו אותם להרמת הצוות ושימו לב לעומס.',
+      balanced_user:
+        'תמהיל יציב וטיפוסי מול הארגון — שמרו על קצב ונסו משטח חדש אחד.',
+    },
+    actions: {
+      waitForActivity: 'המתינו לימים בודדים של שימוש בטווח לפני אימון על דפוסים.',
+      tryShortSession: 'בקשו משימה ממוקדת אחת עם Copilot (למשל באג קטן) ובדקו שוב את המדדים.',
+      checkDateRange: 'וודאו שטווח התאריכים כולל ימים שבהם באמת עבדו.',
+      enableCopilot: 'וודאו שהתוסף מותקן, מחובר ומורשה במדיניות הארגון.',
+      officeHours: 'הציעו 30 דקות office hours להתקנה וניצחונות ראשונים.',
+      removeBlockers: 'בדקו proxy, VPN או גישה ל-repo — מושבים רדומים לעיתים חסומים טכנית.',
+      pairOnFirstTask: 'עשו pairing על טיקט אחד כדי להראות קבלה מול דחייה בהקשר.',
+      dailyCopilotGoal: 'יעד: משימה אחת עם Copilot ביום למשך שבועיים.',
+      tryChatOnce: 'נסו Copilot Chat על שאלה ממוקדת (לא רק Tab).',
+      watchDemo: 'שתפו דמו קצר ממשתמש עם אימוץ נרחב באותו stack.',
+      pickSmallTicket: 'הקצו טיקט בגודל שמתאים לניסוי בלי לחץ משלוח.',
+      repoInstructions: 'הוסיפו או רעננו `.github/copilot-instructions.md` ל-repos העיקריים.',
+      scopedPrompts: 'אימנו על בקשות קטנות לקובץ, לא «שכתוב את כל המודול» בבת אחת.',
+      tryChatRefactor: 'לעבודה רב-קבצית — Chat עם מטרות וקבצים מפורשים.',
+      pairWithPeer: 'צמדו עם מישהו ברבעון העליון לשיעור קבלה והשוו סגנון prompt.',
+      reviewAcceptanceHabit: 'דברו במפורש על קבלה מול דחייה — הרבה «שמירה נמוכה» פשוט מייצרים שוב.',
+      acceptOrDismiss: 'עודדו לקבל מהר או לדחות במקום regeneration אינסופי.',
+      smallerEdits: 'פרקו לסבבי Copilot קטנים שקל יותר לשפוט.',
+      compareWithEfficientPeer: 'השוו תהליך עם מאמץ יעיל באותה צוות.',
+      qualityIsGood: 'סלקטיביות עם התאמה טובה — איכות לפני נפח.',
+      tryLargerChatTask: 'משימת Chat גדולה אחת (רפקטור, בדיקות) להגדלת impact.',
+      shareSelectiveWorkflow: 'בקשו דמו איך מחליטים מה לקבל.',
+      optionalExpandUsage: 'אופציונלי: הגדילו שימוש בטיקטים קשים כשמרגישים בנוח.',
+      keepCompletions: 'המשיכו עם השלמות בשורה ל-boilerplate ועריכות קטנות.',
+      tryChatForTests: 'השתמשו ב-Chat לבדיקות, edge cases וסקירת diff.',
+      agentForMultiFile: 'נסו Agent לשינויים רב-קבציים עם תיאור משימה ברור.',
+      documentPatterns: 'תעדו 3 דפוסי prompt שעובדים ב-repo.',
+      championInvite: 'הזמינו לסשן «טיפים ל-Copilot» לצוות.',
+      lunchAndLearn: 'ארחו lunch-and-learn (15 דק דמו + שאלות).',
+      captureTips: 'תעדו 5 prompts מובילים ב-wiki או בערוץ פנימי.',
+      stretchWithAgent: 'אם רק completions — פיילוט Agent בענף מבודד.',
+      prQualityCheck: 'צ\'קליסט PR קל: בדיקות, בלי secrets, review אנושי על diff גדול.',
+      shareVolumePatterns: 'שתפו איך מקבלים בהמון בלי לאבד איכות review.',
+      balanceSpeedAndReview: 'איזון מהירות ו-review — LoC גבוה בסדר אם ה-review ער.',
+      mentorOthers: 'בקשו לחנוך משתמש קל במשך שבועיים.',
+      orgChampion: 'מינו ל-champion ארגוני — office hours, תבניות repo, משוב למנהלים.',
+      crossTeamDemo: 'דמו בין-צוותי על משטחי Agent/Chat שהם משתמשים בהם.',
+      exploreNewSurfaces: 'נסו משטח חדש (CLI, code review, cloud agent) בענף בטוח.',
+      guardrailForBurnout: 'בדקו קצב בר-קיימא — משתמשי כוח עלולים לדלג על review.',
+      maintainRhythm: 'שמרו על הקצב; בדקו מדדים פעם בחודש.',
+      tryOneNewSurface: 'משטח חדש אחד ברבעון (Chat אם completion, Agent אם רק chat).',
+      monthlySelfCheck: 'בדיקה עצמית חודשית: שיעור קבלה והערות review.',
+      benchmarkWithMedian: 'השוו לחציוני הארגון בלוח — מטרה להתאמה, לא LoC מקסימלי.',
+      tryChat: 'כמעט לא משתמשים ב-Chat — נסו לשאלות ממוקדות, בדיקות ורפקטורים.',
+      tryAgent: 'סוכן לא בשימוש — פיילוט IDE agent או cloud agent על משימה מוגבלת.',
+      cliWorkflow: 'משתמשים ב-CLI — שתפו playbooks לסקריפטים וגבולות בטיחות.',
+      modelExperiment:
+        'המודל המוביל בחלון הוא {model} — אם הקבלה נשארת נמוכה, נסו מודל אחר לשפה/stack בהגדרות IDE.',
+      lowConfidenceNote: 'מעט פעילות בטווח — התייחסו להמלצות כהיוריסטיקה עד שיעלה הביטחון.',
+    },
+    confidence: {
+      low: 'ביטחון נמוך',
+      medium: 'ביטחון בינוני',
+      high: 'ביטחון גבוה',
+    },
+    rates: {
+      acceptanceRate: {
+        label: 'שיעור קבלה',
+        formula: 'קבלות ÷ יצירות × 100 (0% אם אין יצירות)',
+      },
+      generationsPerInteraction: {
+        label: 'יצירות לאינטראקציה',
+        formula: 'יצירות ÷ אינטראקציות (0 אם אין אינטראקציות)',
+      },
+      locPerAcceptance: {
+        label: 'שורות לקבלה',
+        formula: 'שורות שנוספו ÷ קבלות (0 אם אין קבלות)',
+      },
+      locPerInteraction: {
+        label: 'שורות לאינטראקציה',
+        formula: 'שורות שנוספו ÷ אינטראקציות (0 אם אין אינטראקציות)',
+      },
+      locPerGeneration: {
+        label: 'שורות ליצירה',
+        formula: 'שורות שנוספו ÷ יצירות (0 אם אין יצירות)',
+      },
+    },
+    pattern: {
+      insufficient_data: {
+        title: 'נתונים לא מספיקים',
+        hint: 'מעט מדי פעילות בטווח לסיווג אמין.',
+      },
+      underuse: {
+        title: 'שימוש חלש',
+        hint: 'אינטראקציות, יצירות ושורות נמוכים מול הארגון — המושב כמעט לא בשימוש.',
+      },
+      light_user: {
+        title: 'משתמש קל',
+        hint: 'מעט פעילות ביחס לארגון בתקופה — כולל קבלה גבוהה על מעט אירועים בלבד.',
+      },
+      selective_accepter: {
+        title: 'מקבל סלקטיבי',
+        hint: 'קבלה גבוהה עם נפח יצירות משמעותי בתקופה — שימוש ממוקד ויעיל.',
+      },
+      completion_first: {
+        title: 'השלמת קוד תחילה',
+        hint: 'הרבה שורות לאינטראקציה עם פחות צ\'אט — השלמות בשורה (Tab) דומיננטיות.',
+      },
+      active_reviewer: {
+        title: 'סוקר פעיל',
+        hint: 'הרבה אינטראקציות עם קבלה נמוכה — בודק הצעות לפני קבלה.',
+      },
+      efficient_adopter: {
+        title: 'מאמץ יעיל',
+        hint: 'קבלה גבוהה ונפח יצירות טוב — התאמה טובה להצעות.',
+      },
+      volume_adopter: {
+        title: 'אימוץ נרחב',
+        hint: 'מקבל הרבה הצעות Copilot ומוסיף הרבה שורות קוד — מעל רוב העמיתים בארגון (לא מדד איכות).',
+      },
+      high_try_low_keep: {
+        title: 'הרבה ניסיונות, מעט שמירה',
+        hint: 'הרבה יצירות ושורות אך קבלה נמוכה — ניסויים רבים, מעט שמירה.',
+      },
+      power_user: {
+        title: 'משתמש כוח',
+        hint: 'יצירות ושורות גבוהים עם שימוש בסוכן או צ\'אט.',
+      },
+      balanced_user: {
+        title: 'מאוזן',
+        hint: 'מדדים קרובים לחציוני הארגון — שילוב שימוש יציב וטיפוסי.',
+      },
+    },
   },
   aiChat: {
     title: 'עוזר מדדי AI',

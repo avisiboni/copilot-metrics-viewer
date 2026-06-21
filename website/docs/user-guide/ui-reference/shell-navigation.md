@@ -45,6 +45,10 @@ title: מעטפת וניווט
 
 **הערה:** בלשונית Users, שדה **סינון לפי יום** מחליף לדוח `users-1-day` ליום בודד (עוקף את חלון ה-28 יום).
 
+## עוזר AI (FAB)
+
+כפתור צף עם אייקון רובוט בפינת המסך — פותח [עוזר AI](../ai-chat). מושבת עם `NUXT_PUBLIC_ENABLE_AI_CHAT=false`.
+
 ## פוטר
 
 קישור ל-Copilot Metrics Viewer ב-GitHub, גרסה (`NUXT_PUBLIC` version), וקישור **תיעוד** אם `NUXT_PUBLIC_DOCS_URL` מוגדר.

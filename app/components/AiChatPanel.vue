@@ -11,9 +11,12 @@
         @click="isOpen = true"
       >
         <v-icon>mdi-robot-outline</v-icon>
-        <v-tooltip activator="parent" :z-index="2147483647" :location="fabTooltipLocation">
-          {{ t('aiChat.fabTooltip') }}
-        </v-tooltip>
+        <BrandTooltip
+          activator="parent"
+          :text="t('aiChat.fabTooltip')"
+          :z-index="2147483647"
+          :location="fabTooltipLocation"
+        />
       </v-btn>
 
       <v-card v-if="isOpen" class="ai-chat-card" elevation="12" rounded="lg">
@@ -32,15 +35,21 @@
             @click="clearUserToken"
           >
             <v-icon size="small">mdi-key-remove</v-icon>
-            <v-tooltip activator="parent" :z-index="2147483647" location="bottom">
-              {{ t('aiChat.disconnectToken') }}
-            </v-tooltip>
+            <BrandTooltip
+              activator="parent"
+              :text="t('aiChat.disconnectToken')"
+              :z-index="2147483647"
+              location="bottom"
+            />
           </v-btn>
           <v-btn icon size="small" variant="text" @click="clearConversation">
             <v-icon size="small">mdi-delete-outline</v-icon>
-            <v-tooltip activator="parent" :z-index="2147483647" location="bottom">
-              {{ t('aiChat.clearConversation') }}
-            </v-tooltip>
+            <BrandTooltip
+              activator="parent"
+              :text="t('aiChat.clearConversation')"
+              :z-index="2147483647"
+              location="bottom"
+            />
           </v-btn>
           <v-btn icon size="small" variant="text" @click="isOpen = false">
             <v-icon size="small">mdi-close</v-icon>

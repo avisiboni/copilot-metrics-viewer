@@ -4,48 +4,47 @@ title: אפליקציה ואתר תיעוד
 
 # איך האפליקציה ואתר התיעוד עובדים יחד
 
-Copilot Metrics Viewer מגיש את לוח הבקרה ואת התיעוד **מאותו host**, בתצורת **תיקיית נתיב** (לא subdomain):
-
-| ממשק | טכנולוגיה | כתובת (דוגמה) | תפקיד |
-|------|-----------|----------------|--------|
-| **לוח הבקרה** | Nuxt 3 + Vuetify | `https://metrics.company.com/` | גרפים, טבלאות, סינון תאריכים |
-| **תיעוד** | Docusaurus (סטטי, מוטמע) | `https://metrics.company.com/docs/` | מדריך משתמש, פריסה, API |
+| ממשק | טכנולוגיה | כתובת (דוגמה) |
+|------|-----------|----------------|
+| **לוח הבקרה** | Nuxt 3 + Vuetify | `https://metrics.company.com/` |
+| **תיעוד** | Docusaurus (סטטי) | `https://metrics.company.com/docs/` |
 
 ## ארכיטקטורה
 
 ```text
 Route / Ingress (host אחד)
-  │
-  ├─ /              → Nuxt (אפליקציה + API)
-  ├─ /api/*         → Nuxt Nitro
-  └─ /docs/*        → קבצים סטטיים מ-public/docs/ (נבנה ב-docs:embed)
+  ├─ /              → Nuxt
+  ├─ /api/*         → Nitro
+  └─ /docs/*        → public/docs/ (מ-docs:embed)
 ```
 
-בזמן `npm run build` רצים `docs:embed` (Docusaurus עם `baseUrl=/docs/`) ואז `nuxt build`.
+`npm run build` → `docs:embed` + `nuxt build`.
 
-## קישור מהאפליקציה לתיעוד
+## קישור מהאפליקציה
 
-- ברירת מחדל: `NUXT_PUBLIC_DOCS_URL=/docs` — קישור **תיעוד** בפוטר, באותו דפדפן (ללא טאב חדש).
-- לעקיפה: הגדירו `NUXT_PUBLIC_DOCS_URL` לנתיב אחר או ל-URL מלא (יפתח בטאב חדש רק אם מתחיל ב-`http://` או `https://`).
+`NUXT_PUBLIC_DOCS_URL=/docs` (ברירת מחדל) — פוטר **תיעוד**.
 
-## שפות (i18n)
+## שפות
 
-| מקום | מנגנון |
-|------|--------|
-| אפליקציה | `shared/i18n` — עברית/אנגלית, `dir=rtl` לעברית |
-| תיעוד | Docusaurus — עברית ב-`/docs/...`, אנגלית ב-`/docs/en/...` |
+| מקום | נתיב |
+|------|------|
+| אפליקציה | עברית/אנגלית — `shared/i18n`, RTL |
+| תיעוד עברית | `/docs/...` |
+| תיעוד אנגלית | `/en/docs/...` |
 
 שינוי שפה באפליקציה **אינו** משנה אוטומטית את שפת התיעוד.
 
-## פריסה (OpenShift / Docker)
+## פיתוח תיעוד
 
-1. **Image אחד** — `Dockerfile` בשורש הפרויקט.
-2. **Route אחד** — אין Route נפרד ל-`docs.company.com`.
-3. Build-arg: `DOCUSAURUS_URL=https://metrics.company.com` (לקישורי canonical בתיעוד).
+```bash
+npm run docs:dev      # http://localhost:3001
+npm run docs:dev:en   # /en
+```
 
-ראו [OpenShift](../deployment/openshift).
+## סנכרון אנגלית
 
-## סנכרון תוכן אנגלית
+```bash
+cd website && npm run docs:sync-en
+```
 
-מקור האמת בעברית: `website/docs/`.  
-stubs באנגלית: `npm run docs:sync-en` (מתוך `website/`).
+מקור: `website/docs/` (עברית). מראה: `website/i18n/en/docusaurus-plugin-content-docs/current/`.

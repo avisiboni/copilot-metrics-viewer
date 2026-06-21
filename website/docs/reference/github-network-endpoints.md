@@ -34,6 +34,12 @@ title: נקודות קצה GitHub
 | `GET https://api.github.com/enterprises/{enterprise}/teams/{team}/members` | חברי צוות ספציפי ב-enterprise. |
 | `GET https://api.github.com/orgs/{org}/members` | חברי ארגון (העשרת מדריך משתמשים). |
 | `GET https://api.github.com/organizations/{org}/settings/billing` | מטא-דאטה של הגדרות חיוב ברמת ארגון. |
+| `GET https://api.github.com/organizations/{org}/settings/billing/usage?year=&month=` | שורות חיוב מפורטות (Usage & billing — SKU, הוצאה נטו). |
+| `GET https://api.github.com/organizations/{org}/settings/billing/usage/summary?year=&month=` | סיכום שימוש חיוב לפי SKU. |
+| `GET https://api.github.com/organizations/{org}/settings/billing/premium_request/usage?year=&month=&user=` | PRU לפי משתמש (Premium credits). |
+| `GET https://api.github.com/organizations/{org}/settings/billing/ai_credit/usage?year=&month=&user=` | קרדיטי AI לפי משתמש. |
+| `GET https://api.github.com/enterprises/{enterprise}/settings/billing/premium_request/usage?organization=&user=` | PRU לפי משתמש (ארגון בבעלות enterprise). |
+| `GET https://api.github.com/enterprises/{enterprise}/settings/billing/ai_credit/usage?organization=&user=` | קרדיטי AI לפי משתמש (ארגון בבעלות enterprise). |
 | `GET https://api.github.com/enterprises/{enterprise}/settings/billing` | מטא-דאטה של הגדרות חיוב ברמת enterprise. |
 
 ## נקודת קצה GraphQL בשימוש האפליקציה

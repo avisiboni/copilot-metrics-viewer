@@ -4,6 +4,8 @@ title: ייצוא נתונים
 
 # ייצוא נתונים (API response)
 
+![לשונית API response](/img/ui/api-response-tab.png)
+
 בלשונית **API response** ניתן:
 
 | פעולה | תיאור |

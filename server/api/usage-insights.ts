@@ -6,14 +6,15 @@ import { enrichWithOrgDirectory, fetchOrgMemberDirectory } from '../../shared/ut
 import {
   buildUsageInsightsResponse,
   consolidateUserRecords,
-  mapFullUserRecord
+  mapFullUserRecord,
 } from '../../shared/utils/usage-insights-aggregate'
 import { resolvePremiumCreditsFromBillingApi } from '../../shared/utils/fetch-premium-credits-batch'
+import { resolveAiCreditsFromBillingApi } from '../../shared/utils/fetch-ai-credits-batch'
 import { isPremiumCreditsFetchEnabled } from '../../shared/utils/premium-credits-feature'
-import { downloadReportFromMeta, fetchReportMeta } from '../../shared/utils/usage-metrics-download'
+import { isAiCreditsFetchEnabled } from '../../shared/utils/ai-credits-feature'
+import { fetchUsersForDateRange } from '../../shared/utils/fetch-users-date-range'
 import {
   buildUserTeamsReportUrl,
-  buildUsers28DayReportUrl,
   fetch28DayAdoptionPhases,
   fetchNdjsonReport
 } from '../../shared/utils/usage-metrics-report'
@@ -77,26 +78,23 @@ export default defineEventHandler(async (event: H3Event<EventHandlerRequest>) =>
       })
     }
 
-    const metaUrl = buildUsers28DayReportUrl(options)
-    const meta = await fetchReportMeta(metaUrl, event.context.headers)
+    const { users: rangeUsers, reportStartDay, reportEndDay } = await fetchUsersForDateRange(
+      options,
+      event.context.headers,
+      logger
+    )
 
-    let users: UserUsageRecord[] = []
-    if (meta?.download_links?.length) {
-      const lines = await downloadReportFromMeta(meta, logger)
-      const rawUsers = lines.map((line) => mapFullUserRecord(line as Record<string, unknown>))
-      users = consolidateUserRecords(rawUsers)
-
-      if (options.githubOrg) {
-        const directory = await fetchOrgMemberDirectory(
-          options.githubOrg,
-          event.context.headers,
-          logger
-        )
-        users = enrichWithOrgDirectory(users, directory)
-      }
+    let users = rangeUsers
+    if (options.githubOrg && users.length) {
+      const directory = await fetchOrgMemberDirectory(
+        options.githubOrg,
+        event.context.headers,
+        logger
+      )
+      users = enrichWithOrgDirectory(users, directory)
     }
 
-    const teamDay = meta?.report_end_day || until || new Date().toISOString().split('T')[0]
+    const teamDay = reportEndDay || until || new Date().toISOString().split('T')[0]
     let userTeams: UserTeamRecord[] = []
     try {
       const teamRows = await fetchNdjsonReport(
@@ -148,6 +146,25 @@ export default defineEventHandler(async (event: H3Event<EventHandlerRequest>) =>
       })
     }
 
+    let aiCredits
+    if (
+      since &&
+      until &&
+      options.githubOrg &&
+      billing.available &&
+      isAiCreditsFetchEnabled(config.public)
+    ) {
+      aiCredits = await resolveAiCreditsFromBillingApi({
+        logins: users.map((u) => u.user_login),
+        org: options.githubOrg,
+        enterprise: options.githubEnt || config.public.githubEnt,
+        since,
+        until,
+        headers: event.context.headers,
+        logger
+      })
+    }
+
     let adoptionByPhase = []
     try {
       const orgTotals = await fetch28DayAdoptionPhases(options, event.context.headers, logger)
@@ -163,10 +180,11 @@ export default defineEventHandler(async (event: H3Event<EventHandlerRequest>) =>
       billing,
       since: since || undefined,
       until: until || undefined,
-      reportStartDay: meta?.report_start_day,
-      reportEndDay: meta?.report_end_day,
+      reportStartDay,
+      reportEndDay,
       premiumCreditsQuota,
       premiumCredits,
+      aiCredits,
       adoptionByPhase
     })
   } catch (error: unknown) {

@@ -44,5 +44,8 @@ export default defineVuetifyConfiguration({
     VTextField: {
       rounded: 'lg',
     },
+    VTooltip: {
+      contentClass: 'brand-tooltip-overlay',
+    },
   },
 })

@@ -2,40 +2,49 @@
 title: App and documentation site
 ---
 
-# How the app and documentation work together
+# How the app and docs work together
 
-Copilot Metrics Viewer serves the dashboard and documentation from the **same host**, under a **path folder** (not a subdomain):
-
-| Surface | Technology | Example URL |
-|---------|------------|-------------|
-| Dashboard | Nuxt 3 + Vuetify | `https://metrics.company.com/` |
-| Documentation | Docusaurus (embedded static) | `https://metrics.company.com/docs/` |
+| UI | Technology | Example URL |
+|----|------------|-------------|
+| **Dashboard** | Nuxt 3 + Vuetify | `https://metrics.company.com/` |
+| **Docs** | Docusaurus (static) | `https://metrics.company.com/docs/` |
 
 ## Architecture
 
 ```text
-Single Route / Ingress
-  ├─ /           → Nuxt app + API
-  ├─ /api/*      → Nitro
-  └─ /docs/*     → static files from public/docs/ (docs:embed at build)
+Route / Ingress (single host)
+  ├─ /              → Nuxt
+  ├─ /api/*         → Nitro
+  └─ /docs/*        → public/docs/ (from docs:embed)
 ```
 
-`npm run build` runs `docs:embed` then `nuxt build`.
+`npm run build` → `docs:embed` + `nuxt build`.
 
-## Footer link
+## Link from the app
 
-- Default: `NUXT_PUBLIC_DOCS_URL=/docs` — opens in the same tab.
-- Override with another path or full URL (external URLs open in a new tab).
+`NUXT_PUBLIC_DOCS_URL=/docs` (default) — footer **Documentation**.
 
-## i18n
+## Languages
 
-| Place | Paths |
-|-------|--------|
-| App | `shared/i18n` |
-| Docs | Hebrew `/docs/...`, English `/docs/en/...` |
+| Place | Path |
+|-------|------|
+| App | Hebrew/English — `shared/i18n`, RTL |
+| Docs Hebrew | `/docs/...` |
+| Docs English | `/en/docs/...` |
 
-## Deployment
+Changing app language does **not** automatically change docs language.
 
-One image (`Dockerfile` at repo root), one Route. Build-arg `DOCUSAURUS_URL=https://metrics.company.com` for canonical links in docs.
+## Developing docs
 
-See [OpenShift](../deployment/openshift).
+```bash
+npm run docs:dev      # http://localhost:3001
+npm run docs:dev:en   # /en
+```
+
+## English sync
+
+```bash
+cd website && npm run docs:sync-en
+```
+
+Source: `website/docs/` (Hebrew). Mirror: `website/i18n/en/docusaurus-plugin-content-docs/current/`.

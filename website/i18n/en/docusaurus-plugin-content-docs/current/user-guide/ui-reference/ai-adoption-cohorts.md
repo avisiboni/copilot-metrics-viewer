@@ -4,7 +4,25 @@ title: AI adoption cohorts
 
 # AI adoption cohorts
 
-New in the [Copilot usage metrics API](https://github.blog/changelog/2026-05-29-copilot-usage-metrics-api-adds-cohorts-for-ai-adoption/) (May 2026). **Copilot Metrics Viewer** surfaces it across the relevant tabs.
+New in the [Copilot usage metrics API](https://github.blog/changelog/2026-05-29-copilot-usage-metrics-api-adds-cohorts-for-ai-adoption/) (May 2026). **Copilot Metrics Viewer** can surface it on relevant tabs — **hidden by default**.
+
+## Show / hide (`NUXT_PUBLIC_SHOW_AI_ADOPTION_COHORTS`)
+
+| Value | Behavior |
+|-------|----------|
+| **Unset / `false`** (default) | No cohort panel, no adoption phase chip in the user dialog, no adoption leaderboard notes |
+| **`true`** | **AI adoption cohorts** panel, chips, and related table hints |
+
+```bash
+# Turn cohort UI back on (e.g. when using CLI, cloud agent, or code review):
+NUXT_PUBLIC_SHOW_AI_ADOPTION_COHORTS=true
+```
+
+Restart `npm run dev` or redeploy after changing.
+
+:::tip IDE-only Copilot
+If you only use Copilot in the IDE, leave this `false`. Usage patterns and per-user metrics are usually enough. When you enable cohorts, consider `NUXT_PUBLIC_ADOPTION_IDE_ONLY=true` (below).
+:::
 
 ## Why it exists
 
@@ -24,6 +42,24 @@ GitHub assigns each **engaged** user to one phase (0–3) based on which Copilot
 | **1** | Code first | Code completion and/or **IDE agent mode** |
 | **2** | Agent first | **One** GitHub-based agent surface: cloud agent, code review, or CLI |
 | **3** | Multi-agent | **Two or more** agent surfaces, or the **GitHub Copilot app** |
+
+### IDE-only mode (`NUXT_PUBLIC_ADOPTION_IDE_ONLY=true`)
+
+Applies only when `NUXT_PUBLIC_SHOW_AI_ADOPTION_COHORTS=true`.
+
+When your org **only** uses Copilot in the IDE (no CLI, cloud agent, code review, etc.), set:
+
+```bash
+NUXT_PUBLIC_ADOPTION_IDE_ONLY=true
+```
+
+Then the dashboard:
+
+- Shows only **No cohort** and **Code first** in the adoption panel (hides Agent first / Multi-agent cards).
+- Updates tooltips and column hints so agent ladders are not mentioned.
+- If GitHub still labels a user as phase 2/3, the table shows **N/A** instead of an agent chip.
+
+Default: `false` (all four phases visible).
 
 ### `version` field
 

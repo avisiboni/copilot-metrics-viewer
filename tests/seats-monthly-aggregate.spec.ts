@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   aggregateSeatHistoryByMonth,
   aggregateSeatsAssignedByMonth,
+  applyMonthlySeatUnitPrice,
   buildMonthlySeatInvoiceRows,
+  fillMonthlyCountGaps,
 } from '../shared/utils/seats-monthly-aggregate'
 
 describe('seats-monthly-aggregate', () => {
@@ -44,6 +46,39 @@ describe('seats-monthly-aggregate', () => {
       { month: '2026-02', new_seats: 2, existing_seats: 18, total_seats: 20 },
       { month: '2026-05', new_seats: 8, existing_seats: 20, total_seats: 28 },
     ])
+  })
+
+  it('fills calendar gaps with zero new-assignment months', () => {
+    const filled = fillMonthlyCountGaps([
+      { month: '2026-01', total_seats: 18 },
+      { month: '2026-02', total_seats: 2 },
+      { month: '2026-04', total_seats: 7 },
+    ])
+    expect(filled.map((r) => r.month)).toEqual([
+      '2026-01',
+      '2026-02',
+      '2026-03',
+      '2026-04',
+    ])
+    const invoice = buildMonthlySeatInvoiceRows(filled, 'assignments')
+    expect(invoice.find((r) => r.month === '2026-03')).toEqual({
+      month: '2026-03',
+      new_seats: 0,
+      existing_seats: 20,
+      total_seats: 20,
+    })
+  })
+
+  it('applies unit price to existing and new seats', () => {
+    const withCost = applyMonthlySeatUnitPrice(
+      [{ month: '2026-02', new_seats: 2, existing_seats: 18, total_seats: 20 }],
+      35
+    )
+    expect(withCost[0]).toMatchObject({
+      existing_cost: 630,
+      new_cost: 70,
+      monthly_cost: 700,
+    })
   })
 
   it('builds invoice rows from historical month-end totals', () => {

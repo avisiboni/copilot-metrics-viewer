@@ -34,6 +34,12 @@ This page lists all GitHub URLs the app uses to fetch data, and what each endpoi
 | `GET https://api.github.com/enterprises/{enterprise}/teams/{team}/members` | Lists members of a specific enterprise team. |
 | `GET https://api.github.com/orgs/{org}/members` | Lists organization members (member directory enrichment). |
 | `GET https://api.github.com/organizations/{org}/settings/billing` | Fetches organization-level billing settings metadata. |
+| `GET https://api.github.com/organizations/{org}/settings/billing/usage?year=&month=` | Detailed billing lines (Usage & billing — SKU, net spend). |
+| `GET https://api.github.com/organizations/{org}/settings/billing/usage/summary?year=&month=` | Billing usage summary by SKU. |
+| `GET https://api.github.com/organizations/{org}/settings/billing/premium_request/usage?year=&month=&user=` | Per-user PRU (Premium credits). |
+| `GET https://api.github.com/organizations/{org}/settings/billing/ai_credit/usage?year=&month=&user=` | Per-user AI credits. |
+| `GET https://api.github.com/enterprises/{enterprise}/settings/billing/premium_request/usage?organization=&user=` | Per-user PRU (enterprise-owned org). |
+| `GET https://api.github.com/enterprises/{enterprise}/settings/billing/ai_credit/usage?organization=&user=` | Per-user AI credits (enterprise-owned org). |
 | `GET https://api.github.com/enterprises/{enterprise}/settings/billing` | Fetches enterprise-level billing settings metadata. |
 
 ## GraphQL endpoint used by the application

@@ -1,5 +1,6 @@
 <template>
   <v-expansion-panels
+    v-if="visible"
     v-model="panelOpen"
     class="brand-collapsible-alert mb-4"
     :class="`brand-collapsible-alert--${variant}`"
@@ -15,6 +16,16 @@
         >
           — {{ summary }}
         </span>
+        <v-spacer />
+        <v-btn
+          icon="mdi-close"
+          variant="text"
+          size="x-small"
+          density="comfortable"
+          class="brand-collapsible-alert__close"
+          :aria-label="closeLabel"
+          @click.stop="dismiss"
+        />
       </v-expansion-panel-title>
       <v-expansion-panel-text class="brand-collapsible-alert__body">
         <slot />
@@ -24,7 +35,9 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, ref } from 'vue'
+import { computed, defineComponent, onMounted, ref } from 'vue'
+
+const STORAGE_PREFIX = 'brand-dismissible-alert:'
 
 export default defineComponent({
   name: 'BrandCollapsibleBillingAlert',
@@ -44,9 +57,19 @@ export default defineComponent({
     defaultOpen: {
       type: Boolean,
       default: false
+    },
+    storageKey: {
+      type: String,
+      default: ''
+    },
+    closeLabel: {
+      type: String,
+      default: 'Close'
     }
   },
-  setup(props) {
+  emits: ['dismiss'],
+  setup(props, { emit }) {
+    const visible = ref(true)
     const panelOpen = ref<string | undefined>(
       props.defaultOpen ? 'details' : undefined
     )
@@ -54,7 +77,28 @@ export default defineComponent({
     const icon = computed(() =>
       props.variant === 'warning' ? 'mdi-alert-circle-outline' : 'mdi-information-outline'
     )
-    return { panelOpen, isExpanded, icon }
+
+    onMounted(() => {
+      if (!props.storageKey || typeof sessionStorage === 'undefined') {
+        return
+      }
+      if (sessionStorage.getItem(STORAGE_PREFIX + props.storageKey) === '1') {
+        visible.value = false
+      }
+    })
+
+    function dismiss() {
+      if (!visible.value) {
+        return
+      }
+      visible.value = false
+      if (props.storageKey && typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(STORAGE_PREFIX + props.storageKey, '1')
+      }
+      emit('dismiss')
+    }
+
+    return { visible, panelOpen, isExpanded, icon, dismiss }
   }
 })
 </script>
@@ -103,6 +147,16 @@ export default defineComponent({
 
 .brand-collapsible-alert__body :deep(code) {
   font-size: 0.8125rem;
+}
+
+.brand-collapsible-alert__close {
+  flex-shrink: 0;
+  color: var(--brand-primary-dark) !important;
+  opacity: 0.72;
+}
+
+.brand-collapsible-alert__close:hover {
+  opacity: 1;
 }
 
 .brand-collapsible-alert--info :deep(.v-expansion-panel) {

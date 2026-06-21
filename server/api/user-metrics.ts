@@ -1,10 +1,8 @@
 import type { H3Event, EventHandlerRequest } from 'h3';
 import { Options } from '@/model/Options';
 import type { UserUsageRecord } from '../../shared/types/copilot-usage';
-import { downloadReportFromMeta } from '../../shared/utils/usage-metrics-download';
-import { fetchReportMeta } from '../../shared/utils/usage-metrics-download';
+import { fetchUsersForDateRange } from '../../shared/utils/fetch-users-date-range';
 import {
-  buildUsers28DayReportUrl,
   buildUsersOneDayReportUrl,
   fetch28DayAdoptionPhases,
   fetchNdjsonReport
@@ -14,6 +12,7 @@ import { enrichWithOrgDirectory, fetchOrgMemberDirectory } from '../../shared/ut
 import { fetchOrganizationBilling } from '../../shared/utils/billing-api';
 import { currentUtcMonthRange } from '../../shared/utils/premium-credits';
 import { isPremiumCreditsFetchEnabled } from '../../shared/utils/premium-credits-feature';
+import { isAiCreditsFetchEnabled } from '../../shared/utils/ai-credits-feature';
 import { buildAdoptionPhaseView } from '../../shared/utils/ai-adoption-phase';
 import type { AiAdoptionPhaseAggregate } from '../../shared/types/copilot-usage';
 import { parseAiAdoptionPhase } from '../../shared/utils/ai-adoption-phase';
@@ -30,6 +29,17 @@ interface UserMetricsApiResponse {
     since?: string;
     until?: string;
     defaultQuota: number;
+    reason?: string;
+    usersWithBillingData: number;
+    perUserDataAvailable?: boolean;
+    httpStatus?: number;
+    tokenScopes?: string;
+    fetchDisabled?: boolean;
+  };
+  aiCredits?: {
+    available: boolean;
+    since?: string;
+    until?: string;
     reason?: string;
     usersWithBillingData: number;
     perUserDataAvailable?: boolean;
@@ -86,6 +96,38 @@ async function getPremiumCreditsMeta(
     since,
     until,
     defaultQuota,
+    usersWithBillingData: 0,
+    perUserDataAvailable: false,
+    reason: billing.available ? undefined : billing.reason,
+    httpStatus: billing.httpStatus,
+    tokenScopes: billing.tokenScopes
+  }
+}
+
+async function getAiCreditsMeta(
+  org: string,
+  headers: HeadersInit,
+  logger: Console,
+  since: string,
+  until: string,
+  fetchEnabled: boolean
+): Promise<NonNullable<UserMetricsApiResponse['aiCredits']>> {
+  if (!fetchEnabled) {
+    return {
+      available: false,
+      since,
+      until,
+      usersWithBillingData: 0,
+      perUserDataAvailable: false,
+      fetchDisabled: true,
+    }
+  }
+
+  const billing = await fetchOrganizationBilling(org, headers, since, until, logger)
+  return {
+    available: billing.available,
+    since,
+    until,
     usersWithBillingData: 0,
     perUserDataAvailable: false,
     reason: billing.available ? undefined : billing.reason,
@@ -170,14 +212,11 @@ export default defineEventHandler(async (event: H3Event<EventHandlerRequest>) =>
     return new Response('No Authentication provided', { status: 401 });
   }
 
-  const options = new Options({
-    scope: scope === 'enterprise' ? 'enterprise' : 'organization',
-    githubOrg: org,
-    githubEnt: ent
-  });
+  const options = Options.fromQuery(query, config.public);
 
   const defaultQuota = Number(config.public.enterprisePremiumQuota) || 1000;
   const premiumCreditsFetchEnabled = isPremiumCreditsFetchEnabled(config.public);
+  const aiCreditsFetchEnabled = isAiCreditsFetchEnabled(config.public);
 
   try {
     if (day) {
@@ -202,29 +241,35 @@ export default defineEventHandler(async (event: H3Event<EventHandlerRequest>) =>
           )
         : undefined;
 
+      const aiCredits = org
+        ? await getAiCreditsMeta(
+            org,
+            event.context.headers,
+            logger,
+            billingWindow.since,
+            billingWindow.until,
+            aiCreditsFetchEnabled
+          )
+        : undefined;
+
       const adoptionByPhase = await loadAdoptionPhases(options, event.context.headers, logger, users);
 
       return {
         reportDay: day,
         users,
         adoptionByPhase,
-        premiumCredits
+        premiumCredits,
+        aiCredits
       } satisfies UserMetricsApiResponse;
     }
 
-    const metaUrl = buildUsers28DayReportUrl(options);
-    const meta = await fetchReportMeta(metaUrl, event.context.headers);
+    const { users: rangeUsers, reportStartDay, reportEndDay } = await fetchUsersForDateRange(
+      options,
+      event.context.headers,
+      logger
+    );
 
-    if (!meta?.download_links?.length) {
-      return {
-        reportStartDay: meta?.report_start_day,
-        reportEndDay: meta?.report_end_day,
-        users: []
-      } satisfies UserMetricsApiResponse;
-    }
-
-    const lines = await downloadReportFromMeta(meta, logger);
-    let users = consolidateUserRecords(lines.map(mapUserRecord));
+    let users = rangeUsers;
 
     if (org) {
       const directory = await fetchOrgMemberDirectory(org, event.context.headers, logger);
@@ -243,14 +288,26 @@ export default defineEventHandler(async (event: H3Event<EventHandlerRequest>) =>
         )
       : undefined;
 
+    const aiCredits = org
+      ? await getAiCreditsMeta(
+          org,
+          event.context.headers,
+          logger,
+          billingWindow.since,
+          billingWindow.until,
+          aiCreditsFetchEnabled
+        )
+      : undefined;
+
     const adoptionByPhase = await loadAdoptionPhases(options, event.context.headers, logger, users);
 
     return {
-      reportStartDay: meta.report_start_day,
-      reportEndDay: meta.report_end_day,
+      reportStartDay,
+      reportEndDay,
       users,
       adoptionByPhase,
-      premiumCredits
+      premiumCredits,
+      aiCredits
     } satisfies UserMetricsApiResponse;
   } catch (error: unknown) {
     logger.error('Error fetching user metrics data:', error);

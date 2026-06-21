@@ -8,10 +8,14 @@
         />
 
         <div v-else-if="error" class="d-flex justify-center align-center" style="min-height: 300px;">
-          <v-alert type="error" class="mb-4">
-            <v-alert-title>{{ t('users.errorTitle') }}</v-alert-title>
+          <BrandDismissibleAlert
+            type="error"
+            alert-class="brand-alert brand-alert--error mb-4"
+            :close-label="t('common.close')"
+            :title="t('users.errorTitle')"
+          >
             {{ error }}
-          </v-alert>
+          </BrandDismissibleAlert>
         </div>
 
         <div v-else>
@@ -52,6 +56,8 @@
           </v-card>
           <BrandCollapsibleBillingAlert
             v-if="premiumCreditsFetchEnabled && premiumCreditsMeta && !premiumCreditsMeta.available && !premiumCreditsMeta.fetchDisabled"
+            storage-key="users-premium-needs-billing"
+            :close-label="t('common.close')"
             :title="t('users.premiumNeedsBillingTitle')"
             :summary="premiumCreditsAlertSummary"
             variant="warning"
@@ -70,103 +76,143 @@
               {{ t('users.addScopePat') }}
             </p>
           </BrandCollapsibleBillingAlert>
-          <v-alert
+          <BrandDismissibleAlert
             v-else-if="premiumCreditsFetchEnabled && premiumCreditsMeta?.available && premiumLoading"
             type="info"
-            variant="tonal"
             density="compact"
-            class="mb-3 brand-alert brand-alert--info"
+            alert-class="mb-3 brand-alert brand-alert--info"
+            :close-label="t('common.close')"
           >
             {{ t('users.premiumLoadingProgress', {
               loaded: premiumLoadProgress.loaded,
               total: premiumLoadProgress.total
             }) }}
-          </v-alert>
-          <v-alert
+          </BrandDismissibleAlert>
+          <BrandDismissibleAlert
             v-else-if="premiumCreditsFetchEnabled && premiumCreditsMeta?.available && premiumCreditsMeta.perUserDataAvailable"
+            storage-key="users-premium-billing-range"
             type="info"
-            variant="tonal"
             density="compact"
-            class="mb-3 brand-alert brand-alert--info"
+            alert-class="mb-3 brand-alert brand-alert--info"
+            :close-label="t('common.close')"
           >
             {{ t('users.subtitleBillingRange', { range: `${premiumCreditsMeta.since} → ${premiumCreditsMeta.until}` }) }}
             ({{ t('users.usersWithPruInWindow', { count: premiumCreditsMeta.usersWithBillingData }) }})
-          </v-alert>
-          <v-alert
+          </BrandDismissibleAlert>
+          <BrandDismissibleAlert
             v-else-if="premiumCreditsFetchEnabled && premiumLoadError"
             type="error"
-            variant="tonal"
             density="compact"
-            class="mb-3 brand-alert brand-alert--error"
+            alert-class="mb-3 brand-alert brand-alert--error"
+            :close-label="t('common.close')"
           >
             {{ premiumLoadError }}
-          </v-alert>
-          <v-alert
+          </BrandDismissibleAlert>
+          <BrandDismissibleAlert
             v-else-if="premiumCreditsFetchEnabled && premiumCreditsMeta?.available && !premiumCreditsMeta.perUserDataAvailable"
+            storage-key="users-per-user-pru-unavailable"
             type="warning"
-            variant="tonal"
             density="compact"
-            class="mb-3 brand-alert brand-alert--warning"
+            alert-class="mb-3 brand-alert brand-alert--warning"
+            :close-label="t('common.close')"
           >
             {{ t('users.perUserPruUnavailable') }}
-          </v-alert>
+          </BrandDismissibleAlert>
+          <BrandDismissibleAlert
+            v-if="aiCreditsFetchEnabled && aiCreditsMeta?.available && aiCreditsLoading"
+            type="info"
+            density="compact"
+            alert-class="mb-3 brand-alert brand-alert--info"
+            :close-label="t('common.close')"
+          >
+            {{ t('users.aiCreditsLoadingProgress', {
+              loaded: aiCreditsLoadProgress.loaded,
+              total: aiCreditsLoadProgress.total
+            }) }}
+          </BrandDismissibleAlert>
+          <BrandDismissibleAlert
+            v-else-if="aiCreditsFetchEnabled && aiCreditsMeta?.available && aiCreditsMeta.perUserDataAvailable"
+            storage-key="users-ai-credits-billing-range"
+            type="info"
+            density="compact"
+            alert-class="mb-3 brand-alert brand-alert--info"
+            :close-label="t('common.close')"
+          >
+            {{ t('users.subtitleBillingRange', { range: `${aiCreditsMeta.since} → ${aiCreditsMeta.until}` }) }}
+            ({{ t('users.usersWithAiCreditsInWindow', { count: aiCreditsMeta.usersWithBillingData }) }})
+          </BrandDismissibleAlert>
+          <BrandDismissibleAlert
+            v-else-if="aiCreditsFetchEnabled && aiCreditsLoadError"
+            type="error"
+            density="compact"
+            alert-class="mb-3 brand-alert brand-alert--error"
+            :close-label="t('common.close')"
+          >
+            {{ aiCreditsLoadError }}
+          </BrandDismissibleAlert>
 
           <BrandAiAdoptionPanel
-            v-if="adoptionByPhase.length"
-            :phases="adoptionByPhase"
+            v-if="showAiAdoptionCohorts && filteredAdoptionByPhase.length"
+            :phases="filteredAdoptionByPhase"
           />
 
-          <v-row class="mb-2">
-            <v-col cols="12" md="4">
-              <v-text-field
-                v-model="selectedDay"
-                class="brand-date-field"
-                :label="t('users.filterByDay')"
-                type="date"
-                variant="outlined"
-                density="compact"
-                clearable
-                :hint="t('users.filterDayHint')"
-                persistent-hint
-              />
-            </v-col>
-            <v-col cols="12" md="4">
-              <v-autocomplete
-                v-model="selectedUser"
-                :items="userFilterOptions"
-                :menu-props="brandSelectMenuProps"
-                item-title="label"
-                item-value="login"
-                :label="t('users.filterUser')"
-                :placeholder="t('common.allUsers')"
-                variant="outlined"
-                density="compact"
-                clearable
-                prepend-inner-icon="mdi-account-filter"
-              />
-            </v-col>
-            <v-col cols="12" md="4" class="d-flex align-center">
-              <v-btn color="primary" :loading="loading" @click="loadUsers">{{ t('users.applyFilters') }}</v-btn>
-            </v-col>
-          </v-row>
+          <BrandUsersTopKpiRow
+            :entries="topUserKpiEntries"
+            :get-insight="getInsight"
+            @select="openUserDetail"
+          />
+
+          <div class="brand-users-filters mb-2">
+            <v-text-field
+              v-model="selectedDay"
+              class="brand-date-field brand-users-filters__date"
+              :label="t('users.filterByDay')"
+              type="date"
+              variant="outlined"
+              density="compact"
+              clearable
+              hide-details
+            />
+            <v-autocomplete
+              v-model="selectedUser"
+              class="brand-users-filters__user"
+              :items="userFilterOptions"
+              :menu-props="brandSelectMenuProps"
+              item-title="label"
+              item-value="login"
+              :label="t('users.filterUser')"
+              :placeholder="t('common.allUsers')"
+              variant="outlined"
+              density="compact"
+              clearable
+              hide-details
+              prepend-inner-icon="mdi-account-filter"
+            />
+            <v-btn
+              class="brand-users-filters__apply"
+              color="primary"
+              height="40"
+              :loading="loading"
+              @click="loadUsers"
+            >
+              {{ t('users.applyFilters') }}
+            </v-btn>
+            <p class="brand-users-filters__day-hint text-caption">
+              {{ t('users.filterDayHint') }}
+            </p>
+          </div>
 
           <BrandTableShell
             :title="t('users.tableTitle')"
             :subtitle="tableSubtitle"
           >
             <BrandDismissibleAlert
+              v-if="showAiAdoptionCohorts"
               storage-key="users-leaderboard-info"
               :close-label="t('common.close')"
             >
               <p class="text-body-2 mb-0">
-                {{ t('adoption.leaderboardColumnNote') }}
-              </p>
-              <p
-                v-if="PREMIUM_CREDITS_TABLE_DISABLED"
-                class="text-body-2 mb-0 mt-2"
-              >
-                {{ t('billing.premiumCreditsDisabledIp') }}
-                {{ t('billing.premiumCreditsDisabledIpHint') }}
+                {{ adoptionLeaderboardNote }}
               </p>
             </BrandDismissibleAlert>
             <template #toolbar>
@@ -195,7 +241,7 @@
                 <div class="brand-table-user-cell">
                   <BrandUserAvatar
                     :seed="item.user_login"
-                    :display-name="item.name"
+                    :display-name="item.name ?? undefined"
                     :size="36"
                   />
                   <div>
@@ -207,28 +253,127 @@
                 </div>
               </template>
 
-              <template #item.ai_adoption_phase="{ item }">
-                <BrandAiAdoptionPhaseChip :phase="item.ai_adoption_phase" />
+              <template #item.usage_pattern="{ item }">
+                <button
+                  type="button"
+                  class="brand-usage-pattern-cell-btn"
+                  @click.stop="openUserDetail(item)"
+                >
+                  <BrandUsagePatternChip :insight="getInsight(item.user_login)" />
+                </button>
               </template>
 
-              <template #header.ai_adoption_phase>
+              <template #header.user_login="{ column, getSortIcon, toggleSort }">
                 <BrandTableHeaderHint
-                  :label="t('adoption.colAdoptionPhase')"
-                  :tooltip="t('adoption.colAdoptionPhaseHint')"
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colUser')"
+                  :tooltip="t('billing.colUserHint')"
+                />
+              </template>
+              <template #header.usage_pattern="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('usagePattern.colPattern')"
+                  :tooltip="t('usagePattern.colPatternHint')"
+                />
+              </template>
+              <template #header.ai_credits="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colAiCredits')"
+                  :tooltip="t('billing.colAiCreditsHint')"
+                />
+              </template>
+              <template #header.usageDetail="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colUsage')"
+                  :tooltip="t('billing.colUsageHint')"
+                />
+              </template>
+              <template #header.user_initiated_interaction_count="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colInteractions')"
+                  :tooltip="t('billing.colInteractionsHint')"
+                />
+              </template>
+              <template #header.code_generation_activity_count="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colGenerations')"
+                  :tooltip="t('billing.colGenerationsHint')"
+                />
+              </template>
+              <template #header.code_acceptance_activity_count="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colAcceptances')"
+                  :tooltip="t('billing.colAcceptancesHint')"
+                />
+              </template>
+              <template #header.loc_added_sum="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colLocAdded')"
+                  :tooltip="t('billing.colLocAddedHint')"
+                />
+              </template>
+              <template #header.used_agent="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colAgent')"
+                  :tooltip="t('billing.colAgentHint')"
+                />
+              </template>
+              <template #header.used_chat="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colChat')"
+                  :tooltip="t('billing.colChatHint')"
                 />
               </template>
 
-              <template #header.premium_credits>
-                <BrandTableHeaderHint
-                  :label="t('billing.colPremiumCredits')"
-                  :tooltip="PREMIUM_CREDITS_TABLE_DISABLED
-                    ? t('billing.premiumCreditsDisabledIpHint')
-                    : t('billing.premiumCreditsCacheHint')"
+              <template #item.ai_credits="{ item }">
+                <BrandAiCreditsCell
+                  v-if="aiCreditsFetchEnabled && aiCreditsMeta?.available"
+                  :credits="item.ai_credits"
+                  :loading="isAiCreditsLoginLoading(item.user_login)"
                 />
+                <span v-else class="brand-credits-cell--na">{{ t('common.emDash') }}</span>
               </template>
 
-              <template #item.premium_credits>
-                <BrandPremiumCreditsCell disabled />
+              <template #item.usageDetail="{ item }">
+                <v-btn
+                  type="button"
+                  size="small"
+                  variant="flat"
+                  class="brand-usage-detail-btn"
+                  prepend-icon="mdi-chart-box-outline"
+                  @click.stop="openUserDetail(item)"
+                >
+                  {{ t('billing.colUsage') }}
+                </v-btn>
               </template>
 
               <template #item.user_initiated_interaction_count="{ item }">
@@ -270,8 +415,20 @@
               </template>
             </v-data-table>
           </BrandTableShell>
+
         </div>
     </section>
+
+    <UserUsageDetailDialog
+      v-model="detailDialogOpen"
+      :user="detailUser"
+      :usage-insight="detailUsageInsight"
+      :report-range="detailReportRange"
+      :billing-available="Boolean(aiCreditsMeta?.available)"
+      :premium-credits-fetch-enabled="premiumCreditsFetchEnabled"
+      :ai-credits-fetch-enabled="aiCreditsFetchEnabled"
+      :team-slugs="[]"
+    />
   </div>
 </template>
 
@@ -283,8 +440,9 @@ import type { UserUsageRecord } from '../../shared/types/copilot-usage';
 import type { BillingFetchResult } from '../../shared/types/billing-usage';
 import BrandCollapsibleBillingAlert from '@/components/BrandCollapsibleBillingAlert.vue';
 import BrandTableShell from '@/components/BrandTableShell.vue';
-import BrandPremiumCreditsCell from '@/components/BrandPremiumCreditsCell.vue';
 import BrandUserAvatar from '@/components/BrandUserAvatar.vue';
+import UserUsageDetailDialog from '@/components/UserUsageDetailDialog.vue';
+import type { UserUsageLeaderboardRow } from '../../shared/types/usage-insights';
 import { billingAlertSummary } from '../../shared/utils/billing-api';
 
 interface UserMetricsApiResponse {
@@ -306,16 +464,34 @@ interface UserMetricsApiResponse {
     tokenScopes?: string;
     fetchDisabled?: boolean;
   };
+  aiCredits?: {
+    available: boolean;
+    since?: string;
+    until?: string;
+    reason?: string;
+    usersWithBillingData?: number;
+    perUserDataAvailable?: boolean;
+    httpStatus?: number;
+    tokenScopes?: string;
+    fetchDisabled?: boolean;
+  };
 }
 
 import BrandDismissibleAlert from '@/components/BrandDismissibleAlert.vue'
 import BrandPageSkeleton from '@/components/BrandPageSkeleton.vue'
 import BrandAiAdoptionPanel from '@/components/BrandAiAdoptionPanel.vue'
-import BrandAiAdoptionPhaseChip from '@/components/BrandAiAdoptionPhaseChip.vue'
 import type { AiAdoptionPhaseAggregate } from '../../shared/types/copilot-usage'
 import { usePremiumCreditsBatchLoader } from '@/composables/usePremiumCreditsBatchLoader'
 import { usePremiumCreditsFeature } from '@/composables/usePremiumCreditsFeature'
+import { useAiCreditsBatchLoader } from '@/composables/useAiCreditsBatchLoader'
+import { useAiCreditsFeature } from '@/composables/useAiCreditsFeature'
+import BrandAiCreditsCell from '@/components/BrandAiCreditsCell.vue'
 import { PREMIUM_CREDITS_TABLE_DISABLED } from '../../shared/utils/premium-credits-feature'
+import BrandUsagePatternChip from '@/components/BrandUsagePatternChip.vue'
+import BrandUsersTopKpiRow from '@/components/BrandUsersTopKpiRow.vue'
+import { useUsagePatternInsights } from '@/composables/useUsagePatternInsights'
+import { activityInputFromUsageRecord } from '../../shared/utils/usage-pattern-insights'
+import { pickTopUsersByCopilotQuality } from '../../shared/utils/users-top-kpi'
 
 export default defineComponent({
   name: 'UserMetricsViewer',
@@ -323,11 +499,13 @@ export default defineComponent({
     BrandDismissibleAlert,
     BrandCollapsibleBillingAlert,
     BrandTableShell,
-    BrandPremiumCreditsCell,
     BrandUserAvatar,
+    UserUsageDetailDialog,
     BrandAiAdoptionPanel,
-    BrandAiAdoptionPhaseChip,
     BrandPageSkeleton,
+    BrandUsagePatternChip,
+    BrandUsersTopKpiRow,
+    BrandAiCreditsCell,
   },
   props: {
     dateRange: {
@@ -342,11 +520,18 @@ export default defineComponent({
   setup(props) {
     const { t } = useAppI18n();
     const { fetchEnabled: premiumCreditsFetchEnabled } = usePremiumCreditsFeature();
+    const { fetchEnabled: aiCreditsFetchEnabled } = useAiCreditsFeature();
+    const { visible: showAiAdoptionCohorts } = useAiAdoptionCohortsFeature();
+    const { ideOnly, filterPhases } = useAdoptionIdeOnly();
     const tabReportRange = useTabReportRange();
     const loading = ref(true);
     const error = ref<string | null>(null);
     const allUsers = ref<UserUsageRecord[]>([]);
     const adoptionByPhase = ref<AiAdoptionPhaseAggregate[]>([]);
+    const filteredAdoptionByPhase = computed(() => filterPhases(adoptionByPhase.value));
+    const adoptionLeaderboardNote = computed(() =>
+      t.value(ideOnly.value ? 'adoption.leaderboardColumnNoteIdeOnly' : 'adoption.leaderboardColumnNote')
+    );
     const reportRange = ref<string | null>(null);
     const selectedDay = ref<string | undefined>(undefined);
     const selectedUser = ref<string | null>(null);
@@ -369,7 +554,24 @@ export default defineComponent({
       return allUsers.value.filter((u) => u.user_login.toLowerCase() === login);
     });
 
+    const usageCohortInputs = computed(() =>
+      allUsers.value.map((u) => activityInputFromUsageRecord(u))
+    );
+    const { getInsight } = useUsagePatternInsights(usageCohortInputs);
+
+    const topUserKpiEntries = computed(() =>
+      pickTopUsersByCopilotQuality(allUsers.value, (row) => ({
+        login: row.user_login,
+        insight: getInsight(row.user_login),
+        interactions: row.user_initiated_interaction_count ?? 0,
+        generations: row.code_generation_activity_count ?? 0,
+        acceptances: row.code_acceptance_activity_count ?? 0,
+        locAdded: row.loc_added_sum ?? 0
+      }))
+    )
+
     const premiumCreditsMeta = ref<UserMetricsApiResponse['premiumCredits']>();
+    const aiCreditsMeta = ref<UserMetricsApiResponse['aiCredits']>();
     const checkingBillingStatus = ref(false);
 
     const {
@@ -380,6 +582,15 @@ export default defineComponent({
       cancelPremiumCreditsLoad,
       isPremiumLoginLoading
     } = usePremiumCreditsBatchLoader(allUsers);
+
+    const {
+      aiCreditsLoading,
+      aiCreditsLoadProgress,
+      aiCreditsLoadError,
+      loadAiCreditsInBackground,
+      cancelAiCreditsLoad,
+      isAiCreditsLoginLoading
+    } = useAiCreditsBatchLoader(allUsers);
 
     const tableSubtitle = computed(() => {
       const parts: string[] = [];
@@ -400,19 +611,88 @@ export default defineComponent({
       return parts.join(' · ');
     });
 
+    const detailDialogOpen = ref(false);
+    const detailUser = ref<UserUsageLeaderboardRow | null>(null);
+
+    const detailReportRange = computed(() => reportRange.value || props.dateRangeDescription || '');
+
+    const detailUsageInsight = computed(() =>
+      detailUser.value ? getInsight(detailUser.value.user_login) : undefined
+    );
+
+    const toDetailUser = (row: UserUsageRecord): UserUsageLeaderboardRow => ({
+      user_login: row.user_login,
+      user_id: row.user_id,
+      name: row.name,
+      email: row.email,
+      interactions: row.user_initiated_interaction_count ?? 0,
+      generations: row.code_generation_activity_count ?? 0,
+      acceptances: row.code_acceptance_activity_count ?? 0,
+      locAdded: row.loc_added_sum ?? 0,
+      modelCount: row.totals_by_model_feature?.length ?? 0,
+      used_agent: !!row.used_agent,
+      used_chat: !!row.used_chat,
+      used_cli: !!row.used_cli,
+      used_code_review: !!(row.used_copilot_code_review_active || row.used_copilot_code_review_passive),
+      ai_adoption_phase: row.ai_adoption_phase,
+      totals_by_model_feature: row.totals_by_model_feature,
+      totals_by_feature: row.totals_by_feature,
+      premium_credits: row.premium_credits,
+      ai_credits: row.ai_credits
+    });
+
+    const openUserDetail = (row: UserUsageRecord) => {
+      const login = row?.user_login;
+      if (!login) return;
+      detailUser.value = toDetailUser(row);
+      detailDialogOpen.value = true;
+    };
+
     const headers = computed(() => {
-      const base = [
-      { title: t.value('billing.colUser'), key: 'user_login', minWidth: '200px' },
-      { title: t.value('adoption.colAdoptionPhase'), key: 'ai_adoption_phase', sortable: true, minWidth: '150px' },
-      { title: t.value('billing.colPremiumCredits'), key: 'premium_credits', sortable: false, minWidth: '190px' },
-      { title: t.value('billing.colInteractions'), key: 'user_initiated_interaction_count', align: 'end' as const },
-      { title: t.value('billing.colGenerations'), key: 'code_generation_activity_count', align: 'end' as const },
-      { title: t.value('billing.colAcceptances'), key: 'code_acceptance_activity_count', align: 'end' as const },
-      { title: t.value('billing.colLocAdded'), key: 'loc_added_sum', align: 'end' as const },
-      { title: t.value('billing.colAgent'), key: 'used_agent', align: 'center' as const },
-      { title: t.value('billing.colChat'), key: 'used_chat', align: 'center' as const }
+      const patternSortRaw = (a: UserUsageRecord, b: UserUsageRecord) => {
+        const pa = getInsight(a.user_login)?.patternId ?? '';
+        const pb = getInsight(b.user_login)?.patternId ?? '';
+        return pa.localeCompare(pb);
+      };
+      return [
+        { title: t.value('billing.colUser'), key: 'user_login', minWidth: '200px' },
+        { title: t.value('billing.colUsage'), key: 'usageDetail', sortable: false, align: 'end' as const, width: '120px' },
+        {
+          title: t.value('usagePattern.colPattern'),
+          key: 'usage_pattern',
+          sortable: true,
+          sortRaw: patternSortRaw,
+          minWidth: '160px'
+        },
+        ...(aiCreditsFetchEnabled.value
+          ? [{
+              title: t.value('billing.colAiCredits'),
+              key: 'ai_credits',
+              align: 'end' as const,
+              sortable: true,
+              sortRaw: (a: UserUsageRecord, b: UserUsageRecord) =>
+                (a.ai_credits?.used ?? -1) - (b.ai_credits?.used ?? -1)
+            }]
+          : []),
+        {
+          title: t.value('billing.colInteractions'),
+          key: 'user_initiated_interaction_count',
+          align: 'end' as const
+        },
+        {
+          title: t.value('billing.colGenerations'),
+          key: 'code_generation_activity_count',
+          align: 'end' as const
+        },
+        {
+          title: t.value('billing.colAcceptances'),
+          key: 'code_acceptance_activity_count',
+          align: 'end' as const
+        },
+        { title: t.value('billing.colLocAdded'), key: 'loc_added_sum', align: 'end' as const },
+        { title: t.value('billing.colAgent'), key: 'used_agent', align: 'center' as const },
+        { title: t.value('billing.colChat'), key: 'used_chat', align: 'center' as const }
       ];
-      return base;
     });
 
     const formatNum = (n?: number) => (n ?? 0).toLocaleString();
@@ -421,7 +701,9 @@ export default defineComponent({
       loading.value = true;
       error.value = null;
       premiumCreditsMeta.value = undefined;
+      aiCreditsMeta.value = undefined;
       cancelPremiumCreditsLoad();
+      cancelAiCreditsLoad();
 
       try {
         const params: Record<string, string> = {};
@@ -435,6 +717,7 @@ export default defineComponent({
         allUsers.value = response.users || [];
         adoptionByPhase.value = response.adoptionByPhase || [];
         premiumCreditsMeta.value = response.premiumCredits;
+        aiCreditsMeta.value = response.aiCredits;
         selectedUser.value = null;
 
         if (response.reportDay) {
@@ -445,13 +728,14 @@ export default defineComponent({
           reportRange.value = null;
         }
 
+        const logins = (response.users || []).map((u) => u.user_login);
+
         if (
           !PREMIUM_CREDITS_TABLE_DISABLED &&
           premiumCreditsFetchEnabled.value &&
           response.premiumCredits?.available &&
           !response.premiumCredits.fetchDisabled
         ) {
-          const logins = (response.users || []).map((u) => u.user_login);
           void loadPremiumCreditsInBackground({
             logins,
             since: response.premiumCredits.since,
@@ -467,6 +751,31 @@ export default defineComponent({
                 ...premiumCreditsMeta.value,
                 perUserDataAvailable: withPru > 0,
                 usersWithBillingData: withPru
+              };
+            }
+          });
+        }
+
+        if (
+          aiCreditsFetchEnabled.value &&
+          response.aiCredits?.available &&
+          !response.aiCredits.fetchDisabled
+        ) {
+          void loadAiCreditsInBackground({
+            logins,
+            since: response.aiCredits.since,
+            until: response.aiCredits.until,
+            day: selectedDay.value,
+            billingAvailable: true
+          }).then(() => {
+            if (aiCreditsMeta.value) {
+              const withAi = allUsers.value.filter(
+                (u) => u.ai_credits?.source === 'billing' && (u.ai_credits?.used ?? 0) > 0
+              ).length;
+              aiCreditsMeta.value = {
+                ...aiCreditsMeta.value,
+                perUserDataAvailable: withAi > 0,
+                usersWithBillingData: withAi
               };
             }
           });
@@ -547,6 +856,7 @@ export default defineComponent({
 
     onUnmounted(() => {
       cancelPremiumCreditsLoad();
+      cancelAiCreditsLoad();
       tabReportRange.value = null;
     });
 
@@ -561,12 +871,21 @@ export default defineComponent({
       error,
       allUsers,
       adoptionByPhase,
+      filteredAdoptionByPhase,
+      adoptionLeaderboardNote,
+      showAiAdoptionCohorts,
       displayedUsers,
       userFilterOptions,
       headers,
       premiumCreditsFetchEnabled,
+      aiCreditsFetchEnabled,
       PREMIUM_CREDITS_TABLE_DISABLED,
       premiumCreditsMeta,
+      aiCreditsMeta,
+      aiCreditsLoading,
+      aiCreditsLoadProgress,
+      aiCreditsLoadError,
+      isAiCreditsLoginLoading,
       premiumCreditsAlertSummary,
       premiumLoading,
       premiumLoadProgress,
@@ -582,6 +901,13 @@ export default defineComponent({
       formatNum,
       loadUsers,
       checkBillingStatus,
+      detailDialogOpen,
+      detailUser,
+      detailUsageInsight,
+      detailReportRange,
+      getInsight,
+      topUserKpiEntries,
+      openUserDetail,
       t
     };
   }

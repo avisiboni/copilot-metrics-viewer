@@ -1,6 +1,7 @@
 import type { BillingFetchResult, BillingSummaryItem, PremiumRequestUsageItem } from './billing-usage'
 import type {
   AiAdoptionPhaseAggregate,
+  UserAiCredits,
   UserPremiumCredits,
   UserTeamRecord,
   UserUsageRecord
@@ -37,6 +38,7 @@ export interface UserUsageLeaderboardRow {
   totals_by_model_feature?: UserUsageRecord['totals_by_model_feature']
   totals_by_feature?: UserUsageRecord['totals_by_feature']
   premium_credits?: UserPremiumCredits
+  ai_credits?: UserAiCredits
   pruNetAmount?: number
 }
 
@@ -74,6 +76,9 @@ export interface UsageInsightsSummary {
   totalGenerations: number
   totalAcceptances: number
   totalLocAdded: number
+  totalLocDeleted: number
+  /** Added + deleted — matches GitHub Insights “lines of code changed with AI”. */
+  totalLocChanged: number
   uniqueModels: number
   agentUsers: number
   chatUsers: number

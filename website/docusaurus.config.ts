@@ -40,10 +40,12 @@ const config: Config = {
 
   onBrokenLinks: 'throw',
   markdown: {
+    mermaid: true,
     hooks: {
       onBrokenMarkdownLinks: 'warn',
     },
   },
+  themes: ['@docusaurus/theme-mermaid'],
 
   i18n: {
     defaultLocale: 'he',
@@ -190,6 +192,27 @@ const config: Config = {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
       additionalLanguages: ['bash', 'json', 'yaml'],
+    },
+    mermaid: {
+      theme: { light: 'base', dark: 'dark' },
+      options: {
+        maxTextSize: 50000,
+        themeVariables: {
+          fontFamily: 'Assistant, Arial, sans-serif',
+          primaryColor: '#ede9fe',
+          primaryTextColor: '#320f5b',
+          primaryBorderColor: '#6436df',
+          secondaryColor: '#f0f1f6',
+          tertiaryColor: '#ffffff',
+          lineColor: '#6436df',
+          textColor: '#343546',
+          mainBkg: '#ffffff',
+          nodeBorder: '#6436df',
+          clusterBkg: '#f0f1f6',
+          titleColor: '#320f5b',
+          edgeLabelBackground: '#ffffff',
+        },
+      },
     },
   } satisfies Preset.ThemeConfig,
 };

@@ -123,3 +123,24 @@ html[dir='rtl'] table td {
 .alert {
   border-radius: var(--ifm-global-radius);
 }
+
+/* Mermaid diagrams — centered, scroll on small screens, brand-aligned surfaces */
+.theme-doc-markdown .docusaurus-mermaid-container {
+  margin: 1.25rem 0;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  padding: 0.5rem;
+  border-radius: var(--ifm-global-radius);
+  background: color-mix(in srgb, var(--brand-lavender) 18%, white);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 22%, white);
+}
+
+html[data-theme='dark'] .theme-doc-markdown .docusaurus-mermaid-container {
+  background: #1f2435;
+  border-color: rgba(189, 164, 255, 0.28);
+}
+
+html[dir='rtl'] .theme-doc-markdown .docusaurus-mermaid-container svg {
+  direction: ltr;
+}

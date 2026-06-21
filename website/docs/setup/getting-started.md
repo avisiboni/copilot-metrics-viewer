@@ -5,7 +5,7 @@ sidebar_position: 1
 
 # תחילת עבודה
 
-מדריך זה מלווה אתכם משלב ה-clone ועד לדשבורד פעיל — כולל הגדרת ארגון, טוקן, לוגו ושם חברה.
+מדריך משלב ה-clone ועד לדשבורד פעיל.
 
 ## 1. שכפול הפרויקט
 
@@ -20,87 +20,46 @@ cd copilot-metrics-viewer
 cp .env.example .env
 ```
 
-פתחו את `.env` ומלאו את הערכים הבאים:
-
 ### ארגון או Enterprise
 
 ```env
-# בחרו: organization | enterprise | team-organization | team-enterprise
 NUXT_PUBLIC_SCOPE=organization
-
-# שם הארגון שלכם ב-GitHub (לדוגמה: my-company)
 NUXT_PUBLIC_GITHUB_ORG=your-org-name
-
-# שם Enterprise — רק אם SCOPE=enterprise
 NUXT_PUBLIC_GITHUB_ENT=your-enterprise-name
-
-# סינון לפי צוות (אופציונלי)
 NUXT_PUBLIC_GITHUB_TEAM=
 ```
+
+> ערכי `team-organization` / `team-enterprise` ישנים מנורמלים ל-`organization` / `enterprise`.
 
 ### אימות — PAT
 
 ```env
-# Personal Access Token עם הרשאות:
-# copilot, read:org, read:enterprise, manage_billing:copilot
 NUXT_GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
-```
-
-> ליצירת טוקן: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens
-
-### סיסמת Session (חובה)
-
-```env
-# מחרוזת אקראית באורך 32 תווים לפחות
 NUXT_SESSION_PASSWORD=change_this_to_a_long_random_string_here
 ```
 
-:::tip יצירת סיסמה אקראית
+הרשאות: Copilot metrics, `read:org`, `manage_billing:copilot` (לחיוב).
+
+:::tip
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 :::
 
-### פיצ'רים אופציונליים
+### אופציונלי
 
 ```env
-# הפעילו OAuth במקום PAT
-NUXT_PUBLIC_USING_GITHUB_AUTH=false
-
-# השביתו שליפת Premium credits (מומלץ בהתקנה ראשונית)
 NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED=false
-
-# פרוקסי ארגוני (אם נדרש)
-# HTTP_PROXY=http://proxy.company.com:8080
+NUXT_PUBLIC_ENABLE_HISTORICAL_MODE=false
+NUXT_PUBLIC_ENABLE_AI_CHAT=true
+NUXT_PUBLIC_HIDDEN_TABS=
 ```
 
-## 3. התאמת מיתוג (לוגו ושם חברה)
+## 3. מיתוג
 
-### לוגו
+העדיפו משתני `NUXT_PUBLIC_BRAND_*` וקבצים ב-`public/brand/` — לא עריכת `nuxt.config.ts`.
 
-החליפו את הקובץ `public/favicon.svg` בלוגו שלכם (SVG מומלץ).
-
-לדשבורד עצמו — שמרו את הלוגו שלכם בתיקיית `public/`:
-
-```
-public/
-  logo.png        ← לוגו ראשי (מומלץ PNG, רוחב 200px)
-  favicon.svg     ← אייקון לשונית דפדפן
-```
-
-### שם החברה בממשק
-
-שם הארגון / Enterprise מוצג אוטומטית מתוך `NUXT_PUBLIC_GITHUB_ORG` או `NUXT_PUBLIC_GITHUB_ENT` — אין צורך בהגדרה נפרדת.
-
-לשינוי כותרת האפליקציה ערכו את `nuxt.config.ts`:
-
-```ts
-app: {
-  head: {
-    title: 'Copilot Metrics — My Company'
-  }
-}
-```
+[מיתוג מלא →](./branding)
 
 ## 4. הפעלה מקומית
 
@@ -109,27 +68,28 @@ npm install
 npm run dev
 ```
 
-פתחו `http://localhost:3000`.
+פתחו `http://localhost:3000` (או `/orgs/your-org`).
 
-:::tip בדיקה מהירה ללא טוקן
+:::tip נתוני דמה
 ```env
 NUXT_PUBLIC_IS_DATA_MOCKED=true
 ```
-הדשבורד יציג נתוני דמה — מתאים לבדיקת ממשק לפני חיבור ל-API.
+או `?mock=true` ב-URL.
 :::
 
-## 5. בדיקה שהכל עובד
+## 5. בדיקה
 
-1. הדשבורד נטען ב-`http://localhost:3000`
-2. שם הארגון מופיע בכותרת
-3. גרפים מציגים נתונים (אמיתיים או מדומים)
-4. לשונית **Seat analysis** נטענת ללא שגיאות
+1. הדשבורד נטען
+2. גרפים מציגים נתונים
+3. **Seat analysis** — KPI + מושבים לפי חודש (אם יש נתונים)
+4. תיעוד: `npm run docs:dev` → `http://localhost:3001`
 
 ## השלבים הבאים
 
 | נושא | קישור |
 |------|-------|
-| אימות מתקדם (OAuth / GitHub App) | [אימות](./authentication) |
-| פריסה ב-Docker | [Docker](../deployment/docker) |
-| פריסה ב-Azure | [Azure](../deployment/azure) |
-| כל משתני הסביבה | [עזר — משתני סביבה](../reference/environment-variables) |
+| Direct vs Historical | [מצבי הפעלה](./operating-modes) |
+| OAuth / GitHub App | [אימות](./authentication) |
+| Docker | [Docker](../deployment/docker) |
+| משתני סביבה | [עזר](../reference/environment-variables) |
+| v3.0 | [מעבר ל-v3](../reference/v3-migration) |

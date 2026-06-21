@@ -80,6 +80,93 @@ html[dir='rtl'] .v-field input[type='time']::-webkit-calendar-picker-indicator {
   opacity: 1;
 }
 
+/* Users tab filters toolbar */
+.brand-users-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+}
+
+.brand-users-filters__date.v-input {
+  flex: 0 0 12rem;
+  width: 12rem;
+  max-width: 100%;
+}
+
+.brand-users-filters__user.v-input {
+  flex: 0 1 22rem;
+  width: min(22rem, 100%);
+  min-width: 14rem;
+}
+
+.brand-users-filters__apply {
+  flex: 0 0 auto;
+}
+
+.brand-users-filters__day-hint {
+  flex: 0 0 100%;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  margin: 0;
+  max-width: 12rem;
+}
+
+/* RTL day filter: native date stays LTR; align value + picker to the visual right */
+html[dir='rtl'] .brand-users-filters__date .v-field__input {
+  justify-content: flex-end;
+}
+
+html[dir='rtl'] .brand-users-filters__date.v-input input[type='date'] {
+  direction: ltr !important;
+  text-align: right !important;
+  width: 100%;
+  padding-right: 2.25rem !important;
+  padding-left: 0.5rem !important;
+}
+
+html[dir='rtl'] .brand-users-filters__date input[type='date']::-webkit-datetime-edit,
+html[dir='rtl'] .brand-users-filters__date input[type='date']::-webkit-datetime-edit-fields-wrapper {
+  text-align: right;
+}
+
+html[dir='rtl'] .brand-users-filters__date input[type='date']::-webkit-datetime-edit-fields-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.brand-users-filters__apply.v-btn {
+  height: 40px;
+}
+
+/* Date range panel — compact date inputs in RTL (expanded toolbar) */
+html[dir='rtl'] .date-range-panel__date-field .v-field__input {
+  justify-content: flex-end;
+}
+
+html[dir='rtl'] .date-range-panel__date-field.v-input input[type='date'] {
+  direction: ltr !important;
+  text-align: right !important;
+  width: 100%;
+  padding-right: 2.25rem !important;
+  padding-left: 0.5rem !important;
+}
+
+html[dir='rtl'] .date-range-panel__date-field input[type='date']::-webkit-datetime-edit-fields-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+/* Collapsed date bar: pack summary cluster to inline-start (visual right in RTL) */
+html[dir='rtl'] .date-range-panel :deep(.v-expansion-panel-title__content) {
+  justify-content: flex-start;
+}
+
+html[dir='ltr'] .date-range-panel :deep(.v-expansion-panel-title__content) {
+  justify-content: flex-start;
+}
+
 
 .v-application {
   font-family: 'Assistant', Arial, sans-serif;
@@ -156,6 +243,11 @@ html[dir='rtl'] .v-field input[type='time']::-webkit-calendar-picker-indicator {
 .v-app-bar.brand-app-bar {
   border-bottom: 1px solid color-mix(in srgb, var(--brand-lavender) 80%, white);
   background: #fff !important;
+}
+
+/* Match main content horizontal padding so locale control aligns with filters below */
+.v-app-bar.brand-app-bar .v-toolbar__content {
+  padding-inline: 20px;
 }
 
 .brand-app-bar__locale {
@@ -274,9 +366,43 @@ html[dir='rtl'] .v-field input[type='time']::-webkit-calendar-picker-indicator {
   border: 1px solid color-mix(in srgb, var(--brand-primary) 25%, white);
 }
 
+/* Tonal variant paints a primary underlay that hides dark label text on purple */
+.v-chip.brand-filter-chip .v-chip__overlay,
+.v-chip.brand-filter-chip .v-chip__underlay {
+  opacity: 0 !important;
+  background: transparent !important;
+}
+
 .v-chip.brand-filter-chip .v-chip__content,
 .v-chip.brand-filter-chip .v-icon {
   color: var(--brand-primary-dark) !important;
+}
+
+.v-chip.brand-effectiveness-chip {
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 20%, white);
+}
+
+.v-chip.brand-effectiveness-chip .v-chip__overlay,
+.v-chip.brand-effectiveness-chip .v-chip__underlay {
+  opacity: 0 !important;
+  background: transparent !important;
+}
+
+.v-chip.brand-effectiveness-chip .v-chip__content,
+.v-chip.brand-effectiveness-chip .v-icon {
+  color: #fff !important;
+}
+
+.v-chip.brand-usage-pattern-chip .v-chip__overlay,
+.v-chip.brand-usage-pattern-chip .v-chip__underlay {
+  opacity: 0 !important;
+  background: transparent !important;
+}
+
+.v-chip.brand-usage-pattern-chip--on-dark,
+.v-chip.brand-usage-pattern-chip--on-dark .v-chip__content,
+.v-chip.brand-usage-pattern-chip--on-dark .v-icon {
+  color: #fff !important;
 }
 
 .v-chip.brand-filter-chip--warning {
@@ -607,6 +733,39 @@ html[dir='rtl'] .v-field input[type='time']::-webkit-calendar-picker-indicator {
   font-weight: 400;
   line-height: 1.5 !important;
   color: var(--brand-text) !important;
+  white-space: pre-line;
+}
+
+.brand-usage-pattern-tooltip {
+  max-width: min(400px, 92vw);
+}
+
+.brand-usage-pattern-tooltip__title {
+  color: var(--brand-primary-dark) !important;
+  line-height: 1.35;
+}
+
+.brand-usage-pattern-tooltip__hint,
+.brand-usage-pattern-tooltip__headline {
+  color: var(--brand-text) !important;
+  line-height: 1.5;
+}
+
+.brand-usage-pattern-tooltip__meta {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  color: var(--brand-text) !important;
+  line-height: 1.6;
+}
+
+.brand-usage-pattern-tooltip__meta li + li {
+  margin-top: 0.25rem;
+}
+
+.brand-usage-pattern-tooltip__effectiveness {
+  color: var(--brand-primary-dark) !important;
+  line-height: 1.4;
 }
 
 /* Chart section titles with inline ⓘ tooltip */
@@ -659,14 +818,36 @@ html[dir='rtl'] .v-field input[type='time']::-webkit-calendar-picker-indicator {
   border-radius: var(--brand-radius-md) !important;
   box-shadow: var(--brand-shadow-lg) !important;
   max-width: min(380px, 92vw);
+  pointer-events: auto;
 }
 
-/* Vuetify tooltip overlay — let themed card supply the surface */
+/* Column-header tooltips must not block clicks on table rows (e.g. Usage detail buttons). */
+.v-overlay.v-tooltip {
+  pointer-events: none !important;
+}
+
+/* BrandTooltip — card supplies the white surface; overlay wrapper stays transparent */
+.v-overlay__content.brand-tooltip-overlay,
 .v-overlay__content:has(.brand-tooltip-card) {
   background: transparent !important;
   box-shadow: none !important;
   padding: 0 !important;
   overflow: visible !important;
+}
+
+/* Fallback: any remaining Vuetify :text tooltips get a solid white panel */
+.v-overlay.v-tooltip > .v-overlay__content:not(.brand-tooltip-overlay):not(:has(.brand-tooltip-card)) {
+  background-color: #ffffff !important;
+  color: var(--brand-text, #343546) !important;
+  border: 1px solid color-mix(in srgb, var(--brand-lavender) 80%, white);
+  border-radius: var(--brand-radius-md, 12px);
+  box-shadow: var(--brand-shadow-lg, 0 8px 24px rgba(50, 15, 91, 0.12));
+  padding: 12px 14px !important;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: pre-line;
+  max-width: min(380px, 92vw);
 }
 
 .app-shell__main {
@@ -788,6 +969,31 @@ html[dir='rtl'] .v-field input[type='time']::-webkit-calendar-picker-indicator {
   white-space: nowrap;
 }
 
+.brand-data-table .v-data-table__th--sortable {
+  cursor: pointer;
+}
+
+.brand-table-header-hint--sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.brand-table-header-hint--sortable:focus-visible {
+  outline: 2px solid var(--brand-primary, #6436df);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.brand-table-header-hint__sort-icon {
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+.brand-data-table .v-data-table__th--sorted .brand-table-header-hint__sort-icon {
+  opacity: 1;
+  color: var(--brand-primary, #6436df);
+}
+
 .brand-data-table .v-table__wrapper > table > tbody > tr > td {
   padding: 14px 14px !important;
   border-bottom: 1px solid #f2f2f6 !important;
@@ -856,6 +1062,24 @@ html[dir='rtl'] .v-field input[type='time']::-webkit-calendar-picker-indicator {
 
 .brand-usage-detail-btn.v-btn .v-btn__overlay {
   opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.brand-usage-pattern-cell-btn {
+  display: inline-flex;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.brand-usage-pattern-cell-btn:focus-visible {
+  outline: 2px solid #6436df;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* Per-user usage dialog — solid panel over the table */
@@ -1143,12 +1367,6 @@ html[dir='rtl'] .v-field input[type='time']::-webkit-calendar-picker-indicator {
   padding: 6px 0;
 }
 
-.v-overlay__content.teams-select-menu .v-list-item:hover,
-.v-overlay__content.brand-select-menu .v-list-item:hover,
-.v-overlay__content.brand-select-menu .v-list-item[aria-selected="true"] {
-  background-color: var(--brand-lavender) !important;
-}
-
 .v-overlay__content.teams-select-menu .v-list-item,
 .v-overlay__content.teams-select-menu .v-list-item .v-list-item-title,
 .v-overlay__content.teams-select-menu .v-list-item .v-list-item-subtitle,
@@ -1158,20 +1376,32 @@ html[dir='rtl'] .v-field input[type='time']::-webkit-calendar-picker-indicator {
 .v-overlay__content.brand-select-menu .v-list-item .v-list-item-title,
 .v-overlay__content.brand-select-menu .v-autocomplete__mask {
   color: var(--brand-text) !important;
-  background-color: #ffffff !important;
+  background-color: transparent !important;
 }
 
 .v-overlay__content.teams-select-menu .v-list-item .v-list-item__overlay,
 .v-overlay__content.teams-select-menu .v-list-item--active .v-list-item__overlay,
 .v-overlay__content.brand-select-menu .v-list-item .v-list-item__overlay,
-.v-overlay__content.brand-select-menu .v-list-item--active .v-list-item__overlay {
+.v-overlay__content.brand-select-menu .v-list-item--active .v-list-item__overlay,
+.v-overlay__content.brand-select-menu .v-list-item:hover .v-list-item__overlay {
   opacity: 0 !important;
   background: transparent !important;
 }
 
+.v-overlay__content.teams-select-menu .v-list-item:hover,
 .v-overlay__content.teams-select-menu .v-list-item--active,
-.v-overlay__content.brand-select-menu .v-list-item--active {
-  background-color: color-mix(in srgb, var(--brand-primary) 12%, white) !important;
+.v-overlay__content.brand-select-menu .v-list-item:hover,
+.v-overlay__content.brand-select-menu .v-list-item--active,
+.v-overlay__content.brand-select-menu .v-list-item[aria-selected='true'] {
+  background-color: color-mix(in srgb, var(--brand-lavender) 75%, white) !important;
+}
+
+.v-overlay__content.teams-select-menu .v-list-item:hover .v-list-item-title,
+.v-overlay__content.teams-select-menu .v-list-item--active .v-list-item-title,
+.v-overlay__content.brand-select-menu .v-list-item:hover .v-list-item-title,
+.v-overlay__content.brand-select-menu .v-list-item--active .v-list-item-title {
+  color: var(--brand-primary-dark) !important;
+  background-color: transparent !important;
 }
 
 .v-overlay__content.teams-select-menu .v-list {

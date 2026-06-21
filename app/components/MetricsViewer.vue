@@ -61,7 +61,7 @@
     </div>
 
     <BrandAiAdoptionPanel
-      v-if="adoptionByPhase.length"
+      v-if="showAiAdoptionCohorts && adoptionByPhase.length"
       :phases="adoptionByPhase"
       class="mb-4"
     />
@@ -179,6 +179,7 @@ export default defineComponent({
   setup(props) {
     const chartTooltips = useChartTooltips()
     const { t } = useAppI18n()
+    const { visible: showAiAdoptionCohorts } = useAiAdoptionCohortsFeature()
 
     //Tiles
     const acceptanceRateAverageByLines = ref(0);
@@ -328,6 +329,7 @@ export default defineComponent({
 
     return {
       t,
+      showAiAdoptionCohorts,
       chartTooltips,
       totalSuggestionsAndAcceptanceChartData,
       chartData,

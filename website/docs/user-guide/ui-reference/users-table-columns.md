@@ -6,31 +6,51 @@ title: עמודות Users
 
 ![לשונית Users](/img/ui/users-tab.png)
 
-| עמודה (עברית / EN) | מפתח נתונים | הסבר (כמו Tooltip) |
-|---------------------|-------------|---------------------|
-| **משתמש / User** | `user_login`, `name`, `email` | לוגין GitHub; שם ואימייל מוצגים אם ספריית הארגון (GraphQL) החזירה אותם |
-| **קרדיט פרימיום / Premium credits** | `premium_credits` | מכסת **Premium Request Units (PRU)** לחודש — נטען מ-GitHub Billing API כשמופעל. פס התקדמות: אחוז שנותר, שימוש/מכסה. **בקרוב** כשהדגל `NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED=false` |
-| **אינטראקציות / Interactions** | `user_initiated_interaction_count` | מספר אינטראקציות שיוזם המשתמש (דוח metrics) |
-| **יצירות / Generations** | `code_generation_activity_count` | פעילויות יצירת קוד (הצעות/השלמות) |
-| **קבלת הצעת קוד / Acceptances** | `code_acceptance_activity_count` | ספירת קבלת הצעת קוד |
-| **שורות שנוספו / Lines added** | `loc_added_sum` | סכום שורות קוד שנוספו לקוד (מדד שורות) |
-| **סוכן / Agent** | `used_agent` | האם השתמש ב-Copilot Agent בטווח (כן/לא) |
-| **צ'אט / Chat** | `used_chat` | האם השתמש ב-Copilot Chat (כן/לא) |
-| **שלב AI adoption** | `ai_adoption_phase` | צ'יפ לכל משתמש (למשל **Code first** = בעיקר השלמות קוד / IDE agent). ⓘ בכותרת העמודה + ריחוף על הצ'יפ — [קוהורטות AI adoption](./ai-adoption-cohorts) |
+טבלת **משתמשים** בלשונית Users — עמודות כפי שמופיעות ב-`UserMetricsViewer` (סדר משמאל לימין ב-RTL).
 
-## עמודת Premium credits — מצבים
+| # | עמודה (עברית / EN) | מפתח / שדה | הסבר (כמו Tooltip בכותרת) |
+|---|---------------------|------------|---------------------------|
+| 1 | **משתמש / User** | `user_login`, `name`, `email` | לוגין GitHub; שם ואימייל מוצגים אם ספריית הארגון (GraphQL) החזירה אותם (`billing.colUserHint`) |
+| 2 | **שימוש / Usage** | (כפתור) | פותח [דיאלוג פירוט משתמש](./user-usage-detail-dialog) — מודלים, תכונות, דפוס, המלצות (`billing.colUsageHint`) |
+| 3 | **דפוס שימוש / Usage pattern** | (מחושב) | תווית היוריסטית מול קוהורט הארגון — **לא** שדה GitHub (`usagePattern.colPatternHint`). [דפוסי שימוש](../usage-patterns) |
+| 4 | **קרדיטי AI / AI credits** *(מותנה)* | `ai_credits` | כמות + USD מתקופת החיוב — `billing.colAiCreditsHint` · [קרדיטי AI](./ai-credits) |
+| 5 | **אינטראקציות** | `user_initiated_interaction_count` | אינטראקציות שיוזם המשתמש (`billing.colInteractionsHint`) |
+| 6 | **יצירות** | `code_generation_activity_count` | פעילויות יצירת קוד (`billing.colGenerationsHint`) |
+| 7 | **קבלת הצעת קוד** | `code_acceptance_activity_count` | קבלת הצעת קוד (`billing.colAcceptancesHint`) |
+| 8 | **שורות שנוספו** | `loc_added_sum` | שורות קוד שנוספו (`billing.colLocAddedHint`) |
+| 9 | **סוכן / Agent** | `used_agent` | כן/לא — שימוש ב-Copilot Agent (`billing.colAgentHint`) |
+| 10 | **צ'אט / Chat** | `used_chat` | כן/לא — שימוש ב-Copilot Chat (`billing.colChatHint`) |
+
+## שדות שלא בעמודות הטבלה (אך בדוח / בדיאלוג)
+
+| שדה | איפה רואים | הערה |
+|-----|------------|------|
+| **שלב AI adoption** | כותרת [דיאלוג שימוש](./user-usage-detail-dialog) | מוסתר כברירת מחדל; `NUXT_PUBLIC_SHOW_AI_ADOPTION_COHORTS=true` — [קוהורטות](./ai-adoption-cohorts). **אין** עמודה בטבלת Users בגרסה הנוכחית |
+| **קרדיט פרימיום (PRU)** | דיאלוג שימוש; עמודת PRU ב-**Usage & billing** כש-PRU פעיל | ב-Users: באנר **בקרוב** כש-`NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED=false` — [Premium credits](./premium-credits) |
+| **קרדיטי AI** | עמודה ב-Users וב-Usage & billing; כרטיס בדיאלוג שימוש | `NUXT_PUBLIC_AI_CREDITS_FETCH_ENABLED=true` (ברירת מחדל) — [קרדיטי AI](./ai-credits) |
+
+## עמודת AI credits — מצבים
 
 | תצוגה | משמעות |
 |--------|--------|
-| **מושבת (IP allowlist)** | Billing API חסום מרשת הפריסה — ריחוף על התא להסבר מלא |
-| תג **בקרוב** | שליפת billing מושבתת בדגל סביבה |
-| פס טעינה + «טוען…» | טעינה ברקע מאצוות `/api/user-premium-credits` |
+| פס טעינה | טעינה מאצוות `/api/user-ai-credits` (Users) או `/api/usage-insights` (Usage & billing) |
+| `X credits · $Y` | נתוני חיוב לפי משתמש |
+| **(per-user AI credits not in org API)** | ארגון בבעלות enterprise — הגדירו `NUXT_PUBLIC_GITHUB_ENT` |
+| **N/A** | Billing לא זמין או הדגל `NUXT_PUBLIC_AI_CREDITS_FETCH_ENABLED=false` |
+
+## עמודת Premium credits — מצבים (Usage & billing / עתידי ב-Users)
+
+| תצוגה | משמעות |
+|--------|--------|
+| **מושבת (IP allowlist)** | Billing API חסום מרשת הפריסה |
+| תג **בקרוב** | `NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED=false` |
+| פס טעינה | טעינה מאצוות `/api/user-premium-credits` |
 | פס + «X% · N left · used/quota» | נתוני PRU מחיוב |
 | **N/A** | Billing לא זמין או אין נתונים למשתמש |
 
-**Tooltip בכותרת העמודה (כש-PRU פעיל):** נתונים נשמרים במטמון שרת 10 דקות לכל משתמש וטווח.
+מטמון שרת: 10 דקות לכל משתמש וטווח (כש-PRU פעיל).
 
 ## הבדל מייצוא CSV
 
-ייצוא בלשונית **API response** מבוסס על **מדדי Copilot** (`/api/metrics`) — **ללא** עמודת PRU.  
-PRU דורש Billing API או ייבוא CSV מ-GitHub (עתידי).
+ייצוא בלשונית **API response** מבוסס על **מדדי Copilot** (`/api/metrics`) — **ללא** PRU, **ללא** קרדיטי AI וללא דפוס שימוש.  
+PRU וקרדיטי AI דורשים Billing API — [Premium credits](./premium-credits) · [קרדיטי AI](./ai-credits).

@@ -9,10 +9,14 @@
 
                 <!-- Error state -->
                 <div v-else-if="error" class="d-flex justify-center align-center" style="min-height: 300px;">
-                    <v-alert type="error" class="mb-4">
-                        <v-alert-title>{{ t('usageInsights.errorTitle') }}</v-alert-title>
+                    <BrandDismissibleAlert
+                        type="error"
+                        alert-class="brand-alert brand-alert--error mb-4"
+                        :close-label="t('common.close')"
+                        :title="t('usageInsights.errorTitle')"
+                    >
                         {{ error }}
-                    </v-alert>
+                    </BrandDismissibleAlert>
                 </div>
 
                 <!-- Main content -->
@@ -25,7 +29,7 @@
                     />
 
                     <BrandAiAdoptionPanel
-                        v-if="adoptionByPhase.length"
+                        v-if="showAiAdoptionCohorts && adoptionByPhase.length"
                         :phases="adoptionByPhase"
                     />
 
@@ -168,6 +172,7 @@ v-if="stats.cliChartData.labels.length" :data="stats.cliChartData"
 <script lang="ts">
 import { defineComponent, ref, watch, type PropType, shallowRef } from 'vue';
 import BrandPageSkeleton from '@/components/BrandPageSkeleton.vue';
+import BrandDismissibleAlert from '@/components/BrandDismissibleAlert.vue';
 import { useChartTooltips } from '@/utils/chart-tooltips';
 import type { CopilotMetrics } from '@/model/Copilot_Metrics';
 import { Options } from '@/model/Options';
@@ -265,7 +270,8 @@ export default defineComponent({
     name: 'AgentModeViewer',
     components: {
         LineChart,
-        BrandPageSkeleton
+        BrandPageSkeleton,
+        BrandDismissibleAlert
     },
     props: {
         dateRange: {
@@ -288,6 +294,7 @@ export default defineComponent({
     setup(props) {
         const chartTooltips = useChartTooltips()
         const { t } = useAppI18n()
+        const { visible: showAiAdoptionCohorts } = useAiAdoptionCohortsFeature()
         // Use shallowRef for better performance with large objects
         const stats = shallowRef<GitHubStats>({ ...defaultStats });
         const loading = ref(false);
@@ -393,6 +400,7 @@ export default defineComponent({
 
         return {
             t,
+            showAiAdoptionCohorts,
             chartTooltips,
             stats,
             loading,

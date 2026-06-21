@@ -133,10 +133,18 @@ export default defineNuxtConfig({
       entraClientId: process.env.NUXT_PUBLIC_ENTRA_CLIENT_ID || '',
       entraTenantId: process.env.NUXT_PUBLIC_ENTRA_TENANT_ID || '',
       enterprisePremiumQuota: Number(process.env.NUXT_PUBLIC_ENTERPRISE_PREMIUM_QUOTA) || 1000,
+      copilotSeatUnitPrice: Number(process.env.NUXT_PUBLIC_COPILOT_SEAT_UNIT_PRICE) || 0,
       docsUrl: process.env.NUXT_PUBLIC_DOCS_URL || '/docs',
       premiumCreditsFetchEnabled: process.env.NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED === undefined
         ? true
         : isEnvTruthy(process.env.NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED),
+      aiCreditsFetchEnabled: process.env.NUXT_PUBLIC_AI_CREDITS_FETCH_ENABLED === undefined
+        ? true
+        : isEnvTruthy(process.env.NUXT_PUBLIC_AI_CREDITS_FETCH_ENABLED),
+      /** Show AI adoption cohort panel, chips, and related UI (hidden by default). */
+      showAiAdoptionCohorts: isEnvTruthy(process.env.NUXT_PUBLIC_SHOW_AI_ADOPTION_COHORTS),
+      /** Hide Agent first / Multi-agent adoption phases when org only uses IDE (no CLI, cloud agent, etc.). */
+      adoptionIdeOnly: isEnvTruthy(process.env.NUXT_PUBLIC_ADOPTION_IDE_ONLY),
       brandLogoPath: process.env.NUXT_PUBLIC_BRAND_LOGO_PATH || APP_BRANDING_DEFAULTS.logoPath,
       brandLogoAlt: process.env.NUXT_PUBLIC_BRAND_LOGO_ALT || APP_BRANDING_DEFAULTS.logoAlt,
       brandAppName: process.env.NUXT_PUBLIC_BRAND_APP_NAME || APP_BRANDING_DEFAULTS.appName,
