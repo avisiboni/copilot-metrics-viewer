@@ -26,6 +26,7 @@ const TAB_KEYS: Record<string, string> = {
   'copilot chat': 'tabs.copilotChat',
   'usage insights': 'tabs.usageInsights',
   users: 'tabs.users',
+  'invite members': 'tabs.inviteMembers',
   'usage & billing': 'tabs.usageBilling',
   'seat analysis': 'tabs.seatAnalysis',
   'api response': 'tabs.apiResponse',

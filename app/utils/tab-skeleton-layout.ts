@@ -7,6 +7,7 @@ export type BrandPageSkeletonLayout =
   | 'billing'
   | 'seats'
   | 'teams'
+  | 'invite'
   | 'api'
   | 'default'
 
@@ -25,6 +26,7 @@ export function tabToSkeletonLayout(tab: string | null | undefined): BrandPageSk
   if (tab === 'usage & billing') return 'billing'
   if (tab === 'seat analysis') return 'seats'
   if (tab === 'teams') return 'teams'
+  if (tab === 'invite members') return 'invite'
   if (tab === 'api response') return 'api'
 
   return 'default'
@@ -34,7 +36,7 @@ export function tabToSkeletonLayout(tab: string | null | undefined): BrandPageSk
 export function tabUsesMainMetricsLoading(tab: string | null | undefined): boolean {
   if (!tab) return true
   if (tab === 'seat analysis') return false
-  if (tab === 'users' || tab === 'usage & billing') return false
+  if (tab === 'users' || tab === 'usage & billing' || tab === 'invite members') return false
   return true
 }
 

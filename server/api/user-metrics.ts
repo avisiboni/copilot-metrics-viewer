@@ -16,6 +16,7 @@ import { isAiCreditsFetchEnabled } from '../../shared/utils/ai-credits-feature';
 import { buildAdoptionPhaseView } from '../../shared/utils/ai-adoption-phase';
 import type { AiAdoptionPhaseAggregate } from '../../shared/types/copilot-usage';
 import { parseAiAdoptionPhase } from '../../shared/utils/ai-adoption-phase';
+import { parseMetricsAiCredits } from '../../shared/utils/ai-credits';
 
 interface UserMetricsApiResponse {
   reportStartDay?: string;
@@ -154,6 +155,9 @@ function mapUserRecord(record: Record<string, unknown>): UserUsageRecord {
     used_cli: Boolean(record.used_cli),
     used_copilot_code_review_active: Boolean(record.used_copilot_code_review_active),
     used_copilot_code_review_passive: Boolean(record.used_copilot_code_review_passive),
+    used_copilot_coding_agent: Boolean(record.used_copilot_coding_agent),
+    ai_credits_used: Number(record.ai_credits_used) || undefined,
+    ai_credits: parseMetricsAiCredits(record.ai_credits_used),
     totals_by_feature: Array.isArray(record.totals_by_feature)
       ? record.totals_by_feature as UserUsageRecord['totals_by_feature']
       : undefined,

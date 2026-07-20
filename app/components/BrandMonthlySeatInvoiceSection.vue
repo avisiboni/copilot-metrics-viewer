@@ -39,15 +39,15 @@
       {{ t('seats.monthlyEnableHistorical') }}
     </BrandDismissibleAlert>
 
-    <v-row v-if="monthlyTableItems.length" dense align="stretch" class="seats-monthly-row">
-      <v-col v-if="showChart" cols="12" md="6" class="d-flex">
-        <div class="brand-chart-surface seats-monthly-chart flex-grow-1 w-100">
+    <v-row v-if="monthlyTableItems.length" dense class="seats-monthly-row">
+      <v-col v-if="showChart" cols="12">
+        <div class="brand-chart-surface seats-monthly-chart w-100">
           <Bar v-if="monthlyChartData" :data="monthlyChartData" :options="monthlyChartOptions" />
         </div>
       </v-col>
-      <v-col cols="12" :md="showChart ? 6 : 12" class="d-flex">
+      <v-col cols="12">
         <BrandTableShell
-          class="seats-monthly-table flex-grow-1 w-100"
+          class="seats-monthly-table w-100"
           :title="title"
           :subtitle="subtitle"
         >
@@ -225,16 +225,13 @@ export default defineComponent({
 
 <style scoped>
 .seats-monthly-row {
-  align-items: stretch;
-}
-
-.seats-monthly-row > :deep(.v-col) {
-  display: flex;
+  margin-top: 0.25rem;
 }
 
 .seats-monthly-chart {
   min-height: 280px;
   padding: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 .seats-monthly-chart :deep(> div) {
@@ -248,7 +245,7 @@ export default defineComponent({
 }
 
 .seats-monthly-table {
-  min-height: 280px;
+  width: 100%;
 }
 
 .seats-monthly-total-row td {

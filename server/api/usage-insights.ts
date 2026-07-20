@@ -9,9 +9,7 @@ import {
   mapFullUserRecord,
 } from '../../shared/utils/usage-insights-aggregate'
 import { resolvePremiumCreditsFromBillingApi } from '../../shared/utils/fetch-premium-credits-batch'
-import { resolveAiCreditsFromBillingApi } from '../../shared/utils/fetch-ai-credits-batch'
 import { isPremiumCreditsFetchEnabled } from '../../shared/utils/premium-credits-feature'
-import { isAiCreditsFetchEnabled } from '../../shared/utils/ai-credits-feature'
 import { fetchUsersForDateRange } from '../../shared/utils/fetch-users-date-range'
 import {
   buildUserTeamsReportUrl,
@@ -122,7 +120,13 @@ export default defineEventHandler(async (event: H3Event<EventHandlerRequest>) =>
         since,
         until,
         logger,
-        { enterprise: options.githubEnt || config.public.githubEnt }
+        {
+          enterprise: options.githubEnt || config.public.githubEnt,
+          // Summary covers SKU $/KPIs; skip huge /usage line dumps on long ranges.
+          includeDetailedUsage: false,
+          // Still need premium_request for "Models billed" rollups.
+          includePremiumRequest: true
+        }
       )
     }
 
@@ -146,24 +150,9 @@ export default defineEventHandler(async (event: H3Event<EventHandlerRequest>) =>
       })
     }
 
-    let aiCredits
-    if (
-      since &&
-      until &&
-      options.githubOrg &&
-      billing.available &&
-      isAiCreditsFetchEnabled(config.public)
-    ) {
-      aiCredits = await resolveAiCreditsFromBillingApi({
-        logins: users.map((u) => u.user_login),
-        org: options.githubOrg,
-        enterprise: options.githubEnt || config.public.githubEnt,
-        since,
-        until,
-        headers: event.context.headers,
-        logger
-      })
-    }
+    // Per-user AI credits are loaded lazily elsewhere when needed. Doing them here
+    // (users × months) dominates YTD latency and often 403s on enterprise-owned orgs.
+    const aiCredits = undefined
 
     let adoptionByPhase = []
     try {

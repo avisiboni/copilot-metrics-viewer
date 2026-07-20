@@ -43,6 +43,14 @@ title: שינויים אחרונים
 - לחיצה על כרטיס → דיאלוג פירוט שימוש (שם עדיין מוצג **ציון מעורבות** נפרד); לא דירוג ביצועים
 - [משתמשים](../user-guide/users) · [דפוסי שימוש](../user-guide/usage-patterns#ציון-יעילות-מול-ציון-מעורבות)
 
+## הזמנת חברים לארגון (Invite members)
+
+- לשונית **Invite members** — הזמנה בודדת או העלאת Excel מרוכזת
+- חובה: עמודת `email` בקובץ (ללא תלות ברישיות); בורר ארגון + תפקיד
+- API: `POST /api/org-invitations` → GitHub `POST /orgs/{org}/invitations`
+- דורש `admin:org` / Organization members Write
+- [הזמנת חברים](../user-guide/invite-members)
+
 ## דפוסי שימוש (Usage patterns)
 
 - עמודה **דפוס שימוש** ב-Users וב-Usage & billing
@@ -63,11 +71,25 @@ title: שינויים אחרונים
 
 ## קרדיטי AI (יוני 2026)
 
-- **מקור:** [GitHub Changelog — Budget and usage management APIs GA](https://github.blog/changelog/2026-06-04-budget-and-usage-management-apis-now-generally-available/)
-- עמודה **קרדיטי AI** ב-Users, Usage & billing, ודיאלוג שימוש
-- API: `.../settings/billing/ai_credit/usage?user=`
+- **מקור billing:** [Budget and usage management APIs GA](https://github.blog/changelog/2026-06-04-budget-and-usage-management-apis-now-generally-available/)
+- **מקור metrics:** שדה **`ai_credits_used`** בדוחות users — [Changelog](https://github.blog/changelog/2026-06-19-ai-credits-consumed-per-user-now-in-the-copilot-usage-metrics-api/)
+- עמודה **קרדיטי AI** ב-Users, Usage & billing, ודיאלוג שימוש (metrics מיד; billing ל-USD)
+- API billing: `.../settings/billing/ai_credit/usage?user=`
 - `NUXT_PUBLIC_AI_CREDITS_FETCH_ENABLED=true` (ברירת מחדל)
 - [קרדיטי AI](../user-guide/ui-reference/ai-credits)
+
+## Copilot coding agent (מרץ 2026)
+
+- **שדה:** `used_copilot_coding_agent` בדוחות users
+- **בלוח:** עמודה **Coding agent** ב-Users; צ'יפ בדיאלוג שימוש
+- **משמעות:** שימוש ב-Copilot coding agent ב-GitHub (לא IDE agent mode)
+- [Changelog](https://github.blog/changelog/2026-03-25-copilot-usage-metrics-now-identify-active-copilot-coding-agent-users/)
+
+## טלמטריה בצד השרת (יוני 2026)
+
+- GitHub מוסיף משתמשים פעילים מטלמטריה שרתית גם כש-client telemetry חסר
+- בדיאלוג שימוש: הודעה כשיש פעילות בלי breakdown מודל/תכונה
+- [Changelog](https://github.blog/changelog/2026-06-15-copilot-usage-metrics-now-include-more-of-your-active-users/)
 
 ## RTL ועברית
 

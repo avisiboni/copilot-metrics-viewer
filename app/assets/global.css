@@ -360,6 +360,21 @@ html[dir='ltr'] .date-range-panel :deep(.v-expansion-panel-title__content) {
   color: #6b1a5c !important;
 }
 
+.v-alert.brand-alert--success,
+.v-alert.v-alert--variant-tonal.text-success {
+  background-color: #e8f5e9 !important;
+  border: 1px solid #a5d6a7;
+  color: #1b5e20 !important;
+}
+
+/* Keep dismiss (X) readable on brand alerts */
+.v-alert.brand-alert .v-alert__close,
+.v-alert.brand-alert .v-alert__close .v-btn,
+.v-alert.brand-alert .v-alert__close .v-icon {
+  color: var(--brand-primary-dark) !important;
+  opacity: 1 !important;
+}
+
 .v-chip.brand-filter-chip {
   background-color: var(--brand-lavender) !important;
   color: var(--brand-primary-dark) !important;
@@ -1155,6 +1170,35 @@ html[dir='ltr'] .date-range-panel :deep(.v-expansion-panel-title__content) {
 .brand-status-chip--no {
   background: #f3f3f6 !important;
   color: #9494a1 !important;
+}
+
+/* Invite members — solid chips with white labels (readable on dark fills) */
+.brand-status-chip--invite-ok {
+  background: #2e7d32 !important;
+  color: #fff !important;
+}
+
+.brand-status-chip--invite-ok .v-chip__content,
+.brand-status-chip--invite-ok .v-icon {
+  color: #fff !important;
+}
+
+.brand-status-chip--invite-fail {
+  background: #c62828 !important;
+  color: #fff !important;
+}
+
+.brand-status-chip--invite-fail .v-chip__content,
+.brand-status-chip--invite-fail .v-icon {
+  color: #fff !important;
+}
+
+.brand-status-chip--invite-ok .v-chip__overlay,
+.brand-status-chip--invite-ok .v-chip__underlay,
+.brand-status-chip--invite-fail .v-chip__overlay,
+.brand-status-chip--invite-fail .v-chip__underlay {
+  opacity: 0 !important;
+  background: transparent !important;
 }
 
 .brand-credits-cell {

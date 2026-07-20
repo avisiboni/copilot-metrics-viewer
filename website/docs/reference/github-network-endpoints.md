@@ -33,6 +33,7 @@ title: נקודות קצה GitHub
 | `GET https://api.github.com/orgs/{org}/teams/{team}/members` | חברי צוות ספציפי בארגון. |
 | `GET https://api.github.com/enterprises/{enterprise}/teams/{team}/members` | חברי צוות ספציפי ב-enterprise. |
 | `GET https://api.github.com/orgs/{org}/members` | חברי ארגון (העשרת מדריך משתמשים). |
+| `POST https://api.github.com/orgs/{org}/invitations` | הזמנת חבר לארגון לפי אימייל (לשונית Invite members). |
 | `GET https://api.github.com/organizations/{org}/settings/billing` | מטא-דאטה של הגדרות חיוב ברמת ארגון. |
 | `GET https://api.github.com/organizations/{org}/settings/billing/usage?year=&month=` | שורות חיוב מפורטות (Usage & billing — SKU, הוצאה נטו). |
 | `GET https://api.github.com/organizations/{org}/settings/billing/usage/summary?year=&month=` | סיכום שימוש חיוב לפי SKU. |
@@ -52,3 +53,5 @@ title: נקודות קצה GitHub
 
 - כל ה-placeholders (`{org}`, `{enterprise}`, `{team}`) הם ערכים בזמן ריצה מההגדרות או מפרמטרי הנתיב.
 - אם הפרוקסי מבוסס דומיין, הרשאת `api.github.com` מספיקה לשליפת הנתונים באפליקציה זו.
+- **כותרות Copilot usage metrics:** כל קריאות `/copilot/metrics/reports/*` שולחות `X-GitHub-Api-Version: 2026-03-10` (דרישת GitHub).
+- **שדות חדשים בדוחות users** (מרץ–יוני 2026): `used_copilot_coding_agent`, `ai_credits_used` — ראו [תכונות אחרונות](./recent-features).

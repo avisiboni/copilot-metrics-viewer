@@ -14,6 +14,7 @@ const sidebars: SidebarsConfig = {
         'user-guide/teams',
         'user-guide/team-scoped-views',
         'user-guide/users',
+        'user-guide/invite-members',
         'user-guide/usage-patterns',
         {
           type: 'category',

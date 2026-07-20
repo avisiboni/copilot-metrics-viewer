@@ -1,15 +1,48 @@
 import type {
   BillingFetchResult,
+  BillingSummaryItem,
   BillingSummaryResponse,
+  BillingUsageLineItem,
   BillingUsageReportResponse,
+  PremiumRequestUsageItem,
   PremiumRequestUsageResponse
 } from '../types/billing-usage'
 import {
+  billingAuthKey,
+  billingCacheKey,
+  getCachedBilling,
+  setCachedBilling
+} from './billing-cache'
+import {
+  isGithubEnterpriseLicenseSku,
   normalizeBillingUsageLineItem,
   normalizePremiumRequestUsageItem
 } from './billing-normalize'
 
+export { billingAlertSummary } from './billing-alert'
+
 type BillingAccount = { kind: 'org'; slug: string } | { kind: 'enterprise'; slug: string }
+
+export type FetchBillingOptions = {
+  enterprise?: string
+  /** Default true. Set false when premium-by-user credits are disabled. */
+  includePremiumRequest?: boolean
+  /** Default false — summary covers SKU costs; detailed lines are large for long ranges. */
+  includeDetailedUsage?: boolean
+  /** Skip cache read/write (tests). */
+  bypassCache?: boolean
+}
+
+type AccountFetchOptions = {
+  includePremiumRequest: boolean
+  includeDetailedUsage: boolean
+  /** Only fetch usage/summary (optionally filtered). */
+  summaryOnly?: boolean
+  summarySku?: string
+  summaryProduct?: string
+}
+
+const MONTH_FETCH_CONCURRENCY = 4
 
 function billingBase(account: BillingAccount): string {
   if (account.kind === 'enterprise') {
@@ -75,21 +108,6 @@ function missingCopilotBillingScope(scopes?: string): boolean {
   return !parts.includes('manage_billing:copilot')
 }
 
-/** One-line summary for collapsed billing alerts in the UI. */
-export function billingAlertSummary(billing: {
-  httpStatus?: number
-  tokenScopes?: string
-}): string {
-  const parts: string[] = []
-  if (billing.httpStatus) {
-    parts.push(`HTTP ${billing.httpStatus}`)
-  }
-  if (missingCopilotBillingScope(billing.tokenScopes)) {
-    parts.push('missing manage_billing:copilot')
-  }
-  return parts.length ? parts.join(' · ') : 'Click to expand details'
-}
-
 function buildUnavailableReason(params: {
   accountLabel: string
   firstError: { status: number; message: string } | null
@@ -135,11 +153,125 @@ function buildUnavailableReason(params: {
   return lines.join(' ')
 }
 
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let next = 0
+  const runners = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next++
+      results[index] = await worker(items[index]!)
+    }
+  })
+  await Promise.all(runners)
+  return results
+}
+
+type MonthFetchBundle = {
+  detailedUsage: BillingUsageLineItem[]
+  summaryUsage: BillingSummaryItem[]
+  premiumRequestUsage: PremiumRequestUsageItem[]
+  premiumApiOk: boolean
+  summaryApiOk: boolean
+  firstError: { status: number; message: string } | null
+  endpointErrors: string[]
+  tokenScopes?: string
+}
+
+async function fetchBillingMonth(
+  account: BillingAccount,
+  headers: HeadersInit,
+  year: number,
+  month: number,
+  options: AccountFetchOptions
+): Promise<MonthFetchBundle> {
+  const base = billingBase(account)
+  const label = account.kind === 'enterprise' ? `enterprise ${account.slug}` : `org ${account.slug}`
+  const bundle: MonthFetchBundle = {
+    detailedUsage: [],
+    summaryUsage: [],
+    premiumRequestUsage: [],
+    premiumApiOk: false,
+    summaryApiOk: false,
+    firstError: null,
+    endpointErrors: []
+  }
+
+  const summaryParams = new URLSearchParams({
+    year: String(year),
+    month: String(month)
+  })
+  if (options.summarySku) summaryParams.set('sku', options.summarySku)
+  if (options.summaryProduct) summaryParams.set('product', options.summaryProduct)
+
+  const summaryUrl = `${base}/usage/summary?${summaryParams.toString()}`
+  const summaryResult = await fetchBillingJson<BillingSummaryResponse>(summaryUrl, headers)
+  if (summaryResult.scopes) bundle.tokenScopes = summaryResult.scopes
+  if (summaryResult.ok) {
+    bundle.summaryApiOk = true
+    bundle.summaryUsage.push(...(summaryResult.data.usageItems || []))
+  } else {
+    bundle.endpointErrors.push(
+      `${label} usage/summary ${year}-${month}: HTTP ${summaryResult.status}`
+    )
+    bundle.firstError = { status: summaryResult.status, message: summaryResult.message }
+  }
+
+  if (options.summaryOnly) {
+    return bundle
+  }
+
+  if (options.includePremiumRequest) {
+    const premiumUrl = `${base}/premium_request/usage?year=${year}&month=${month}`
+    const premiumResult = await fetchBillingJson<PremiumRequestUsageResponse>(premiumUrl, headers)
+    if (premiumResult.scopes) bundle.tokenScopes = premiumResult.scopes
+    if (premiumResult.ok) {
+      bundle.premiumApiOk = true
+      for (const raw of premiumResult.data.usageItems || []) {
+        bundle.premiumRequestUsage.push(
+          normalizePremiumRequestUsageItem(raw as Record<string, unknown>)
+        )
+      }
+    } else {
+      bundle.endpointErrors.push(
+        `${label} premium_request/usage ${year}-${month}: HTTP ${premiumResult.status}`
+      )
+      if (!bundle.firstError) {
+        bundle.firstError = { status: premiumResult.status, message: premiumResult.message }
+      }
+    }
+  }
+
+  if (options.includeDetailedUsage) {
+    const usageUrl = `${base}/usage?year=${year}&month=${month}`
+    const usageResult = await fetchBillingJson<BillingUsageReportResponse>(usageUrl, headers)
+    if (usageResult.scopes) bundle.tokenScopes = usageResult.scopes
+    if (usageResult.ok) {
+      for (const raw of usageResult.data.usageItems || []) {
+        bundle.detailedUsage.push(
+          normalizeBillingUsageLineItem(raw as Record<string, unknown>)
+        )
+      }
+    } else {
+      bundle.endpointErrors.push(`${label} usage ${year}-${month}: HTTP ${usageResult.status}`)
+      if (!bundle.firstError) {
+        bundle.firstError = { status: usageResult.status, message: usageResult.message }
+      }
+    }
+  }
+
+  return bundle
+}
+
 async function fetchBillingForAccount(
   account: BillingAccount,
   headers: HeadersInit,
   since: string,
-  until: string
+  until: string,
+  options: AccountFetchOptions
 ): Promise<{
   detailedUsage: BillingFetchResult['detailedUsage']
   summaryUsage: BillingFetchResult['summaryUsage']
@@ -151,65 +283,28 @@ async function fetchBillingForAccount(
   tokenScopes?: string
 }> {
   const months = monthsInRange(since, until)
-  const base = billingBase(account)
-  const label = account.kind === 'enterprise' ? `enterprise ${account.slug}` : `org ${account.slug}`
+  const monthBundles = await mapPool(months, MONTH_FETCH_CONCURRENCY, ({ year, month }) =>
+    fetchBillingMonth(account, headers, year, month, options)
+  )
 
   const detailedUsage: BillingFetchResult['detailedUsage'] = []
   const summaryUsage: BillingFetchResult['summaryUsage'] = []
   const premiumRequestUsage: BillingFetchResult['premiumRequestUsage'] = []
-
   let premiumApiOk = false
   let summaryApiOk = false
   let firstError: { status: number; message: string } | null = null
   const endpointErrors: string[] = []
   let tokenScopes: string | undefined
 
-  for (const { year, month } of months) {
-    const premiumUrl = `${base}/premium_request/usage?year=${year}&month=${month}`
-    const premiumResult = await fetchBillingJson<PremiumRequestUsageResponse>(premiumUrl, headers)
-    if (premiumResult.scopes) tokenScopes = premiumResult.scopes
-    if (premiumResult.ok) {
-      premiumApiOk = true
-      for (const raw of premiumResult.data.usageItems || []) {
-        premiumRequestUsage.push(
-          normalizePremiumRequestUsageItem(raw as Record<string, unknown>)
-        )
-      }
-    } else {
-      endpointErrors.push(`${label} premium_request/usage ${year}-${month}: HTTP ${premiumResult.status}`)
-      if (!firstError) {
-        firstError = { status: premiumResult.status, message: premiumResult.message }
-      }
-    }
-
-    const summaryUrl = `${base}/usage/summary?year=${year}&month=${month}`
-    const summaryResult = await fetchBillingJson<BillingSummaryResponse>(summaryUrl, headers)
-    if (summaryResult.scopes) tokenScopes = summaryResult.scopes
-    if (summaryResult.ok) {
-      summaryApiOk = true
-      summaryUsage.push(...(summaryResult.data.usageItems || []))
-    } else {
-      endpointErrors.push(`${label} usage/summary ${year}-${month}: HTTP ${summaryResult.status}`)
-      if (!firstError) {
-        firstError = { status: summaryResult.status, message: summaryResult.message }
-      }
-    }
-
-    const usageUrl = `${base}/usage?year=${year}&month=${month}`
-    const usageResult = await fetchBillingJson<BillingUsageReportResponse>(usageUrl, headers)
-    if (usageResult.scopes) tokenScopes = usageResult.scopes
-    if (usageResult.ok) {
-      for (const raw of usageResult.data.usageItems || []) {
-        detailedUsage.push(
-          normalizeBillingUsageLineItem(raw as Record<string, unknown>)
-        )
-      }
-    } else {
-      endpointErrors.push(`${label} usage ${year}-${month}: HTTP ${usageResult.status}`)
-      if (!firstError) {
-        firstError = { status: usageResult.status, message: usageResult.message }
-      }
-    }
+  for (const bundle of monthBundles) {
+    detailedUsage.push(...bundle.detailedUsage)
+    summaryUsage.push(...bundle.summaryUsage)
+    premiumRequestUsage.push(...bundle.premiumRequestUsage)
+    premiumApiOk = premiumApiOk || bundle.premiumApiOk
+    summaryApiOk = summaryApiOk || bundle.summaryApiOk
+    if (bundle.tokenScopes) tokenScopes = bundle.tokenScopes
+    endpointErrors.push(...bundle.endpointErrors)
+    if (!firstError && bundle.firstError) firstError = bundle.firstError
   }
 
   return {
@@ -224,19 +319,118 @@ async function fetchBillingForAccount(
   }
 }
 
+/** Lightweight enterprise fetch for GitHub Enterprise Cloud license SKUs only. */
+async function fetchEnterpriseGhecLicenses(
+  enterprise: string,
+  headers: HeadersInit,
+  since: string,
+  until: string,
+  logger: Console
+): Promise<{
+  summaryUsage: BillingSummaryItem[]
+  detailedUsage: BillingUsageLineItem[]
+  endpointErrors: string[]
+  tokenScopes?: string
+}> {
+  const result = await fetchBillingForAccount(
+    { kind: 'enterprise', slug: enterprise },
+    headers,
+    since,
+    until,
+    {
+      includePremiumRequest: false,
+      includeDetailedUsage: false,
+      summaryOnly: true,
+      summarySku: 'ghec_licenses',
+      summaryProduct: 'ghec'
+    }
+  )
+
+  const summaryUsage = result.summaryUsage.filter((item) =>
+    isGithubEnterpriseLicenseSku(item.sku, item.product)
+  )
+
+  // Some tenants ignore sku/product filters — fall back to unfiltered summary once if empty.
+  if (!summaryUsage.length && result.summaryApiOk) {
+    logger.info(
+      `No ghec_licenses via filtered summary for enterprise ${enterprise}; scanning unfiltered enterprise summary`
+    )
+    const full = await fetchBillingForAccount(
+      { kind: 'enterprise', slug: enterprise },
+      headers,
+      since,
+      until,
+      {
+        includePremiumRequest: false,
+        includeDetailedUsage: false,
+        summaryOnly: true
+      }
+    )
+    return {
+      summaryUsage: full.summaryUsage.filter((item) =>
+        isGithubEnterpriseLicenseSku(item.sku, item.product)
+      ),
+      detailedUsage: [],
+      endpointErrors: [...result.endpointErrors, ...full.endpointErrors],
+      tokenScopes: full.tokenScopes || result.tokenScopes
+    }
+  }
+
+  return {
+    summaryUsage,
+    detailedUsage: [],
+    endpointErrors: result.endpointErrors,
+    tokenScopes: result.tokenScopes
+  }
+}
+
+function resolveFetchFlags(options?: FetchBillingOptions): {
+  includePremiumRequest: boolean
+  includeDetailedUsage: boolean
+} {
+  return {
+    includePremiumRequest: options?.includePremiumRequest !== false,
+    includeDetailedUsage: options?.includeDetailedUsage === true
+  }
+}
+
 export async function fetchOrganizationBilling(
   org: string,
   headers: HeadersInit,
   since: string,
   until: string,
   logger: Console,
-  options?: { enterprise?: string }
+  options?: FetchBillingOptions
 ): Promise<BillingFetchResult> {
+  const flags = resolveFetchFlags(options)
+  const authKey = billingAuthKey(headers)
+  const cacheKey = billingCacheKey({
+    authKey,
+    org,
+    enterprise: options?.enterprise,
+    since,
+    until,
+    includePremiumRequest: flags.includePremiumRequest,
+    includeDetailedUsage: flags.includeDetailedUsage
+  })
+
+  if (!options?.bypassCache) {
+    const cached = getCachedBilling(cacheKey)
+    if (cached) {
+      logger.info(`Returning cached billing usage for ${org} (${since}→${until})`)
+      return cached
+    }
+  }
+
   let result = await fetchBillingForAccount(
     { kind: 'org', slug: org },
     headers,
     since,
-    until
+    until,
+    {
+      includePremiumRequest: flags.includePremiumRequest,
+      includeDetailedUsage: flags.includeDetailedUsage
+    }
   )
 
   const hasLineItems =
@@ -254,7 +448,11 @@ export async function fetchOrganizationBilling(
       { kind: 'enterprise', slug: options.enterprise.trim() },
       headers,
       since,
-      until
+      until,
+      {
+        includePremiumRequest: flags.includePremiumRequest,
+        includeDetailedUsage: flags.includeDetailedUsage
+      }
     )
     const entHasLineItems =
       entResult.detailedUsage.length > 0 ||
@@ -274,6 +472,26 @@ export async function fetchOrganizationBilling(
         result.tokenScopes = entResult.tokenScopes
       }
     }
+  } else if (orgApiWorks && options?.enterprise?.trim()) {
+    const ghec = await fetchEnterpriseGhecLicenses(
+      options.enterprise.trim(),
+      headers,
+      since,
+      until,
+      logger
+    )
+    if (ghec.tokenScopes) {
+      result.tokenScopes = result.tokenScopes || ghec.tokenScopes
+    }
+    if (ghec.summaryUsage.length) {
+      result.summaryUsage.push(...ghec.summaryUsage)
+      logger.info(
+        `Merged ${ghec.summaryUsage.length} GitHub Enterprise license line(s) from enterprise ${options.enterprise}`
+      )
+    } else if (ghec.endpointErrors.length) {
+      // Keep org billing usable; GHEC license lookup is best-effort.
+      result.endpointErrors.push(...ghec.endpointErrors.slice(0, 3))
+    }
   }
 
   const hasData =
@@ -284,7 +502,7 @@ export async function fetchOrganizationBilling(
   const apiWorks = result.premiumApiOk || result.summaryApiOk || hasData
 
   if (apiWorks) {
-    return {
+    const payload: BillingFetchResult = {
       available: true,
       detailedUsage: result.detailedUsage,
       summaryUsage: result.summaryUsage,
@@ -293,6 +511,10 @@ export async function fetchOrganizationBilling(
       httpStatus: undefined,
       endpointErrors: result.endpointErrors.length ? result.endpointErrors : undefined
     }
+    if (!options?.bypassCache) {
+      setCachedBilling(cacheKey, payload)
+    }
+    return payload
   }
 
   const reason = buildUnavailableReason({

@@ -42,6 +42,14 @@ Summary of capabilities from recent releases (upstream + extensions). Details: [
 - Card click → usage detail dialog (separate **engagement score** in the dialog); not a performance grade
 - [Users](../user-guide/users) · [Usage patterns](../user-guide/usage-patterns#effectiveness-score-vs-engagement-score)
 
+## Invite members
+
+- **Invite members** tab — single email or bulk Excel upload
+- Required: `email` column in the file (case-insensitive); organization picker + role
+- API: `POST /api/org-invitations` → GitHub `POST /orgs/{org}/invitations`
+- Requires `admin:org` / Organization members Write
+- [Invite members](../user-guide/invite-members)
+
 ## Usage patterns
 
 - **Usage pattern** column on Users and Usage & billing
@@ -62,11 +70,25 @@ Summary of capabilities from recent releases (upstream + extensions). Details: [
 
 ## AI credits (June 2026)
 
-- **Source:** [GitHub Changelog — Budget and usage management APIs GA](https://github.blog/changelog/2026-06-04-budget-and-usage-management-apis-now-generally-available/)
-- **AI credits** column on Users, Usage & billing, and usage detail dialog
-- API: `.../settings/billing/ai_credit/usage?user=`
+- **Billing source:** [Budget and usage management APIs GA](https://github.blog/changelog/2026-06-04-budget-and-usage-management-apis-now-generally-available/)
+- **Metrics source:** **`ai_credits_used`** on users reports — [Changelog](https://github.blog/changelog/2026-06-19-ai-credits-consumed-per-user-now-in-the-copilot-usage-metrics-api/)
+- **AI credits** column on Users, Usage & billing, usage dialog (metrics immediately; billing for USD)
+- Billing API: `.../settings/billing/ai_credit/usage?user=`
 - `NUXT_PUBLIC_AI_CREDITS_FETCH_ENABLED=true` (default)
 - [AI credits](../user-guide/ui-reference/ai-credits)
+
+## Copilot coding agent (March 2026)
+
+- **Field:** `used_copilot_coding_agent` on users reports
+- **Dashboard:** **Coding agent** column on Users; chip in usage detail dialog
+- **Meaning:** Copilot coding agent on GitHub (not IDE agent mode)
+- [Changelog](https://github.blog/changelog/2026-03-25-copilot-usage-metrics-now-identify-active-copilot-coding-agent-users/)
+
+## Server-side telemetry (June 2026)
+
+- GitHub adds active users from server-side telemetry when client telemetry is missing
+- Usage detail dialog: info banner when activity exists but model/feature breakdown is empty
+- [Changelog](https://github.blog/changelog/2026-06-15-copilot-usage-metrics-now-include-more-of-your-active-users/)
 
 ## RTL and Hebrew
 

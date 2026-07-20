@@ -3,7 +3,7 @@
     <v-progress-circular indeterminate size="18" width="2" color="primary" />
     <span class="text-caption text-medium-emphasis ms-2">{{ t('billing.aiCreditsLoading') }}</span>
   </div>
-  <div v-else-if="credits?.source === 'billing'" class="brand-credits-cell">
+  <div v-else-if="credits?.source === 'billing' || credits?.source === 'metrics'" class="brand-credits-cell">
     <div class="brand-credits-cell__meta">
       <strong>{{ formatUsed }}</strong>
       <span v-if="credits.netAmount != null && credits.netAmount > 0" class="brand-credits-cell__sep">
@@ -11,6 +11,13 @@
       </span>
       <span v-if="credits.netAmount != null && credits.netAmount > 0">
         {{ formatCurrency(credits.netAmount) }}
+      </span>
+      <span
+        v-if="credits.source === 'metrics'"
+        class="brand-credits-cell__estimated text-medium-emphasis"
+        :title="t('billing.aiCreditsFromMetricsHint')"
+      >
+        ({{ t('billing.aiCreditsFromMetrics') }})
       </span>
       <span
         v-if="credits.exceedsQuota"

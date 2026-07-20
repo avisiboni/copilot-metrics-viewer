@@ -53,7 +53,7 @@ title: דיאלוג פירוט משתמש
 
 | רכיב | הסבר |
 |------|------|
-| **AI credits (billing period)** | כמות קרדיטים + USD לתקופת החיוב — `NUXT_PUBLIC_AI_CREDITS_FETCH_ENABLED=true` (ברירת מחדל) · [קרדיטי AI](./ai-credits) |
+| **AI credits (billing period)** | `ai_credits_used` מדוח users מיד; USD מ-billing כשזמין — `NUXT_PUBLIC_AI_CREDITS_FETCH_ENABLED=true` (ברירת מחדל) · [קרדיטי AI](./ai-credits) |
 | **Premium credits** | תמיד מוצג; **בקרוב** כש-`NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED=false` |
 | **PRU cost** | `pruNetAmount` — רק כש-PRU מופעל בדגל **וגם** billing זמין |
 
@@ -61,9 +61,20 @@ title: דיאלוג פירוט משתמש
 
 רשימת `team_slug` מדוח `user-teams-1-day` האחרון (snapshot).
 
-## צ'יפים Agent / Chat / CLI
+## צ'יפים Agent / Chat / CLI / Coding agent
 
-שימוש בוליאני ב-Agent, Chat, ו-CLI (אם הופיע בדוח).
+| צ'יפ | שדה | משמעות |
+|------|-----|--------|
+| **Agent** | `used_agent` | Agent mode **ב-IDE** |
+| **Chat** | `used_chat` | Copilot Chat |
+| **CLI** | `used_cli` | Copilot CLI (אם הופיע) |
+| **Coding agent** | `used_copilot_coding_agent` | סוכן Copilot **ב-GitHub** (issue / `@copilot` ב-PR) — שונה מ-Agent ב-IDE |
+
+## טלמטריה בצד השרת (יוני 2026)
+
+אם למשתמש יש אינטראקציות/יצירות אבל **אין** פירוט מודל/תכונה, מוצגת הודעה: GitHub זיהה פעילות מטלמטריה בצד השרת; breakdown עשוי להיות ריק עד ש-GitHub יוסיף פירוט עשיר יותר.
+
+[Changelog — more active users](https://github.blog/changelog/2026-06-15-copilot-usage-metrics-now-include-more-of-your-active-users/)
 
 ## תרשימים
 

@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>ESCAPE TSUNAMI 🌊 brainrot runner</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; background: #05030f; font-family: 'Comic Sans MS', 'Segoe UI', system-ui, sans-serif; touch-action: none; }
+  #wrap { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+  canvas { display: block; }
+
+  .overlay {
+    position: absolute; inset: 0; z-index: 10; color: #fff; text-align: center;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    background: radial-gradient(circle at 50% 38%, rgba(30,20,90,.55), rgba(4,2,14,.9));
+    padding: 24px; cursor: pointer;
+  }
+  .overlay.hidden { display: none; }
+  .title { font-size: clamp(32px, 8.5vw, 72px); font-weight: 900; line-height: .95;
+    background: linear-gradient(90deg,#2effd8,#ffe600,#ff2ec4,#7a5cff,#2effd8);
+    background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: hue 2.5s linear infinite; transform: rotate(-3deg); filter: drop-shadow(3px 3px 0 #000); }
+  @keyframes hue { to { background-position: 300% 0; } }
+  .sub { font-size: clamp(14px, 3.4vw, 20px); color: #ffe600; font-weight: 700; text-shadow: 2px 2px 0 #000; }
+  .keys { font-size: clamp(12px, 3vw, 16px); color: #b9a9ff; line-height: 1.7; }
+  .keys b { color: #2effd8; }
+  .btn { margin-top: 6px; font-size: clamp(18px,4.5vw,26px); font-weight: 900; color: #05030f;
+    background: linear-gradient(180deg,#2effd8,#19c9a8); padding: 12px 40px; border-radius: 50px;
+    border: 4px solid #fff; box-shadow: 0 6px 0 #0c8d76, 0 10px 24px rgba(0,0,0,.5);
+    animation: bob 1s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-6px) scale(1.04); } }
+  .big { font-size: clamp(38px,10vw,84px); font-weight: 900; color: #ff2ec4; transform: rotate(-4deg);
+    text-shadow: 4px 4px 0 #000; }
+  .stat { font-size: clamp(18px,5vw,30px); font-weight: 900; color: #ffe600; text-shadow: 2px 2px 0 #000; }
+  .charpick { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .charpick div { font-size: 34px; padding: 6px 10px; border: 3px solid #3a2d66; border-radius: 12px; background: rgba(255,255,255,.05); cursor: pointer; }
+  .charpick div.sel { border-color: #2effd8; background: rgba(46,255,216,.15); box-shadow: 0 0 14px rgba(46,255,216,.5); }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="c"></canvas></div>
+
+<div id="start" class="overlay">
+  <div class="title">ESCAPE<br>TSUNAMI</div>
+  <div class="sub">🌊 run for your life. the wave is RIGHT behind you. 🌊</div>
+  <div class="charpick" id="charpick"></div>
+  <div class="keys">
+    <b>← →</b> or <b>A D</b> to dodge &nbsp;·&nbsp; <b>SPACE / W / ↑</b> to jump<br>
+    jump the gaps, dodge the blocks, grab the brainrot 🪙<br>
+    hit stuff and you slow down → the wave eats you 💀<br>
+    <span style="color:#8a7ad0;">(phone: tap left/right to steer, tap top to jump)</span>
+  </div>
+  <div class="btn">▶ FR FR LET'S GO</div>
+</div>
+
+<div id="over" class="overlay hidden">
+  <div class="big" id="overTitle">GULP 💀🌊</div>
+  <div class="stat">distance: <span id="finalD">0</span>m</div>
+  <div class="stat" style="color:#2effd8;">best: <span id="bestD">0</span>m</div>
+  <div class="stat" style="color:#ff9be6;">🪙 <span id="finalC">0</span></div>
+  <div class="sub" id="roast">the ocean said skill issue</div>
+  <div class="btn">↻ RUN IT BACK</div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const cvs = document.getElementById('c');
+const ctx = cvs.getContext('2d');
+const startEl = document.getElementById('start');
+const overEl = document.getElementById('over');
+
+/* ---------- viewport ---------- */
+let W = 480, H = 800, DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cvs.style.width = W + 'px'; cvs.style.height = H + 'px';
+  cvs.width = Math.round(W * DPR); cvs.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ---------- characters ---------- */
+const CHARS = ['🦈','🐊','🗿','🤖','🥷','🦍','👹','🐸'];
+let chosen = '🦈';
+const pickEl = document.getElementById('charpick');
+CHARS.forEach((e, i) => {
+  const d = document.createElement('div');
+  d.textContent = e; if (i === 0) d.classList.add('sel');
+  d.onclick = ev => { ev.stopPropagation(); chosen = e; [...pickEl.children].forEach(c => c.classList.remove('sel')); d.classList.add('sel'); };
+  pickEl.appendChild(d);
+});
+
+/* ---------- input ---------- */
+const keys = { left: false, right: false };
+let jumpEdge = false;
+window.addEventListener('keydown', e => {
+  if (['ArrowLeft','KeyA'].includes(e.code)) keys.left = true;
+  if (['ArrowRight','KeyD'].includes(e.code)) keys.right = true;
+  if (['Space','ArrowUp','KeyW'].includes(e.code)) { jumpEdge = true; e.preventDefault(); }
+  if (e.code === 'Enter' && state !== 'play') startGame();
+});
+window.addEventListener('keyup', e => {
+  if (['ArrowLeft','KeyA'].includes(e.code)) keys.left = false;
+  if (['ArrowRight','KeyD'].includes(e.code)) keys.right = false;
+});
+window.addEventListener('blur', () => { keys.left = keys.right = false; });
+const touches = new Map();
+function rel(t) { const r = cvs.getBoundingClientRect(); return { x: t.clientX - r.left, y: t.clientY - r.top }; }
+function handleTouch() {
+  keys.left = keys.right = false;
+  for (const t of touches.values()) {
+    if (t.y < H * 0.4) { /* jump handled on start */ }
+    else if (t.x < W / 2) keys.left = true;
+    else keys.right = true;
+  }
+}
+cvs.addEventListener('touchstart', e => { e.preventDefault(); for (const t of e.changedTouches) { const p = rel(t); touches.set(t.identifier, p); if (p.y < H * 0.4) jumpEdge = true; } handleTouch(); }, { passive: false });
+cvs.addEventListener('touchmove', e => { e.preventDefault(); for (const t of e.changedTouches) touches.set(t.identifier, rel(t)); handleTouch(); }, { passive: false });
+cvs.addEventListener('touchend', e => { e.preventDefault(); for (const t of e.changedTouches) touches.delete(t.identifier); handleTouch(); }, { passive: false });
+cvs.addEventListener('touchcancel', e => { for (const t of e.changedTouches) touches.delete(t.identifier); handleTouch(); }, { passive: false });
+[startEl, overEl].forEach(el => el.addEventListener('click', startGame));
+
+/* ---------- 3D projection ---------- */
+const TRACK = 4;            // track half-width
+let cam = { x: 0, y: 4.2, z: -7.5 };
+function focal() { return H * 0.95; }
+function project(x, y, z) {
+  const rz = z - cam.z;
+  if (rz < 0.35) return null;
+  const s = focal() / rz;
+  return { x: W / 2 + (x - cam.x) * s, y: H * 0.40 - (y - cam.y) * s, s, rz };
+}
+
+/* ---------- world / state ---------- */
+let state = 'menu';
+let player, features, coins, particles, floaties, wave, time, shake, runSpeed, stumble, genZ, best = +(localStorage.getItem('escTsuBest') || 0), bgHue, lastFeatZ;
+
+const ROASTS = [
+  'the ocean said skill issue', 'got caught in 4k by H2O 📸', 'bro really got mogged by water',
+  'L + ratio + you\'re wet', 'the wave understood the assignment', 'aquaman\'d. respectfully.',
+  'should\'ve hit the gym not the gap', 'gg go next 🌊', 'water 1 — you 0',
+];
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[(Math.random() * a.length) | 0];
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+
+function startGame() {
+  startEl.classList.add('hidden'); overEl.classList.add('hidden');
+  state = 'play';
+  time = 0; shake = 0; bgHue = 0; stumble = 0;
+  runSpeed = 9;
+  player = { x: 0, y: 0, z: 0, vy: 0, onGround: true, sprite: chosen, coins: 0, tilt: 0 };
+  features = []; coins = []; particles = []; floaties = [];
+  wave = { z: -12, splash: 0 };
+  genZ = 14;             // first features start a bit ahead (grace)
+  lastFeatZ = 14;
+  while (genZ < 130) genFeature();
+}
+
+function genFeature() {
+  const z = genZ;
+  const r = Math.random();
+  if (r < 0.30) {
+    // gap to jump
+    features.push({ type: 'gap', z, len: rand(2.4, 3.6) });
+    genZ += rand(9, 13);
+  } else if (r < 0.62) {
+    // hurdle: full-width bar, jump over
+    features.push({ type: 'hurdle', z, h: 1.15 });
+    genZ += rand(7, 11);
+  } else if (r < 0.86) {
+    // wall: blocks one side, dodge to the other
+    const side = Math.random() < 0.5 ? -1 : 1;
+    features.push({ type: 'wall', z, side, x0: side < 0 ? -TRACK : 0.4, x1: side < 0 ? -0.4 : TRACK });
+    genZ += rand(7, 10);
+  } else {
+    // coin arc
+    const lane = rand(-2.6, 2.6);
+    for (let i = 0; i < 5; i++) coins.push({ x: lane, y: 0.7 + Math.sin(i / 4 * Math.PI) * 1.1, z: z + i * 1.1, taken: false });
+    genZ += rand(8, 11);
+  }
+}
+
+function gameOver(reason) {
+  state = 'over';
+  const d = Math.max(0, Math.floor(player.z));
+  if (d > best) { best = d; localStorage.setItem('escTsuBest', best); }
+  document.getElementById('finalD').textContent = d;
+  document.getElementById('bestD').textContent = best;
+  document.getElementById('finalC').textContent = player.coins;
+  document.getElementById('overTitle').textContent = d >= best && d > 0 ? 'NEW BEST 🏆🌊' : 'GULP 💀🌊';
+  document.getElementById('roast').textContent = reason === 'fell' ? 'fell in the gap (skill diff) 🕳️' : pick(ROASTS);
+  overEl.classList.remove('hidden');
+}
+
+function gapAt(z) {
+  for (const f of features) if (f.type === 'gap' && z > f.z && z < f.z + f.len) return f;
+  return null;
+}
+
+function addParticles(x, y, z, color, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    particles.push({ x, y, z, vx: Math.cos(a) * rand(1, 4), vy: rand(2, 6), vz: Math.sin(a) * rand(1, 4) - 1, life: rand(0.4, 0.8), color });
+  }
+}
+function floatText(x, y, z, txt, color) { floaties.push({ x, y, z, txt, color, life: 1, vy: 3 }); }
+
+/* ---------- update ---------- */
+function update(dt) {
+  time += dt; bgHue += dt * 30;
+  const p = player;
+
+  // forward speed ramps up; stumble slows you hard
+  const targetSpeed = 9 + Math.min(time, 70) * 0.16;   // 9 -> ~20
+  runSpeed += (targetSpeed - runSpeed) * Math.min(1, dt * 2);
+  let fwd = runSpeed;
+  if (stumble > 0) { stumble -= dt; fwd = 3.2; }
+  p.z += fwd * dt;
+
+  // steer
+  const dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+  p.x = clamp(p.x + dir * 7.5 * dt, -TRACK + 0.6, TRACK - 0.6);
+  p.tilt += (dir * 0.35 - p.tilt) * Math.min(1, dt * 10);
+
+  // jump / gravity
+  if (jumpEdge && p.onGround) { p.vy = 8.4; p.onGround = false; addParticles(p.x, 0, p.z, '#9affe8', 6); }
+  jumpEdge = false;
+  p.vy -= 24 * dt;
+  p.y += p.vy * dt;
+  if (p.y <= 0) {
+    // landed — but is there floor here?
+    if (gapAt(p.z)) { // fell into the gap
+      gameOver('fell'); return;
+    }
+    p.y = 0; p.vy = 0; p.onGround = true;
+  }
+
+  // collisions with features near the player
+  for (const f of features) {
+    if (Math.abs(f.z - p.z) > 0.6) continue;
+    if (f.type === 'hurdle' && p.y < f.h) hit(f);
+    else if (f.type === 'wall' && p.x > f.x0 && p.x < f.x1 && p.y < 2.2) hit(f);
+  }
+
+  // coins
+  for (const c of coins) {
+    if (c.taken) continue;
+    if (Math.abs(c.z - p.z) < 0.7 && Math.abs(c.x - p.x) < 0.9 && Math.abs(c.y - (p.y + 0.7)) < 1.1) {
+      c.taken = true; p.coins++; addParticles(c.x, c.y, c.z, '#ffe600', 8);
+      floatText(c.x, c.y + 0.5, c.z, '+1 🪙', '#ffe600');
+    }
+  }
+
+  // generate ahead, cull behind
+  while (genZ < p.z + 130) genFeature();
+  features = features.filter(f => f.z > p.z - 12);
+  coins = coins.filter(c => !c.taken && c.z > p.z - 12);
+
+  // THE WAVE: always looming close behind. clean running holds it off; stumbles let it surge in.
+  const waveSpeed = runSpeed - (stumble > 0 ? 0 : 2.4);
+  wave.z += waveSpeed * dt;
+  const gap = p.z - wave.z;
+  if (gap > 12) wave.z = p.z - 12;       // keep it menacingly close & visible at all times
+  wave.splash = Math.max(0, wave.splash - dt * 2);
+  if (gap <= 0.3) { addBigSplash(); gameOver('wave'); return; }
+
+  // camera follows
+  cam.x += (p.x * 0.55 - cam.x) * Math.min(1, dt * 6);
+  cam.z = p.z - 7.5;
+  cam.y = 4.2 + (p.y * 0.25);
+
+  // particles / floaties
+  for (const pt of particles) { pt.vy -= 18 * dt; pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.z += pt.vz * dt; pt.life -= dt; if (pt.y < 0) { pt.y = 0; pt.vy *= -0.4; } }
+  particles = particles.filter(pt => pt.life > 0);
+  for (const fl of floaties) { fl.y += fl.vy * dt; fl.vy *= 0.92; fl.life -= dt * 1.2; }
+  floaties = floaties.filter(fl => fl.life > 0);
+
+  if (shake > 0) shake = Math.max(0, shake - dt * 26);
+}
+
+let hitCooldown = 0;
+function hit(f) {
+  if (time < hitCooldown) return;
+  hitCooldown = time + 0.5;
+  stumble = 0.55;
+  shake = Math.max(shake, 12);
+  wave.z += 2.2;                 // wave lunges closer
+  addParticles(player.x, 0.6, player.z, '#ff4d6d', 14);
+  floatText(player.x, 1.6, player.z, pick(['OOF', 'BONK', 'L', 'OW']), '#ff4d6d');
+}
+function addBigSplash() { for (let i = 0; i < 40; i++) addParticles(player.x, 0.5, player.z, '#5fd0ff', 1); shake = 18; }
+
+/* ---------- render ---------- */
+function fillPoly(pts, style) {
+  ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.closePath(); ctx.fillStyle = style; ctx.fill();
+}
+
+function render() {
+  const p = player;
+  // sky
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, `hsl(${(265 + bgHue * 0.05) % 360} 60% 16%)`);
+  sky.addColorStop(0.45, `hsl(${(290 + bgHue * 0.05) % 360} 55% 22%)`);
+  sky.addColorStop(0.5, '#1a1140');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+
+  // distant void below horizon
+  ctx.fillStyle = '#0a0820'; ctx.fillRect(0, H * 0.40, W, H);
+
+  let sx = 0, sy = 0;
+  if (shake > 0) { sx = rand(-shake, shake); sy = rand(-shake, shake); }
+  ctx.save(); ctx.translate(sx, sy);
+
+  // --- runway tiles (far -> near) ---
+  const drawFar = p.z + 120, drawNear = cam.z + 0.6;
+  const STEP = 2;
+  for (let z = Math.floor(drawFar / STEP) * STEP; z >= drawNear; z -= STEP) {
+    const z0 = z, z1 = z + STEP;
+    if (gapAt(z0 + STEP / 2)) continue; // hole: skip floor
+    const L1 = project(-TRACK, 0, z1), R1 = project(TRACK, 0, z1);
+    const L0 = project(-TRACK, 0, z0), R0 = project(TRACK, 0, z0);
+    if (!L0 || !R0 || !L1 || !R1) continue;
+    const idx = Math.floor(z / STEP);
+    const shade = idx % 2 === 0 ? '#2a2350' : '#241d46';
+    fillPoly([L1, R1, R0, L0], shade);
+    // neon edge rails
+    fillPoly([project(-TRACK, 0, z1), project(-TRACK + 0.18, 0, z1), project(-TRACK + 0.18, 0, z0), project(-TRACK, 0, z0)].filter(Boolean), '#2effd8');
+    fillPoly([project(TRACK - 0.18, 0, z1), project(TRACK, 0, z1), project(TRACK, 0, z0), project(TRACK - 0.18, 0, z0)].filter(Boolean), '#ff2ec4');
+  }
+
+  // --- collect drawables (features, coins, player, particles, floaties), sort far->near ---
+  const draw = [];
+  for (const f of features) {
+    if (f.z < p.z - 10 || f.z > p.z + 120) continue;
+    draw.push({ z: f.z, kind: 'feat', f });
+  }
+  for (const c of coins) if (!c.taken && c.z > p.z - 10 && c.z < p.z + 120) draw.push({ z: c.z, kind: 'coin', c });
+  for (const pt of particles) draw.push({ z: pt.z, kind: 'part', pt });
+  for (const fl of floaties) draw.push({ z: fl.z, kind: 'float', fl });
+  draw.push({ z: p.z, kind: 'player' });
+  draw.sort((a, b) => b.z - a.z);
+
+  for (const d of draw) {
+    if (d.kind === 'feat') drawFeature(d.f);
+    else if (d.kind === 'coin') drawCoin(d.c);
+    else if (d.kind === 'part') drawPart(d.pt);
+    else if (d.kind === 'float') drawFloat(d.fl);
+    else drawPlayer();
+  }
+
+  // --- the chasing tsunami, rising from behind/below ---
+  drawWave();
+
+  ctx.restore();
+
+  // --- HUD ---
+  drawHUD();
+}
+
+function box3d(x, z, w, h, depth, topColor, sideColor) {
+  // a simple extruded box centered at x, from ground up to h, spanning z..z+depth, half-width w
+  const fb = [project(x - w, 0, z), project(x + w, 0, z), project(x + w, 0, z + depth), project(x - w, 0, z + depth)];
+  const ft = [project(x - w, h, z), project(x + w, h, z), project(x + w, h, z + depth), project(x - w, h, z + depth)];
+  if (fb.some(v => !v) || ft.some(v => !v)) return;
+  // front face
+  fillPoly([fb[0], fb[1], ft[1], ft[0]], sideColor);
+  // top
+  fillPoly([ft[0], ft[1], ft[2], ft[3]], topColor);
+}
+
+function drawFeature(f) {
+  if (f.type === 'gap') {
+    // water glinting in the hole
+    const a = project(-TRACK, -0.6, f.z), b = project(TRACK, -0.6, f.z),
+          c = project(TRACK, -0.6, f.z + f.len), d = project(-TRACK, -0.6, f.z + f.len);
+    if (a && b && c && d) {
+      fillPoly([a, b, c, d], 'rgba(40,120,200,.55)');
+      ctx.strokeStyle = '#bfefff'; ctx.lineWidth = 2;
+      [[a, b], [d, c]].forEach(([m, n]) => { ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(n.x, n.y); ctx.stroke(); });
+    }
+  } else if (f.type === 'hurdle') {
+    box3d(0, f.z - 0.2, TRACK, f.h, 0.4, '#ffe600', '#caa500');
+    const lab = project(0, f.h + 0.5, f.z);
+    if (lab) { ctx.font = `${Math.max(10, lab.s * 0.5)}px serif`; ctx.textAlign = 'center'; ctx.fillText('⚠️', lab.x, lab.y); }
+  } else if (f.type === 'wall') {
+    const cx = (f.x0 + f.x1) / 2, w = (f.x1 - f.x0) / 2;
+    box3d(cx, f.z - 0.25, w, 2.0, 0.5, '#ff2ec4', '#b51d86');
+  }
+}
+
+function drawCoin(c) {
+  const pr = project(c.x, c.y, c.z); if (!pr) return;
+  const r = pr.s * 0.34;
+  ctx.save(); ctx.translate(pr.x, pr.y);
+  const sq = Math.abs(Math.cos(time * 4 + c.z));
+  ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(2, 2, r * sq + 1.5, r + 1.5, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#ffe600'; ctx.beginPath(); ctx.ellipse(0, 0, r * sq, r, 0, 0, 7); ctx.fill();
+  if (sq > 0.3) { ctx.fillStyle = '#b58b00'; ctx.font = `900 ${r}px serif`; ctx.textAlign = 'center'; ctx.fillText('★', 0, r * 0.36); }
+  ctx.restore();
+}
+
+function drawPart(pt) {
+  const pr = project(pt.x, pt.y, pt.z); if (!pr) return;
+  ctx.globalAlpha = clamp(pt.life * 1.4, 0, 1);
+  ctx.fillStyle = pt.color;
+  const s = Math.max(2, pr.s * 0.06);
+  ctx.fillRect(pr.x - s / 2, pr.y - s / 2, s, s);
+  ctx.globalAlpha = 1;
+}
+
+function drawFloat(fl) {
+  const pr = project(fl.x, fl.y, fl.z); if (!pr) return;
+  ctx.globalAlpha = clamp(fl.life, 0, 1);
+  ctx.font = `900 ${Math.max(12, pr.s * 0.45)}px "Comic Sans MS", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#000'; ctx.fillText(fl.txt, pr.x + 2, pr.y + 2);
+  ctx.fillStyle = fl.color; ctx.fillText(fl.txt, pr.x, pr.y);
+  ctx.globalAlpha = 1;
+}
+
+function drawPlayer() {
+  const p = player;
+  const ground = project(p.x, 0, p.z);
+  const body = project(p.x, p.y + 0.6, p.z);
+  if (!body) return;
+  // shadow
+  if (ground) {
+    const sr = ground.s * 0.4 * (1 / (1 + p.y * 0.4));
+    ctx.fillStyle = 'rgba(0,0,0,.4)';
+    ctx.beginPath(); ctx.ellipse(ground.x, ground.y, sr, sr * 0.4, 0, 0, 7); ctx.fill();
+  }
+  const size = body.s * 1.15;
+  ctx.save();
+  ctx.translate(body.x, body.y);
+  ctx.rotate(-p.tilt);
+  ctx.shadowColor = '#2effd8'; ctx.shadowBlur = 18;
+  ctx.font = `${size}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(p.sprite, 0, 0);
+  ctx.shadowBlur = 0;
+  ctx.textBaseline = 'alphabetic';
+  ctx.restore();
+}
+
+function drawWave() {
+  const gap = player.z - wave.z;             // 0 = caught, ~16 = far
+  const closeness = clamp(1 - gap / 16, 0, 1);
+  if (closeness <= 0.001) return;
+  // crest stays just below the player while cruising; only rises to engulf in the final ~30%
+  let crestFrac;
+  if (closeness < 0.7) crestFrac = 0.92 - closeness * 0.14;          // 0.92 -> ~0.82 (at your heels)
+  else crestFrac = 0.82 - (closeness - 0.7) / 0.3 * 0.82;            // 0.82 -> 0 (engulf)
+  const baseY = clamp(H * crestFrac, -20, H);
+  const amp = 8 + closeness * 22;
+  // body
+  const g = ctx.createLinearGradient(0, baseY, 0, H);
+  g.addColorStop(0, 'rgba(120,225,255,0.92)');
+  g.addColorStop(0.35, 'rgba(40,140,255,0.95)');
+  g.addColorStop(1, 'rgba(15,40,150,0.98)');
+  ctx.beginPath();
+  ctx.moveTo(0, H); ctx.lineTo(0, baseY);
+  for (let x = 0; x <= W; x += 18) {
+    const yy = baseY + Math.sin(x * 0.03 + time * 7) * amp + Math.sin(x * 0.09 + time * 4) * 8;
+    ctx.lineTo(x, yy);
+  }
+  ctx.lineTo(W, H); ctx.closePath();
+  ctx.fillStyle = g; ctx.fill();
+  // foam crest
+  ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 4 + closeness * 4;
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 18) {
+    const yy = baseY + Math.sin(x * 0.03 + time * 7) * amp + Math.sin(x * 0.09 + time * 4) * 8;
+    if (x === 0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+  }
+  ctx.stroke();
+  // wave emoji + foam blobs
+  ctx.font = `${24 + closeness * 30}px serif`; ctx.textAlign = 'center';
+  ctx.globalAlpha = 0.85;
+  for (let i = 0; i < 6; i++) {
+    const ex = ((i * 137 + time * 60) % (W + 80)) - 40;
+    ctx.fillText('🌊', ex, baseY + 26 + Math.sin(time * 5 + i) * 8);
+  }
+  ctx.globalAlpha = 1;
+  // blue danger vignette when very close
+  if (closeness > 0.55) {
+    ctx.fillStyle = `rgba(30,120,255,${(closeness - 0.55) * 0.7})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+function drawHUD() {
+  const p = player;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.font = '900 34px "Comic Sans MS", sans-serif';
+  const dStr = Math.floor(p.z) + 'm';
+  ctx.fillStyle = '#000'; ctx.fillText(dStr, 18, 46);
+  ctx.fillStyle = '#2effd8'; ctx.fillText(dStr, 16, 44);
+  ctx.font = '900 16px "Comic Sans MS", sans-serif';
+  ctx.fillStyle = '#000'; ctx.fillText('best ' + best + 'm', 18, 68);
+  ctx.fillStyle = '#ffe600'; ctx.fillText('best ' + best + 'm', 17, 67);
+
+  // coins
+  ctx.textAlign = 'right'; ctx.font = '900 26px "Comic Sans MS", sans-serif';
+  ctx.fillStyle = '#000'; ctx.fillText('🪙 ' + p.coins, W - 14, 44);
+  ctx.fillStyle = '#ffe600'; ctx.fillText('🪙 ' + p.coins, W - 16, 42);
+
+  // wave proximity bar
+  const gap = p.z - wave.z, closeness = clamp(1 - gap / 16, 0, 1);
+  const bw = Math.min(W - 32, 260), bx = (W - bw) / 2, by = 16;
+  ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fillRect(bx, by, bw, 14);
+  ctx.fillStyle = closeness > 0.7 ? '#ff2e4d' : closeness > 0.4 ? '#ffb000' : '#2effd8';
+  ctx.fillRect(bx, by, bw * closeness, 14);
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(bx, by, bw, 14);
+  ctx.fillStyle = '#fff'; ctx.font = '900 11px "Comic Sans MS"'; ctx.textAlign = 'center';
+  ctx.fillText('🌊 WAVE', W / 2, by + 11);
+
+  if (stumble > 0) {
+    ctx.fillStyle = '#ff2e4d'; ctx.font = '900 28px "Comic Sans MS"'; ctx.textAlign = 'center';
+    ctx.fillText('STUMBLED! GO GO GO', W / 2, H * 0.3);
+  }
+}
+
+/* ---------- menu backdrop ---------- */
+function renderMenu() {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#241552'); g.addColorStop(1, '#070418');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // rolling wave at the bottom of the menu
+  const baseY = H * 0.78;
+  const grd = ctx.createLinearGradient(0, baseY, 0, H);
+  grd.addColorStop(0, 'rgba(90,210,255,.85)'); grd.addColorStop(1, 'rgba(20,50,160,.95)');
+  ctx.beginPath(); ctx.moveTo(0, H); ctx.lineTo(0, baseY);
+  const t = performance.now() / 1000;
+  for (let x = 0; x <= W; x += 16) ctx.lineTo(x, baseY + Math.sin(x * 0.03 + t * 4) * 12);
+  ctx.lineTo(W, H); ctx.closePath(); ctx.fillStyle = grd; ctx.fill();
+}
+
+/* ---------- loop ---------- */
+let last = performance.now();
+function loop(now) {
+  let dt = (now - last) / 1000; last = now;
+  if (dt > 0.05) dt = 0.05;
+  if (state === 'play') { update(dt); if (state === 'play') render(); }
+  else renderMenu();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+document.getElementById('bestD').textContent = best;
+})();
+</script>
+</body>
+</html>

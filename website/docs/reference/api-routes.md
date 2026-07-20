@@ -36,6 +36,7 @@ title: נתיבי API
 | `GET /api/org-search` | חיפוש מנהלים (Entra) |
 | `GET /api/org-reports` | דוחות ישירים למנהל |
 | `GET /api/enterprise-orgs` | ארגונים ב-Enterprise |
+| `POST /api/org-invitations` | הזמנת חברים לארגון לפי אימייל (בודד / מרוכז) |
 | `GET /api/msal/callback` | MSAL redirect |
 | `GET /api/installations` | התקנות GitHub App |
 

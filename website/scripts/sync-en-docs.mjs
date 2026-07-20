@@ -13,7 +13,7 @@ const destRoot = path.join(__dirname, '../i18n/en/docusaurus-plugin-content-docs
 
 const banner = `---
 # TODO: Translate to English — source of truth is Hebrew in website/docs/
----
+---§
 
 `;
 

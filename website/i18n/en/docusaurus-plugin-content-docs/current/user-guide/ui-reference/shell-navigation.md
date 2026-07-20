@@ -17,6 +17,7 @@ title: Shell & navigation
 | Copilot Chat | `copilot-chat` | Chat metrics |
 | Usage insights | `usage-insights` | Extended usage insights |
 | Users | `users` | User table |
+| Invite members | `invite-members` | Invite org members (email / Excel) |
 | Usage & billing | `usage-billing` | Billing + leaderboard |
 | Seat analysis | `seat-analysis` | Seat analysis |
 | API response | `api-response` | JSON view and export |

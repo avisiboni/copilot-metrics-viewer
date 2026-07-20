@@ -14,6 +14,9 @@
  *   - NUXT_GITHUB_APP_PRIVATE_KEY: GitHub App private key (alternative to PAT)
  *   - NUXT_GITHUB_API_BASE_URL: Optional API base URL override for GHE.com (e.g. https://api.SUBDOMAIN.ghe.com)
  *   - SYNC_DAYS_BACK: Number of days to sync (default: 28, uses bulk download)
+ *   - SYNC_SINCE / SYNC_UNTIL: Optional YYYY-MM-DD range for long backfill
+ *     (uses bulk for the latest 28 days, then 1-day API for older dates).
+ *     When both are set they take precedence over SYNC_DAYS_BACK.
  *   - DATABASE_URL: PostgreSQL connection string (or use PG* env vars)
  *   - HTTP_PROXY: Optional HTTP/HTTPS proxy URL (e.g. http://proxy:8080)
  *   - CUSTOM_CA_PATH: Optional path to a custom CA certificate file
@@ -23,10 +26,12 @@
 import { initializeProxyAgent } from './utils/proxy-agent';
 initializeProxyAgent(true /* exitOnError */);
 
-import { syncBulk } from './services/sync-service';
+import { syncBulk, syncMetricsForDateRange } from './services/sync-service';
 import { initSchema } from './storage/db';
 import { closePool } from './storage/db';
 import { getSyncAuthHeaders } from './utils/sync-auth';
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function runSync() {
   const logger = console;
@@ -39,12 +44,28 @@ export async function runSync() {
   const githubOrg = process.env.NUXT_PUBLIC_GITHUB_ORG;
   const githubEnt = process.env.NUXT_PUBLIC_GITHUB_ENT;
   const daysBack = parseInt(process.env.SYNC_DAYS_BACK || '28', 10);
+  const syncSince = process.env.SYNC_SINCE?.trim();
+  const syncUntil = process.env.SYNC_UNTIL?.trim();
+  const useRange = Boolean(syncSince && syncUntil);
 
   const identifier = githubOrg || githubEnt || '';
   if (!identifier) {
     logger.error('NUXT_PUBLIC_GITHUB_ORG or NUXT_PUBLIC_GITHUB_ENT must be set');
     process.exit(1);
     return; // guard: allows tests to mock process.exit without continuing
+  }
+
+  if (useRange) {
+    if (!ISO_DAY.test(syncSince!) || !ISO_DAY.test(syncUntil!)) {
+      logger.error('SYNC_SINCE and SYNC_UNTIL must be YYYY-MM-DD');
+      process.exit(1);
+      return;
+    }
+    if (syncSince! > syncUntil!) {
+      logger.error(`SYNC_SINCE (${syncSince}) must be on or before SYNC_UNTIL (${syncUntil})`);
+      process.exit(1);
+      return;
+    }
   }
 
   // Get authentication headers (supports both PAT and GitHub App)
@@ -63,22 +84,39 @@ export async function runSync() {
     await initSchema();
 
     logger.info(`Starting sync for ${scope}:${identifier}`);
-    logger.info(`Syncing last ${daysBack} day(s) via bulk download`);
 
-    // Use bulk download — one API call for up to 28 days
-    const result = await syncBulk(
-      scope,
-      identifier,
-      headers,
-      undefined,
-      daysBack
-    );
+    if (useRange) {
+      logger.info(`Syncing range ${syncSince} → ${syncUntil} (bulk for recent days, 1-day API for older)`);
+      const results = await syncMetricsForDateRange(
+        scope,
+        identifier,
+        syncSince!,
+        syncUntil!,
+        headers
+      );
+      const successCount = results.filter(r => r.success).length;
+      const failureCount = results.filter(r => !r.success).length;
+      logger.info(`Sync completed: ${successCount} ok, ${failureCount} failed (${results.length} days)`);
+      for (const r of results.filter(r => !r.success)) {
+        logger.error(`  ${r.date}: ${r.error}`);
+      }
+    } else {
+      logger.info(`Syncing last ${daysBack} day(s) via bulk download`);
+      // Use bulk download — one API call for up to 28 days
+      const result = await syncBulk(
+        scope,
+        identifier,
+        headers,
+        undefined,
+        daysBack
+      );
 
-    logger.info(`Sync completed: ${result.savedDays} saved, ${result.skippedDays} skipped`);
+      logger.info(`Sync completed: ${result.savedDays} saved, ${result.skippedDays} skipped`);
 
-    if (result.errors.length > 0) {
-      logger.error('Some days failed:');
-      result.errors.forEach(e => logger.error(`  ${e.date}: ${e.error}`));
+      if (result.errors.length > 0) {
+        logger.error('Some days failed:');
+        result.errors.forEach(e => logger.error(`  ${e.date}: ${e.error}`));
+      }
     }
 
     logger.info('Sync job completed successfully');

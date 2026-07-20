@@ -36,6 +36,7 @@ Common parameters: `since`, `until`, `githubOrg`, `githubEnt`, `scope`, `githubT
 | `GET /api/org-search` | Manager search (Entra) |
 | `GET /api/org-reports` | Direct reports for a manager |
 | `GET /api/enterprise-orgs` | Orgs in enterprise |
+| `POST /api/org-invitations` | Invite org members by email (single / bulk) |
 | `GET /api/msal/callback` | MSAL redirect |
 | `GET /api/installations` | GitHub App installations |
 

@@ -33,6 +33,7 @@ This page lists all GitHub URLs the app uses to fetch data, and what each endpoi
 | `GET https://api.github.com/orgs/{org}/teams/{team}/members` | Lists members of a specific org team. |
 | `GET https://api.github.com/enterprises/{enterprise}/teams/{team}/members` | Lists members of a specific enterprise team. |
 | `GET https://api.github.com/orgs/{org}/members` | Lists organization members (member directory enrichment). |
+| `POST https://api.github.com/orgs/{org}/invitations` | Invites a member to the organization by email (Invite members tab). |
 | `GET https://api.github.com/organizations/{org}/settings/billing` | Fetches organization-level billing settings metadata. |
 | `GET https://api.github.com/organizations/{org}/settings/billing/usage?year=&month=` | Detailed billing lines (Usage & billing — SKU, net spend). |
 | `GET https://api.github.com/organizations/{org}/settings/billing/usage/summary?year=&month=` | Billing usage summary by SKU. |
@@ -52,3 +53,5 @@ This page lists all GitHub URLs the app uses to fetch data, and what each endpoi
 
 - All placeholders (`{org}`, `{enterprise}`, `{team}`) are runtime values from app configuration or route parameters.
 - If your proxy is domain-based, allowing `api.github.com` is sufficient for runtime data collection in this app.
+- **Copilot usage metrics headers:** all `/copilot/metrics/reports/*` calls send `X-GitHub-Api-Version: 2026-03-10` (GitHub requirement).
+- **New users report fields** (Mar–Jun 2026): `used_copilot_coding_agent`, `ai_credits_used` — see [Recent features](./recent-features).

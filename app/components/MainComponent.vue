@@ -93,7 +93,7 @@
   <v-main app class="app-shell__main">
     <div class="app-shell__page">
       <DateRangeSelector
-        v-show="tab !== 'seat analysis' && !signInRequired"
+        v-show="tab !== 'seat analysis' && tab !== 'invite members' && !signInRequired"
         :loading="isLoading"
         :report-range="tabReportRange"
         :billing-range="tabBillingRange"
@@ -208,6 +208,7 @@
                   :seats="seats"
                 />
                 <SeatsAnalysisViewer v-if="item === 'seat analysis'" :seats="seats" />
+                <InviteMembersViewer v-if="item === 'invite members'" />
                 <ApiResponse
                   v-if="item === 'api response'"
                   :metrics="metrics"
@@ -218,7 +219,7 @@
             </keep-alive>
           </v-window-item>
           <BrandDismissibleAlert
-            v-show="(metricsReady && metrics.length == 0 && tab !== 'seat analysis') || (seatsReady && seats.length == 0 && tab === 'seat analysis')"
+            v-show="tab !== 'invite members' && ((metricsReady && metrics.length == 0 && tab !== 'seat analysis') || (seatsReady && seats.length == 0 && tab === 'seat analysis'))"
             type="warning"
             density="compact"
             wrapper-class="ma-3"
@@ -261,6 +262,7 @@ import AgentModeViewer from './AgentModeViewer.vue'
 import DateRangeSelector from './DateRangeSelector.vue'
 import UserMetricsViewer from './UserMetricsViewer.vue'
 import UsageBillingViewer from './UsageBillingViewer.vue'
+import InviteMembersViewer from './InviteMembersViewer.vue'
 import BrandPageSkeleton from './BrandPageSkeleton.vue'
 import BrandDismissibleAlert from './BrandDismissibleAlert.vue'
 import AiChatPanel from './AiChatPanel.vue'
@@ -290,6 +292,7 @@ const TAB_ICONS: Record<string, string> = {
   users: 'mdi-account-outline',
   'usage & billing': 'mdi-currency-usd',
   'seat analysis': 'mdi-seat-outline',
+  'invite members': 'mdi-account-plus-outline',
   'api response': 'mdi-code-json'
 };
 
@@ -306,6 +309,7 @@ export default defineNuxtComponent({
     DateRangeSelector,
     UserMetricsViewer,
     UsageBillingViewer,
+    InviteMembersViewer,
     BrandPageSkeleton,
     BrandDismissibleAlert,
     AiChatPanel
@@ -316,6 +320,7 @@ export default defineNuxtComponent({
     },
     showTabSkeleton() {
       if (this.signInRequired) return false;
+      if (this.tab === 'invite members') return false;
       if (tabUsesSeatsLoading(this.tab)) {
         return !this.seatsReady;
       }
@@ -326,6 +331,7 @@ export default defineNuxtComponent({
     },
     showTabContent() {
       if (this.showTabSkeleton) return false;
+      if (this.tab === 'invite members') return true;
       if (this.tab === 'seat analysis') {
         return this.seatsReady;
       }
@@ -493,6 +499,7 @@ export default defineNuxtComponent({
       tabItems: [
         'copilot chat',
         'users',
+        'invite members',
         'usage & billing',
         'seat analysis',
         'usage insights',

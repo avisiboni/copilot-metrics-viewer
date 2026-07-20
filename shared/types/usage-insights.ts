@@ -34,6 +34,7 @@ export interface UserUsageLeaderboardRow {
   used_chat: boolean
   used_cli: boolean
   used_code_review: boolean
+  used_coding_agent: boolean
   ai_adoption_phase?: AiAdoptionPhase
   totals_by_model_feature?: UserUsageRecord['totals_by_model_feature']
   totals_by_feature?: UserUsageRecord['totals_by_feature']
@@ -83,6 +84,9 @@ export interface UsageInsightsSummary {
   agentUsers: number
   chatUsers: number
   cliUsers: number
+  codingAgentUsers: number
+  /** Sum of `ai_credits_used` from usage metrics reports when present. */
+  totalAiCreditsUsed?: number
 }
 
 export interface UsageInsightsResponse {

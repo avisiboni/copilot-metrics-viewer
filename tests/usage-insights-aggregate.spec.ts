@@ -44,15 +44,20 @@ describe('usage-insights-aggregate', () => {
     ]
   }
 
-  it('maps full user records with model breakdowns', () => {
+  it('maps full user records with model breakdowns and new API fields', () => {
     const mapped = mapFullUserRecord({
       user_login: 'bob',
       user_id: 2,
       ai_adoption_phase: { phase: 2, version: 'v1' },
+      ai_credits_used: 15.5,
+      used_copilot_coding_agent: true,
       totals_by_model_feature: [{ model: 'gpt-4.1', feature: 'agent' }]
     })
     expect(mapped.user_login).toBe('bob')
     expect(mapped.ai_adoption_phase?.phase).toBe(2)
+    expect(mapped.ai_credits_used).toBe(15.5)
+    expect(mapped.ai_credits).toEqual({ used: 15.5, source: 'metrics' })
+    expect(mapped.used_copilot_coding_agent).toBe(true)
     expect(mapped.totals_by_model_feature).toHaveLength(1)
   })
 

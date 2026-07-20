@@ -8,6 +8,8 @@ const version = JSON.parse(packageJson).version;
 
 export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
+  // Avoid clashes when `.nuxt` was previously created as root (`sudo npm run dev`).
+  buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
   devtools: { enabled: true },
 
   future: {
@@ -87,6 +89,8 @@ export default defineNuxtConfig({
     ],
   },
   vite: {
+    // Avoid EACCES when node_modules/.cache/vite was created by `sudo npm run dev`
+    cacheDir: process.env.NUXT_VITE_CACHE_DIR || '.vite-cache',
     ssr: {
       noExternal: ['vuetify'],
     },
@@ -133,7 +137,10 @@ export default defineNuxtConfig({
       entraClientId: process.env.NUXT_PUBLIC_ENTRA_CLIENT_ID || '',
       entraTenantId: process.env.NUXT_PUBLIC_ENTRA_TENANT_ID || '',
       enterprisePremiumQuota: Number(process.env.NUXT_PUBLIC_ENTERPRISE_PREMIUM_QUOTA) || 1000,
-      copilotSeatUnitPrice: Number(process.env.NUXT_PUBLIC_COPILOT_SEAT_UNIT_PRICE) || 0,
+      // Default $18 = current GitHub Copilot seat list for this org; override via env.
+      copilotSeatUnitPrice: process.env.NUXT_PUBLIC_COPILOT_SEAT_UNIT_PRICE !== undefined
+        ? Number(process.env.NUXT_PUBLIC_COPILOT_SEAT_UNIT_PRICE) || 0
+        : 18,
       docsUrl: process.env.NUXT_PUBLIC_DOCS_URL || '/docs',
       premiumCreditsFetchEnabled: process.env.NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED === undefined
         ? true

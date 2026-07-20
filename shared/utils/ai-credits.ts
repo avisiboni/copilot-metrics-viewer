@@ -1,7 +1,6 @@
 import type { BillingFetchResult } from '../types/billing-usage'
 import type { UserAiCredits } from '../types/copilot-usage'
 import { usageNumber } from '../types/copilot-usage'
-import type { PremiumRequestUsageItem } from '../types/billing-usage'
 import {
   isAiCreditsSku,
   premiumQuantityFromPremiumItem,
@@ -84,6 +83,53 @@ export function buildUnavailableAiCredits(): UserAiCredits {
   }
 }
 
+/** Map usage metrics report `ai_credits_used` to dashboard credits. */
+export function parseMetricsAiCredits(used: unknown): UserAiCredits | undefined {
+  const value = usageNumber(used)
+  if (value <= 0) return undefined
+  return { used: value, source: 'metrics' }
+}
+
+/** Prefer billing totals when present; keep metrics as fallback and enrich with billing USD. */
+export function mergeUserAiCredits(
+  metrics?: UserAiCredits,
+  billing?: UserAiCredits
+): UserAiCredits | undefined {
+  if (billing?.source === 'billing' && (billing.used > 0 || (billing.netAmount ?? 0) > 0)) {
+    return billing
+  }
+  if (metrics?.source === 'metrics' && metrics.used > 0) {
+    if (billing?.netAmount != null && billing.netAmount > 0) {
+      return {
+        ...metrics,
+        netAmount: billing.netAmount,
+        exceedsQuota: billing.exceedsQuota
+      }
+    }
+    return metrics
+  }
+  if (billing && billing.source !== 'unavailable') {
+    return billing
+  }
+  return metrics
+}
+
+/** True when GitHub counted activity from server-side telemetry without client breakdown rows. */
+export function isServerSideTelemetryUser(user: {
+  user_initiated_interaction_count?: number
+  code_generation_activity_count?: number
+  totals_by_feature?: unknown[]
+  totals_by_model_feature?: unknown[]
+}): boolean {
+  const hasActivity =
+    usageNumber(user.user_initiated_interaction_count) > 0
+    || usageNumber(user.code_generation_activity_count) > 0
+  const hasBreakdown =
+    (user.totals_by_feature?.length ?? 0) > 0
+    || (user.totals_by_model_feature?.length ?? 0) > 0
+  return hasActivity && !hasBreakdown
+}
+
 export type LeaderboardAiCreditsRow = { user_login: string }
 
 export function enrichRowsWithAiCredits<T extends LeaderboardAiCreditsRow>(
@@ -110,9 +156,14 @@ export function enrichRowsWithAiCredits<T extends LeaderboardAiCreditsRow>(
       ai_credits = buildUnavailableAiCredits()
     }
 
+    const merged = mergeUserAiCredits(
+      (row as { ai_credits?: UserAiCredits }).ai_credits,
+      ai_credits
+    )
+
     return {
       ...row,
-      ai_credits
+      ai_credits: merged
     }
   })
 }

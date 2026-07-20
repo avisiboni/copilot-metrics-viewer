@@ -65,6 +65,7 @@
           :insight="usageInsight"
           :raw="insightRawCounts"
           :top-model="user?.topModel ?? ''"
+          :coaching-hints="coachingHints"
         />
 
         <v-row v-if="billingAvailable || !premiumCreditsFetchEnabled || premiumCreditsTableDisabled || aiCreditsFetchEnabled" class="mb-4" dense>
@@ -74,10 +75,11 @@
                 {{ t('userDetail.aiCreditsPeriod') }}
               </div>
               <BrandAiCreditsCell
-                v-if="billingAvailable"
+                v-if="user.ai_credits && user.ai_credits.source !== 'unavailable'"
                 :credits="user.ai_credits"
               />
-              <span v-else class="brand-credits-cell--na">{{ t('common.na') }}</span>
+              <span v-else-if="!billingAvailable" class="brand-credits-cell--na">{{ t('common.na') }}</span>
+              <BrandAiCreditsCell v-else :credits="user.ai_credits" />
             </v-card>
           </v-col>
           <v-col cols="12" md="6">
@@ -141,11 +143,30 @@
             >
               {{ t('userDetail.cli') }}
             </v-chip>
+            <v-chip
+              size="small"
+              variant="flat"
+              class="brand-status-chip mr-2"
+              :class="user.used_coding_agent ? 'brand-status-chip--yes' : 'brand-status-chip--no'"
+            >
+              {{ t('userDetail.codingAgent') }} {{ user.used_coding_agent ? t('common.yes') : t('common.no') }}
+            </v-chip>
           </v-col>
         </v-row>
 
         <BrandDismissibleAlert
-          v-if="!hasChartData"
+          v-if="serverSideTelemetryOnly"
+          type="info"
+          density="compact"
+          wrapper-class="mb-4"
+          alert-class="brand-alert brand-alert--info"
+          :close-label="t('common.close')"
+        >
+          {{ t('userDetail.serverSideTelemetryHint') }}
+        </BrandDismissibleAlert>
+
+        <BrandDismissibleAlert
+          v-if="!hasChartData && !serverSideTelemetryOnly"
           type="info"
           density="compact"
           alert-class="mb-4 brand-alert brand-alert--info"
@@ -257,6 +278,8 @@ import BrandKpiTooltip from '@/components/BrandKpiTooltip.vue'
 import UserUsageInsightPanel from '@/components/UserUsageInsightPanel.vue'
 import type { UserUsageInsight } from '../../shared/types/usage-pattern'
 import { PREMIUM_CREDITS_TABLE_DISABLED } from '../../shared/utils/premium-credits-feature'
+import { isServerSideTelemetryUser } from '../../shared/utils/ai-credits'
+import { buildUsageCoachingHints } from '../../shared/utils/usage-coaching-hints'
 import { useChartTooltips } from '@/utils/chart-tooltips'
 import { pieSliceColors } from '@/utils/brand-colors'
 import {
@@ -366,6 +389,24 @@ export default defineComponent({
       }
     })
 
+    const coachingHints = computed(() => {
+      const u = props.user
+      const insight = props.usageInsight
+      if (!u) return []
+      return buildUsageCoachingHints({
+        interactions: u.interactions,
+        generations: u.generations,
+        acceptances: u.acceptances,
+        totals_by_feature: u.totals_by_feature,
+        totals_by_model_feature: u.totals_by_model_feature,
+        ai_credits: u.ai_credits,
+        used_agent: u.used_agent,
+        used_chat: u.used_chat,
+        engagementScore: insight?.engagementScore,
+        acceptanceRate: insight?.rates.acceptanceRate
+      })
+    })
+
     const modelChartData = computed(() => {
       const rows = props.user?.totals_by_model_feature || []
       const byModel = new Map<string, number>()
@@ -460,6 +501,17 @@ export default defineComponent({
         Boolean(modelChartData.value || featureChartData.value || modelFeatureChartData.value)
     )
 
+    const serverSideTelemetryOnly = computed(() => {
+      const u = props.user
+      if (!u || hasChartData.value) return false
+      return isServerSideTelemetryUser({
+        user_initiated_interaction_count: u.interactions,
+        code_generation_activity_count: u.generations,
+        totals_by_feature: u.totals_by_feature,
+        totals_by_model_feature: u.totals_by_model_feature
+      })
+    })
+
     return {
       chartTooltips,
       t,
@@ -469,11 +521,13 @@ export default defineComponent({
       aiCreditsFetchEnabled: computed(() => props.aiCreditsFetchEnabled),
       summaryKpis,
       insightRawCounts,
+      coachingHints,
       modelChartData,
       featureChartData,
       modelFeatureChartData,
       activityChartData,
       hasChartData,
+      serverSideTelemetryOnly,
       barChartOptions,
       pieChartOptions,
       horizontalBarOptions,

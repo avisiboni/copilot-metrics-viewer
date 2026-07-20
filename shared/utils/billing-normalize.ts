@@ -21,16 +21,25 @@ const CANONICAL_BILLING_SKU_KEYS: Record<string, string> = {
   premium_request: 'copilot_premium_request',
   copilot_premium_request: 'copilot_premium_request',
   ai_unit: 'copilot_ai_credits',
+  copilot_ai_unit: 'copilot_ai_credits',
   copilot_ai_credits: 'copilot_ai_credits',
+  copilot_for_business: 'copilot_for_business',
+  copilot_standalone: 'copilot_standalone',
   actions_linux: 'actions_linux',
-  github_actions_linux: 'actions_linux'
+  github_actions_linux: 'actions_linux',
+  ghec_licenses: 'ghec_licenses',
+  github_enterprise_cloud_licenses: 'ghec_licenses',
+  github_enterprise_licenses: 'ghec_licenses'
 }
 
 const BILLING_SKU_DISPLAY_LABELS: Record<string, string> = {
   copilot_enterprise: 'Copilot Enterprise',
   copilot_premium_request: 'Copilot Premium Request',
   copilot_ai_credits: 'Copilot AI Credits',
-  actions_linux: 'Actions Linux'
+  copilot_for_business: 'Copilot for Business',
+  copilot_standalone: 'Copilot Standalone',
+  actions_linux: 'Actions Linux',
+  ghec_licenses: 'GitHub Enterprise Cloud licenses'
 }
 
 /** Canonical key for SKU rollups across billing API naming variants. */
@@ -54,6 +63,33 @@ export function isPremiumRequestSku(sku: string | undefined): boolean {
 
 export function isAiCreditsSku(sku: string | undefined): boolean {
   return canonicalBillingSkuKey(sku) === 'copilot_ai_credits'
+}
+
+/** GitHub Enterprise Cloud platform seats/licenses (not Copilot). */
+export function isGithubEnterpriseLicenseSku(
+  sku: string | undefined,
+  product?: string
+): boolean {
+  const productKey = normalizeBillingSku(product)
+  if (productKey === 'ghec') return true
+  const key = canonicalBillingSkuKey(sku)
+  return (
+    key === 'ghec_licenses' ||
+    key === 'ghec' ||
+    key.includes('ghec_license') ||
+    (key.includes('github_enterprise') && !key.includes('copilot'))
+  )
+}
+
+/** Any Copilot product SKU (license seats, premium requests, AI credits, sandboxes, …). */
+export function isCopilotBillingSku(sku: string | undefined, product?: string): boolean {
+  if (isGithubEnterpriseLicenseSku(sku, product)) return false
+  const productKey = normalizeBillingSku(product)
+  if (productKey === 'copilot' || productKey === 'sandbox') return true
+  const key = canonicalBillingSkuKey(sku)
+  if (key.startsWith('copilot_') || key.startsWith('sandbox_')) return true
+  const raw = normalizeBillingSku(sku)
+  return raw.includes('copilot') || raw.includes('premium_request') || raw === 'ai_unit'
 }
 
 function pickString(raw: Record<string, unknown>, ...keys: string[]): string | undefined {

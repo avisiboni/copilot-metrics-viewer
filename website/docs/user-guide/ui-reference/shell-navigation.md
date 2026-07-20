@@ -17,6 +17,7 @@ title: מעטפת וניווט
 | Copilot Chat | `copilot-chat` | מדדי צ'אט |
 | Usage insights | `usage-insights` | תובנות שימוש מורחבות |
 | Users | `users` | טבלת משתמשים |
+| Invite members | `invite-members` | הזמנת חברים לארגון (אימייל / Excel) |
 | Usage & billing | `usage-billing` | חיוב + לוח מובילים |
 | Seat analysis | `seat-analysis` | ניתוח מושבים |
 | API response | `api-response` | תצוגת JSON וייצוא |

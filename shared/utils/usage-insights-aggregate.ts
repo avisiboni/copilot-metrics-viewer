@@ -25,7 +25,7 @@ import {
   isPremiumRequestSku
 } from './billing-normalize'
 import { enrichRowsWithPremiumCredits } from './premium-credits'
-import { enrichRowsWithAiCredits } from './ai-credits'
+import { enrichRowsWithAiCredits, parseMetricsAiCredits } from './ai-credits'
 import type { PremiumCreditsResolveResult } from './fetch-premium-credits-batch'
 import type { AiCreditsResolveResult } from './fetch-ai-credits-batch'
 
@@ -124,6 +124,15 @@ export function consolidateUserRecords(rows: UserUsageRecord[]): UserUsageRecord
     existing.used_copilot_code_review_passive = Boolean(
       existing.used_copilot_code_review_passive || row.used_copilot_code_review_passive
     )
+    existing.used_copilot_coding_agent = Boolean(
+      existing.used_copilot_coding_agent || row.used_copilot_coding_agent
+    )
+
+    if (row.ai_credits_used != null || existing.ai_credits_used != null) {
+      existing.ai_credits_used =
+        usageNumber(existing.ai_credits_used) + usageNumber(row.ai_credits_used)
+      existing.ai_credits = parseMetricsAiCredits(existing.ai_credits_used)
+    }
 
     existing.totals_by_feature = mergeFeatureTotals(
       existing.totals_by_feature || [],
@@ -150,6 +159,7 @@ function featureLabel(feature: string): string {
 }
 
 export function mapFullUserRecord(record: Record<string, unknown>): UserUsageRecord {
+  const ai_credits_used = usageNumber(record.ai_credits_used)
   return {
     day: typeof record.day === 'string' ? record.day : undefined,
     user_login: String(record.user_login || ''),
@@ -165,6 +175,9 @@ export function mapFullUserRecord(record: Record<string, unknown>): UserUsageRec
     used_cli: Boolean(record.used_cli),
     used_copilot_code_review_active: Boolean(record.used_copilot_code_review_active),
     used_copilot_code_review_passive: Boolean(record.used_copilot_code_review_passive),
+    used_copilot_coding_agent: Boolean(record.used_copilot_coding_agent),
+    ai_credits_used: ai_credits_used > 0 ? ai_credits_used : undefined,
+    ai_credits: parseMetricsAiCredits(record.ai_credits_used),
     totals_by_feature: Array.isArray(record.totals_by_feature)
       ? record.totals_by_feature as UserUsageRecord['totals_by_feature']
       : undefined,
@@ -204,7 +217,9 @@ export function buildUserLeaderboard(users: UserUsageRecord[]): UserUsageLeaderb
         used_chat: Boolean(user.used_chat),
         used_cli: Boolean(user.used_cli),
         used_code_review: Boolean(user.used_copilot_code_review_active || user.used_copilot_code_review_passive),
+        used_coding_agent: Boolean(user.used_copilot_coding_agent),
         ai_adoption_phase: user.ai_adoption_phase,
+        ai_credits: user.ai_credits,
         totals_by_model_feature: user.totals_by_model_feature,
         totals_by_feature: user.totals_by_feature
       }
@@ -384,7 +399,11 @@ export function buildSummary(users: UserUsageRecord[]): UsageInsightsSummary {
     uniqueModels: models.size,
     agentUsers: users.filter((u) => u.used_agent).length,
     chatUsers: users.filter((u) => u.used_chat).length,
-    cliUsers: users.filter((u) => u.used_cli).length
+    cliUsers: users.filter((u) => u.used_cli).length,
+    codingAgentUsers: users.filter((u) => u.used_copilot_coding_agent).length,
+    totalAiCreditsUsed: users.some((u) => (u.ai_credits_used ?? 0) > 0)
+      ? users.reduce((s, u) => s + usageNumber(u.ai_credits_used), 0)
+      : undefined
   }
 }
 
@@ -520,7 +539,9 @@ function leaderRowToUserRecord(row: UserUsageLeaderboardRow): UserUsageRecord {
     used_cli: row.used_cli,
     used_copilot_code_review_active: row.used_code_review,
     used_copilot_code_review_passive: false,
+    used_copilot_coding_agent: row.used_coding_agent,
     ai_adoption_phase: row.ai_adoption_phase,
+    ai_credits: row.ai_credits,
     totals_by_model_feature: row.totals_by_model_feature,
     totals_by_feature: row.totals_by_feature
   }

@@ -44,67 +44,6 @@
           </BrandDismissibleAlert>
 
           <BrandDismissibleAlert
-            v-if="!premiumCreditsFetchEnabled"
-            storage-key="billing-premium-credits-coming-soon"
-            :close-label="t('common.close')"
-            :title="t('users.premiumCreditsComingSoonTitle')"
-            density="comfortable"
-            wrapper-class="mb-4"
-          >
-            <p class="mb-2">{{ t('users.premiumCreditsComingSoonBody') }}</p>
-            <p class="mb-0 text-caption">{{ t('users.premiumCreditsComingSoonHint') }}</p>
-          </BrandDismissibleAlert>
-
-          <BrandDismissibleAlert
-            v-if="profileCoverage.total > 0 && profileCoverage.withEmail === 0"
-            type="warning"
-            variant="outlined"
-            storage-key="billing-email-unavailable"
-            :close-label="t('common.close')"
-            :title="t('billing.emailUnavailableTitle')"
-            wrapper-class="mb-4"
-            alert-class="brand-alert brand-alert--warning"
-          >
-            {{ t('billing.emailUnavailableBody') }}
-          </BrandDismissibleAlert>
-
-          <v-row class="mb-4">
-            <v-col cols="12" md="6" lg="4">
-              <v-autocomplete
-                v-model="selectedUser"
-                :items="userFilterOptions"
-                :menu-props="brandSelectMenuProps"
-                item-title="label"
-                item-value="login"
-                :label="t('billing.filterUser')"
-                :placeholder="t('common.allUsers')"
-                variant="outlined"
-                density="compact"
-                clearable
-                prepend-inner-icon="mdi-account-filter"
-                :hint="t('billing.filterHint')"
-                persistent-hint
-              />
-            </v-col>
-            <v-col v-if="selectedUser" cols="12" md="6" class="d-flex align-center">
-              <v-chip class="ma-1 brand-filter-chip">
-                {{ t('billing.showingUser', { user: selectedUser }) }}
-              </v-chip>
-              <v-chip
-                v-if="filteredView && !filteredView.users.length"
-                class="ma-1 brand-filter-chip brand-filter-chip--warning"
-              >
-                {{ t('billing.noUserData') }}
-              </v-chip>
-            </v-col>
-          </v-row>
-
-          <BrandAiAdoptionPanel
-            v-if="showAiAdoptionCohorts && insights.adoptionByPhase?.length"
-            :phases="insights.adoptionByPhase"
-          />
-
-          <BrandDismissibleAlert
             v-if="filteredView.billing.available && dateRange.since && dateRange.until"
             storage-key="billing-range-note"
             :close-label="t('common.close')"
@@ -161,11 +100,12 @@
             </v-col>
           </v-row>
 
-          <v-row v-if="filteredView.billing.available" class="mb-4">
+          <v-row v-if="costKpiCards.length" class="mb-4">
             <v-col
-              v-for="card in billingHighlightCards"
+              v-for="card in costKpiCards"
               :key="card.label"
-              cols="6"
+              cols="12"
+              sm="6"
             >
               <v-card
                 variant="flat"
@@ -217,7 +157,7 @@
             :show-historical-hint="false"
           />
 
-          <v-row v-if="filteredView.billing.available && premiumCreditsFetchEnabled" class="mb-4">
+          <v-row v-if="filteredView.billing.available" class="mb-4">
             <v-col cols="6" sm="4" md="3">
               <v-card variant="flat" class="brand-kpi-card brand-metric-kpi brand-metric-card--lavender">
                 <BrandKpiTooltip :text="t('billing.kpiTooltipModelsBilled')" />
@@ -324,228 +264,6 @@
             </v-col>
           </v-row>
 
-          <BrandTableShell
-            class="mb-4"
-            :title="t('billing.tableLeaderboard')"
-            :subtitle="leaderboardSubtitle"
-          >
-            <BrandDismissibleAlert
-              v-if="showAiAdoptionCohorts"
-              storage-key="billing-leaderboard-info"
-              :close-label="t('common.close')"
-            >
-              <p class="text-body-2 mb-0">
-                {{ adoptionLeaderboardNote }}
-              </p>
-              <p
-                v-if="PREMIUM_CREDITS_TABLE_DISABLED"
-                class="text-body-2 mb-0 mt-2"
-              >
-                {{ t('billing.premiumCreditsDisabledIp') }}
-                {{ t('billing.premiumCreditsDisabledIpHint') }}
-              </p>
-            </BrandDismissibleAlert>
-            <v-data-table
-              :headers="userHeaders"
-              :items="filteredView.users"
-              :items-per-page="15"
-              item-value="user_login"
-              density="comfortable"
-              class="brand-data-table"
-            >
-              <template #item.user_login="{ item }">
-                <button
-                  type="button"
-                  class="brand-table-user-cell brand-table-user-cell--clickable"
-                  @click.stop="openUserDetail(item)"
-                >
-                  <BrandUserAvatar
-                    :seed="item.user_login"
-                    :display-name="item.name"
-                    :size="36"
-                  />
-                  <div class="text-start">
-                    <div class="brand-table-user-cell__name">{{ item.user_login }}</div>
-                    <div v-if="item.name || item.email" class="brand-table-user-cell__sub">
-                      {{ [item.name, item.email].filter(Boolean).join(' · ') }}
-                    </div>
-                  </div>
-                </button>
-              </template>
-              <template #item.usage_pattern="{ item }">
-                <button
-                  type="button"
-                  class="brand-usage-pattern-cell-btn"
-                  @click.stop="openUserDetail(item)"
-                >
-                  <BrandUsagePatternChip :insight="getInsight(item.user_login)" />
-                </button>
-              </template>
-              <template #header.user_login="{ column, getSortIcon, toggleSort }">
-                <BrandTableHeaderHint
-                  :column="column"
-                  :get-sort-icon="getSortIcon"
-                  :toggle-sort="toggleSort"
-                  :label="t('billing.colUser')"
-                  :tooltip="t('billing.colUserHint')"
-                />
-              </template>
-              <template #header.usage_pattern="{ column, getSortIcon, toggleSort }">
-                <BrandTableHeaderHint
-                  :column="column"
-                  :get-sort-icon="getSortIcon"
-                  :toggle-sort="toggleSort"
-                  :label="t('usagePattern.colPattern')"
-                  :tooltip="t('usagePattern.colPatternHint')"
-                />
-              </template>
-              <template #header.usageDetail="{ column, getSortIcon, toggleSort }">
-                <BrandTableHeaderHint
-                  :column="column"
-                  :get-sort-icon="getSortIcon"
-                  :toggle-sort="toggleSort"
-                  :label="t('billing.colUsage')"
-                  :tooltip="t('billing.colUsageHint')"
-                />
-              </template>
-              <template #header.ai_credits="{ column, getSortIcon, toggleSort }">
-                <BrandTableHeaderHint
-                  :column="column"
-                  :get-sort-icon="getSortIcon"
-                  :toggle-sort="toggleSort"
-                  :label="t('billing.colAiCredits')"
-                  :tooltip="t('billing.colAiCreditsHint')"
-                />
-              </template>
-              <template #header.pruNetAmount="{ column, getSortIcon, toggleSort }">
-                <BrandTableHeaderHint
-                  :column="column"
-                  :get-sort-icon="getSortIcon"
-                  :toggle-sort="toggleSort"
-                  :label="t('billing.colPruCost')"
-                  :tooltip="t('billing.colPruCostHint')"
-                />
-              </template>
-              <template #header.interactions="{ column, getSortIcon, toggleSort }">
-                <BrandTableHeaderHint
-                  :column="column"
-                  :get-sort-icon="getSortIcon"
-                  :toggle-sort="toggleSort"
-                  :label="t('billing.colInteractions')"
-                  :tooltip="t('billing.colInteractionsHint')"
-                />
-              </template>
-              <template #header.generations="{ column, getSortIcon, toggleSort }">
-                <BrandTableHeaderHint
-                  :column="column"
-                  :get-sort-icon="getSortIcon"
-                  :toggle-sort="toggleSort"
-                  :label="t('billing.colGenerations')"
-                  :tooltip="t('billing.colGenerationsHint')"
-                />
-              </template>
-              <template #header.acceptances="{ column, getSortIcon, toggleSort }">
-                <BrandTableHeaderHint
-                  :column="column"
-                  :get-sort-icon="getSortIcon"
-                  :toggle-sort="toggleSort"
-                  :label="t('billing.colAcceptances')"
-                  :tooltip="t('billing.colAcceptancesHint')"
-                />
-              </template>
-              <template #header.locAdded="{ column, getSortIcon, toggleSort }">
-                <BrandTableHeaderHint
-                  :column="column"
-                  :get-sort-icon="getSortIcon"
-                  :toggle-sort="toggleSort"
-                  :label="t('billing.colLocAdded')"
-                  :tooltip="t('billing.colLocAddedHint')"
-                />
-              </template>
-              <template #header.modelCount="{ column, getSortIcon, toggleSort }">
-                <BrandTableHeaderHint
-                  :column="column"
-                  :get-sort-icon="getSortIcon"
-                  :toggle-sort="toggleSort"
-                  :label="t('billing.colModels')"
-                  :tooltip="t('billing.colModelsHint')"
-                />
-              </template>
-              <template #header.topModel="{ column, getSortIcon, toggleSort }">
-                <BrandTableHeaderHint
-                  :column="column"
-                  :get-sort-icon="getSortIcon"
-                  :toggle-sort="toggleSort"
-                  :label="t('billing.colTopModel')"
-                  :tooltip="t('billing.colTopModelHint')"
-                />
-              </template>
-              <template #header.used_agent="{ column, getSortIcon, toggleSort }">
-                <BrandTableHeaderHint
-                  :column="column"
-                  :get-sort-icon="getSortIcon"
-                  :toggle-sort="toggleSort"
-                  :label="t('billing.colAgent')"
-                  :tooltip="t('billing.colAgentHint')"
-                />
-              </template>
-              <template #header.used_chat="{ column, getSortIcon, toggleSort }">
-                <BrandTableHeaderHint
-                  :column="column"
-                  :get-sort-icon="getSortIcon"
-                  :toggle-sort="toggleSort"
-                  :label="t('billing.colChat')"
-                  :tooltip="t('billing.colChatHint')"
-                />
-              </template>
-              <template #item.ai_credits="{ item }">
-                <BrandAiCreditsCell
-                  v-if="aiCreditsFetchEnabled && filteredView.billing.available"
-                  :credits="item.ai_credits"
-                />
-                <span v-else class="brand-credits-cell--na">{{ t('common.emDash') }}</span>
-              </template>
-              <template #item.pruNetAmount="{ item }">
-                <span v-if="item.pruNetAmount != null" class="brand-table-metric">
-                  {{ formatCurrency(item.pruNetAmount) }}
-                </span>
-                <span v-else class="brand-credits-cell--na">{{ t('common.emDash') }}</span>
-              </template>
-              <template #item.used_agent="{ item }">
-                <v-chip
-                  size="small"
-                  variant="flat"
-                  class="brand-status-chip"
-                  :class="item.used_agent ? 'brand-status-chip--yes' : 'brand-status-chip--no'"
-                >
-                  {{ item.used_agent ? t('common.yes') : t('common.no') }}
-                </v-chip>
-              </template>
-              <template #item.used_chat="{ item }">
-                <v-chip
-                  size="small"
-                  variant="flat"
-                  class="brand-status-chip"
-                  :class="item.used_chat ? 'brand-status-chip--yes' : 'brand-status-chip--no'"
-                >
-                  {{ item.used_chat ? t('common.yes') : t('common.no') }}
-                </v-chip>
-              </template>
-              <template #item.usageDetail="{ item }">
-                <v-btn
-                  type="button"
-                  size="small"
-                  variant="flat"
-                  class="brand-usage-detail-btn"
-                  prepend-icon="mdi-chart-box-outline"
-                  @click.stop="openUserDetail(item)"
-                >
-                  {{ t('billing.colUsage') }}
-                </v-btn>
-              </template>
-            </v-data-table>
-          </BrandTableShell>
-
           <BillingSkuDetailDialog
             v-model="skuDetailDialogOpen"
             :sku-costs="filteredView.skuCosts"
@@ -559,43 +277,22 @@
               {{ t('billing.dataSourcesMetrics') }}
               <template v-if="filteredView.billing.available">{{ t('billing.dataSourcesBillingEndpoints') }}</template>
               <template v-else>{{ t('billing.dataSourcesNoBilling') }}</template>
+              {{ t('billing.usersAnalysisHint') }}
             </div>
           </v-card>
         </div>
     </section>
-
-    <UserUsageDetailDialog
-      v-model="detailDialogOpen"
-      :user="detailUser"
-      :usage-insight="detailUsageInsight"
-      :report-range="detailReportRange"
-      :billing-available="Boolean(insights?.billing?.available)"
-      :premium-credits-fetch-enabled="premiumCreditsFetchEnabled"
-      :ai-credits-fetch-enabled="aiCreditsFetchEnabled"
-      :team-slugs="detailTeamSlugs"
-    />
   </div>
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onUnmounted, ref, watch } from 'vue'
+import { computed, defineComponent, onUnmounted, ref, toRef, watch } from 'vue'
 import BrandDismissibleAlert from '@/components/BrandDismissibleAlert.vue'
 import BrandCollapsibleBillingAlert from '@/components/BrandCollapsibleBillingAlert.vue'
-import BrandTableShell from '@/components/BrandTableShell.vue'
-import BrandPremiumCreditsCell from '@/components/BrandPremiumCreditsCell.vue'
-import BrandAiCreditsCell from '@/components/BrandAiCreditsCell.vue'
-import { useAiCreditsFeature } from '@/composables/useAiCreditsFeature'
-import BrandUserAvatar from '@/components/BrandUserAvatar.vue'
-import BrandAiAdoptionPanel from '@/components/BrandAiAdoptionPanel.vue'
-import { PREMIUM_CREDITS_TABLE_DISABLED } from '../../shared/utils/premium-credits-feature'
-import UserUsageDetailDialog from '@/components/UserUsageDetailDialog.vue'
-import BrandUsagePatternChip from '@/components/BrandUsagePatternChip.vue'
-import { useUsagePatternInsights } from '@/composables/useUsagePatternInsights'
-import { activityInputFromLeaderboardRow } from '../../shared/utils/usage-pattern-insights'
 import BillingSkuDetailDialog from '@/components/BillingSkuDetailDialog.vue'
-import { usePremiumCreditsFeature } from '@/composables/usePremiumCreditsFeature'
-import type { UserUsageLeaderboardRow } from '../../shared/types/usage-insights'
-import { billingAlertSummary } from '../../shared/utils/billing-api'
+import { billingAlertSummary } from '../../shared/utils/billing-alert'
+import { isCopilotBillingSku } from '../../shared/utils/billing-normalize'
+import { useMonthlySeatInvoice } from '@/composables/useMonthlySeatInvoice'
 import { useTabBillingRange, useTabReportRange } from '@/composables/useTabReportRange'
 import { Bar, Pie } from 'vue-chartjs'
 import {
@@ -609,24 +306,21 @@ import {
   ArcElement
 } from 'chart.js'
 import type { UsageInsightsResponse } from '../../shared/types/usage-insights'
-import { filterUsageInsightsByUser } from '../../shared/utils/usage-insights-aggregate'
 import { pieSliceColors } from '@/utils/brand-colors'
 import {
   brandBarChartOptions,
   brandChartOptionsInContainer,
   brandPieChartOptions,
-  brandSelectMenuProps,
   paletteEntry
 } from '@/utils/chart-theme'
 import { Options } from '@/model/Options'
 import { useRoute } from 'vue-router'
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement)
-
 import BrandPageSkeleton from '@/components/BrandPageSkeleton.vue'
 import BrandMonthlySeatInvoiceSection from '@/components/BrandMonthlySeatInvoiceSection.vue'
 import type { Seat } from '@/model/Seat'
 import { useChartTooltips } from '@/utils/chart-tooltips'
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement)
 
 export default defineComponent({
   name: 'UsageBillingViewer',
@@ -635,16 +329,9 @@ export default defineComponent({
     Pie,
     BrandDismissibleAlert,
     BrandCollapsibleBillingAlert,
-    BrandTableShell,
-    BrandPremiumCreditsCell,
-    BrandAiCreditsCell,
-    BrandUserAvatar,
-    BrandAiAdoptionPanel,
-    UserUsageDetailDialog,
     BillingSkuDetailDialog,
     BrandPageSkeleton,
-    BrandMonthlySeatInvoiceSection,
-    BrandUsagePatternChip
+    BrandMonthlySeatInvoiceSection
   },
   props: {
     dateRange: {
@@ -666,30 +353,12 @@ export default defineComponent({
     const tabReportRange = useTabReportRange()
     const tabBillingRange = useTabBillingRange()
     const route = useRoute()
+    const seatsRef = toRef(props, 'seats')
+    const { monthlyTotals, seatUnitPrice } = useMonthlySeatInvoice(seatsRef)
     const loading = ref(true)
     const error = ref<string | null>(null)
     const insights = ref<UsageInsightsResponse | null>(null)
-    const selectedUser = ref<string | null>(null)
-    const { fetchEnabled: premiumCreditsFetchEnabled } = usePremiumCreditsFeature()
-    const { fetchEnabled: aiCreditsFetchEnabled } = useAiCreditsFeature()
-    const { visible: showAiAdoptionCohorts } = useAiAdoptionCohortsFeature()
-    const { ideOnly } = useAdoptionIdeOnly()
-    const adoptionLeaderboardNote = computed(() =>
-      t.value(ideOnly.value ? 'adoption.leaderboardColumnNoteIdeOnly' : 'adoption.leaderboardColumnNote')
-    )
-    const detailDialogOpen = ref(false)
     const skuDetailDialogOpen = ref(false)
-    const detailUser = ref<UserUsageLeaderboardRow | null>(null)
-    const detailTeamSlugs = ref<string[]>([])
-
-    const usageCohortInputs = computed(() =>
-      (insights.value?.users || []).map((u) => activityInputFromLeaderboardRow(u))
-    )
-    const { getInsight } = useUsagePatternInsights(usageCohortInputs)
-
-    const detailUsageInsight = computed(() =>
-      detailUser.value ? getInsight(detailUser.value.user_login) : undefined
-    )
 
     const barChartOptions = brandBarChartOptions(brandChartOptionsInContainer)
     const pieChartOptions = brandPieChartOptions(brandChartOptionsInContainer)
@@ -717,7 +386,6 @@ export default defineComponent({
         )
         const params = options.toParams()
         insights.value = await $fetch<UsageInsightsResponse>('/api/usage-insights', { params })
-        selectedUser.value = null
       } catch (err: unknown) {
         error.value = err instanceof Error ? err.message : t.value('billing.errorLoad')
       } finally {
@@ -735,24 +403,6 @@ export default defineComponent({
     )
 
     load()
-
-    const profileCoverage = computed(() => {
-      const users = insights.value?.users || []
-      return {
-        total: users.length,
-        withEmail: users.filter((u) => u.email).length,
-        withName: users.filter((u) => u.name).length
-      }
-    })
-
-    const userFilterOptions = computed(() =>
-      (insights.value?.users || [])
-        .map((u) => ({
-          login: u.user_login,
-          label: [u.user_login, u.name, u.email].filter(Boolean).join(' · ')
-        }))
-        .sort((a, b) => a.label.localeCompare(b.label))
-    )
 
     const filteredView = computed((): UsageInsightsResponse => {
       if (!insights.value) {
@@ -776,6 +426,7 @@ export default defineComponent({
           teamUsage: [],
           billing: {
             available: false,
+            reason: '',
             detailedUsage: [],
             summaryUsage: [],
             premiumRequestUsage: []
@@ -787,7 +438,7 @@ export default defineComponent({
           adoptionByPhase: []
         }
       }
-      return filterUsageInsightsByUser(insights.value, selectedUser.value)
+      return insights.value
     })
 
     const usageReportRangeLabel = computed(() => {
@@ -913,45 +564,19 @@ export default defineComponent({
       )
     )
 
-    const billingHighlightCards = computed(() => {
-      if (!filteredView.value?.billing.available) return []
-      const view = filteredView.value
-      const cards: Array<{
-        label: string
-        value: string
-        hint?: string
-        cardClass: string
-        tooltip: string
-        opensSkuDetail?: boolean
-      }> = [
-        {
-          label: t.value('billing.kpiNetSpend'),
-          value: formatCurrency(totalNetSpend.value),
-          hint: t.value('billing.kpiHintSku', { count: view.skuCosts.length }),
-          cardClass: 'brand-metric-card--purple',
-          tooltip: t.value('billing.kpiTooltipNetSpend'),
-          opensSkuDetail: view.skuCosts.length > 0
-        }
-      ]
-      if (premiumCreditsFetchEnabled.value) {
-        cards.push({
-          label: t.value('billing.kpiPremiumRequests'),
-          value: formatNumber(totalPremiumQuantity.value),
-          hint: t.value('billing.kpiHintUsers', { count: view.premiumByUser.length }),
-          cardClass: 'brand-metric-card--turquoise',
-          tooltip: t.value('billing.kpiTooltipPremiumRequests')
-        })
-      } else {
-        cards.push({
-          label: t.value('billing.kpiModelsBilled'),
-          value: String(view.premiumByModel.length),
-          hint: t.value('billing.kpiHintDistinct'),
-          cardClass: 'brand-metric-card--turquoise',
-          tooltip: t.value('billing.kpiTooltipModelsBilled')
-        })
-      }
-      return cards
-    })
+    const skuHintLabel = (rows: Array<{ sku: string; netAmount: number }>, emptyHint: string) => {
+      const byNet = [...rows].sort((a, b) => b.netAmount - a.netAmount)
+      const withSpend = byNet.filter((row) => row.netAmount > 0)
+      const named = (withSpend.length ? withSpend : byNet)
+        .map((row) => row.sku)
+        .filter(Boolean)
+      if (!named.length) return emptyHint
+      if (named.length === 1) return named[0]
+      return t.value('billing.kpiSkuHintMultiple', {
+        sku: named[0],
+        count: named.length - 1
+      })
+    }
 
     const modelChartData = computed(() => {
       const rows = filteredView.value?.modelUsage || []
@@ -1037,9 +662,57 @@ export default defineComponent({
       (filteredView.value?.skuCosts || []).reduce((s, r) => s + r.netAmount, 0)
     )
 
-    const totalPremiumQuantity = computed(() =>
-      (filteredView.value?.premiumByModel || []).reduce((s, r) => s + r.netQuantity, 0)
+    /** Same estimate as Seat analysis: assigned seats × NUXT_PUBLIC_COPILOT_SEAT_UNIT_PRICE. */
+    const seatInvoiceCost = computed(() => monthlyTotals.value?.monthly_cost ?? null)
+
+    /** All Copilot Billing SKUs (Enterprise license + premium + AI credits, …). */
+    const billingCopilotRows = computed(() =>
+      (filteredView.value?.skuCosts || []).filter((row) => isCopilotBillingSku(row.sku))
     )
+
+    const billingCopilotCost = computed(() =>
+      billingCopilotRows.value.reduce((sum, row) => sum + row.netAmount, 0)
+    )
+
+    const costKpiCards = computed(() => {
+      const cards: Array<{
+        label: string
+        value: string
+        hint: string
+        tooltip: string
+        cardClass: string
+        opensSkuDetail?: boolean
+      }> = []
+
+      if (seatInvoiceCost.value != null) {
+        cards.push({
+          label: t.value('billing.kpiSeatCost'),
+          value: formatCurrency(seatInvoiceCost.value),
+          hint: t.value('billing.kpiSeatCostHint', {
+            price: formatCurrency(seatUnitPrice.value)
+          }),
+          tooltip: t.value('billing.kpiTooltipSeatCost'),
+          cardClass: 'brand-metric-card--accent',
+          opensSkuDetail: false
+        })
+      }
+
+      if (filteredView.value?.billing.available) {
+        cards.push({
+          label: t.value('billing.kpiUsageCost'),
+          value: formatCurrency(billingCopilotCost.value),
+          hint: skuHintLabel(
+            billingCopilotRows.value,
+            t.value('billing.kpiCopilotEmptyHint')
+          ),
+          tooltip: t.value('billing.kpiTooltipUsageCost'),
+          cardClass: 'brand-metric-card--purple',
+          opensSkuDetail: filteredView.value.skuCosts.length > 0
+        })
+      }
+
+      return cards
+    })
 
     const detailReportRange = computed(() => {
       const view = filteredView.value
@@ -1054,97 +727,6 @@ export default defineComponent({
       skuDetailDialogOpen.value = true
     }
 
-    const openUserDetail = (item: UserUsageLeaderboardRow) => {
-      if (!item?.user_login) return
-      detailUser.value = item
-      const login = item.user_login.toLowerCase()
-      detailTeamSlugs.value = [
-        ...new Set(
-          (insights.value?.userTeams || [])
-            .filter((t) => (t.user_login || '').toLowerCase() === login)
-            .map((t) => t.slug)
-            .filter(Boolean)
-        )
-      ]
-      detailDialogOpen.value = true
-    }
-
-    const userHeaders = computed(() => {
-      const patternSortRaw = (a: UserUsageLeaderboardRow, b: UserUsageLeaderboardRow) => {
-        const pa = getInsight(a.user_login)?.patternId ?? ''
-        const pb = getInsight(b.user_login)?.patternId ?? ''
-        return pa.localeCompare(pb)
-      }
-      const headers = [
-        { title: t.value('billing.colUser'), key: 'user_login', minWidth: '200px' },
-        { title: t.value('billing.colUsage'), key: 'usageDetail', sortable: false, align: 'end' as const, width: '120px' },
-        {
-          title: t.value('usagePattern.colPattern'),
-          key: 'usage_pattern',
-          sortable: true,
-          sortRaw: patternSortRaw,
-          minWidth: '160px'
-        },
-        { title: t.value('billing.colInteractions'), key: 'interactions', align: 'end' as const },
-        { title: t.value('billing.colGenerations'), key: 'generations', align: 'end' as const },
-        { title: t.value('billing.colAcceptances'), key: 'acceptances', align: 'end' as const },
-        { title: t.value('billing.colLocAdded'), key: 'locAdded', align: 'end' as const },
-        { title: t.value('billing.colModels'), key: 'modelCount', align: 'end' as const },
-        { title: t.value('billing.colTopModel'), key: 'topModel' },
-        { title: t.value('billing.colAgent'), key: 'used_agent', align: 'center' as const },
-        { title: t.value('billing.colChat'), key: 'used_chat', align: 'center' as const }
-      ]
-
-      let insertAt = 3
-      if (
-        aiCreditsFetchEnabled.value &&
-        filteredView.value?.billing.available
-      ) {
-        headers.splice(insertAt, 0, {
-          title: t.value('billing.colAiCredits'),
-          key: 'ai_credits',
-          align: 'end' as const,
-          sortable: true,
-          sortRaw: (a: UserUsageLeaderboardRow, b: UserUsageLeaderboardRow) =>
-            (a.ai_credits?.used ?? -1) - (b.ai_credits?.used ?? -1)
-        } as (typeof headers)[number])
-        insertAt += 1
-      }
-
-      if (
-        !PREMIUM_CREDITS_TABLE_DISABLED &&
-        premiumCreditsFetchEnabled.value &&
-        filteredView.value?.billing.available
-      ) {
-        headers.splice(insertAt, 0, {
-          title: t.value('billing.colPruCost'),
-          key: 'pruNetAmount',
-          align: 'end' as const,
-          sortable: false
-        } as (typeof headers)[number])
-      }
-
-      return headers
-    })
-
-    const leaderboardSubtitle = computed(() => {
-      const parts = [t.value('billing.leaderboardReportLabel')]
-      const view = filteredView.value
-      if (view?.reportStartDay && view?.reportEndDay) {
-        parts.unshift(`${view.reportStartDay} → ${view.reportEndDay}`)
-      }
-      if (
-        premiumCreditsFetchEnabled.value &&
-        view?.billing.available &&
-        view.premiumCreditsQuota
-      ) {
-        parts.push(
-          t.value('billing.premiumQuotaPerSeat', { quota: view.premiumCreditsQuota.toLocaleString() })
-        )
-      }
-      return parts.join(' · ')
-    })
-
     const billingAlertSummaryText = computed(() => {
       const billing = filteredView.value?.billing
       if (!billing) return ''
@@ -1158,46 +740,28 @@ export default defineComponent({
       error,
       insights,
       filteredView,
-      profileCoverage,
-      selectedUser,
-      userFilterOptions,
       kpiCards,
       usageKpiCards,
       agentChatKpiCards,
-      billingHighlightCards,
+      costKpiCards,
       modelChartData,
       featureChartData,
       skuChartData,
       premiumModelChartData,
       teamChartData,
-      brandSelectMenuProps,
       barChartOptions,
       pieChartOptions,
-      userHeaders,
-      leaderboardSubtitle,
-      adoptionLeaderboardNote,
-      showAiAdoptionCohorts,
       totalNetSpend,
-      totalPremiumQuantity,
       formatNumber,
       formatCurrency,
       formatFeature,
       billingAlertSummaryText,
-      premiumCreditsFetchEnabled,
-      aiCreditsFetchEnabled,
-      PREMIUM_CREDITS_TABLE_DISABLED,
-      detailDialogOpen,
-      detailUser,
-      detailUsageInsight,
-      detailTeamSlugs,
       detailReportRange,
-      getInsight,
       usageReportRangeLabel,
       billingRangeLabel,
       usageNarrowerThanBilling,
       skuDetailDialogOpen,
-      openSkuDetail,
-      openUserDetail
+      openSkuDetail
     }
   }
 })

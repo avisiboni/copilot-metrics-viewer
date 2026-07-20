@@ -53,7 +53,8 @@ const he: MessageTree = {
     editors: 'עורכים',
     copilotChat: "צ'אט Copilot",
     usageInsights: 'תובנות שימוש',
-    users: 'משתמשים',
+    users: 'ניתוח משתמשים',
+    inviteMembers: 'הזמנת חברים',
     usageBilling: 'שימוש וחיוב',
     seatAnalysis: 'ניתוח מושבים',
     apiResponse: 'תגובת API',
@@ -285,9 +286,9 @@ const he: MessageTree = {
     loading: 'טוען שימוש וחיוב',
     errorTitle: 'שגיאה בטעינת שימוש וחיוב',
     errorLoad: 'טעינת תובנות השימוש נכשלה.',
-    title: 'תובנות שימוש וחיוב',
+    title: 'שימוש וחיוב',
     subtitle:
-      'פעילות מודלים לפי משתמש מדוחות Copilot Metrics; סכומים בדולר מ-GitHub Billing Usage כשזמין.',
+      'סיכומי שימוש ארגוניים ועלויות GitHub Billing לתקופה שנבחרה. פעילות לפי משתמש נמצאת בלשונית ניתוח משתמשים.',
     emailUnavailableTitle: 'אימיילים לא זמינים מ-GitHub API',
     emailUnavailableBody:
       'אימיילי משתמשים אינם כלולים בתגובות API של מדדי Copilot. השתמשו בהתחברות או בשם תצוגה. לייצוא אימיילים נדרש admin:org וייתכן ש-SAML מגביל.',
@@ -307,7 +308,18 @@ const he: MessageTree = {
       'GitHub החזיר שימוש עבור {usageRange} בינתיים. סכומי החיוב כבר כוללים {billingRange}. המתינו לסיום הטעינה או הפעילו מצב היסטורי עם סנכרון יומי.',
     billingSpanNoteTitle: 'העלויות מכסות את כל טווח התאריכים',
     billingSpanNoteBody:
-      'הוצאה נטו וגרפי SKU משתמשים בחיוב GitHub עבור {billingRange}. מדדי שימוש וטבלת המשתמשים עשויים לשקף חלון Copilot metrics קצר יותר ({usageRange}) בזמן שטווחים ארוכים נטענים.',
+      'הוצאה נטו וגרפי SKU משתמשים בחיוב GitHub עבור {billingRange}. מדדי שימוש עשויים לשקף חלון Copilot metrics קצר יותר ({usageRange}) בזמן שטווחים ארוכים נטענים.',
+    kpiSeatCost: 'עלות מושבים (תקופה)',
+    kpiSeatCostHint: 'מושבים משויכים × {price}/מושב (כמו בניתוח מושבים)',
+    kpiGithubSeatEmptyHint: 'אין עדיין נתוני שיוך מושבים לתקופה זו',
+    kpiTooltipSeatCost:
+      'אומדן עלות רישיון מושבים לתקופה שנבחרה: מושבים משויכים לחודש × NUXT_PUBLIC_COPILOT_SEAT_UNIT_PRICE. תואם לטבלת החשבונית בניתוח מושבים. זה לא SKU של ghec_licenses מ-GitHub Billing (לעיתים לא זמין בחיוב הארגון).',
+    kpiUsageCost: 'עלות Copilot (תקופה)',
+    kpiUsageCostHint: 'בקשות premium, קרדיטי AI ו-SKU שימוש אחרים',
+    kpiCopilotEmptyHint: 'אין SKU של Copilot בחיוב לתקופה זו',
+    kpiTooltipUsageCost:
+      'סה״כ הוצאה נטו מכל SKU של GitHub Copilot Billing לתקופה שנבחרה (Copilot Enterprise, Premium Request, קרדיטי AI ושורות Copilot קשורות).',
+    kpiSkuHintMultiple: '{sku} + עוד {count}',
     kpiNetSpend: 'סה״כ הוצאה נטו (תקופה)',
     kpiNetSpendViewDetail: 'צפייה בפירוט',
     kpiNetSpendOpenDetail: 'פתיחת פירוט הוצאה נטו לפי SKU',
@@ -358,6 +370,7 @@ const he: MessageTree = {
     colTopModel: 'מודל מוביל',
     colAgent: 'סוכן',
     colChat: "צ'אט",
+    colCodingAgent: 'סוכן קוד',
     colPremiumCredits: 'קרדיט פרימיום',
     colAiCredits: 'קרדיטי AI',
     colPruCost: 'עלות PRU',
@@ -382,11 +395,16 @@ const he: MessageTree = {
       'האם המשתמש השתמש בתכונות מסוג סוכן של Copilot (למשל מצב סוכן, עריכות סוכן) לפחות פעם אחת בתקופה.',
     colChatHint:
       'האם המשתמש השתמש ב-Copilot Chat (פאנל או inline) לפחות פעם אחת בתקופה.',
+    colCodingAgentHint:
+      'האם המשתמש הפעיל Copilot coding agent (הקצאת issue או @copilot בתגובת PR) לפחות פעם אחת בתקופה.',
     colPruCostHint:
       'עלות נטו משוערת של בקשות פרימיום (PRU) למשתמש בתקופת החיוב, מ-GitHub Billing Usage API כשזמין.',
     colAiCreditsHint:
-      'קרדיטי AI שנצרכו על ידי המשתמש בתקופת החיוב, מ-GitHub Billing ai_credit/usage API כשזמין.',
+      'קרדיטי AI שנצרכו על ידי המשתמש בתקופה — מ-`ai_credits_used` בדוח מדדי שימוש כשזמין, אחרת מ-GitHub Billing API.',
     aiCreditsUsed: '{count} קרדיטים',
+    aiCreditsFromMetrics: 'מדוח מדדי שימוש',
+    aiCreditsFromMetricsHint:
+      'הערך מגיע מ-Copilot usage metrics API (`ai_credits_used`). Billing API עשוי לעדכן כשנטען.',
     aiCreditsLoading: 'טוען…',
     aiCreditsExceedsQuota: 'מעל המכסה',
     aiCreditsExceedsQuotaHint: 'המשתמש חרג מתקציב או מכסת קרדיטי AI לתקופה.',
@@ -447,6 +465,7 @@ const he: MessageTree = {
       'users-28-day/latest (מודלים, תכונות, פעילות); user-teams-1-day (צבירת צוותים);',
     dataSourcesBillingEndpoints:
       'billing/usage, billing/usage/summary, billing/premium_request/usage, billing/ai_credit/usage.',
+    usersAnalysisHint: ' לפעילות לפי משתמש, פתחו את לשונית ניתוח משתמשים.',
     leaderboardReportLabel: 'דוח שימוש 28 יום',
     premiumQuotaPerSeat: 'בקשות פרימיום (חיוב) · עד {quota} PRU/מושב לחודש',
   },
@@ -455,7 +474,7 @@ const he: MessageTree = {
     errorTitle: 'שגיאה בטעינת מדדי משתמשים',
     errorLoad: 'טעינת מדדי משתמשים נכשלה.',
     errorBilling: 'בדיקת סטטוס החיוב נכשלה.',
-    title: 'שימוש Copilot לפי משתמש',
+    title: 'ניתוח משתמשים',
     billingStatus: 'סטטוס חיוב',
     billingStatusHint:
       'בודק את GitHub Billing Usage API לנתוני בקשות פרימיום. דורש manage_billing:copilot.',
@@ -558,6 +577,9 @@ const he: MessageTree = {
     agent: 'סוכן',
     chat: "צ'אט",
     cli: 'CLI',
+    codingAgent: 'סוכן קוד',
+    serverSideTelemetryHint:
+      'משתמש זה נספר כפעיל מטלמטריה בצד השרת; פירוט תכונות ומודלים עשוי להיות ריק עד שטלמטריה עשירה יותר תהיה זמינה.',
     noBreakdown: 'אין פירוט מודל או תכונה למשתמש זה בחלון הדוח.',
     kpiInteractions: 'אינטראקציות',
     kpiGenerations: 'יצירות',
@@ -891,6 +913,27 @@ const he: MessageTree = {
       },
     },
   },
+  usageCoaching: {
+    panelTitle: 'אימון מודלים ומצבים',
+    panelSubtitle:
+      'מפירוט השימוש של GitHub (Plan / Agent / Ask ומודלים) — הכוונה בלבד, לא דירוג.',
+    planModeNote:
+      'מצב Plan מופיע במדדים כ-{feature} עם מודלים בגרף Model × feature למטה.',
+    hints: {
+      insufficient_breakdown:
+        'יש פעילות אך אין פירוט מודל/תכונה בחלון הזה — אי אפשר להסתמך על אימון Plan או מודלים פרימיום.',
+      plan_mode_summary:
+        'נעשה שימוש ב-Plan mode ({interactions} אינטראקציות צ\'אט). מודלים ב-Plan: {models}.',
+      no_plan_mode:
+        'יש Chat או Agent אבל לא Plan mode — לתכנון/ארכיטקטורה נסו Plan mode עם מודל חזק (למשל Opus) לפני קוד.',
+      no_premium_models:
+        'לא זוהו מודלים פרימיום בתקופה — מתאים לשגרה; לתכנון מורכב שקלו Opus ודומיו ב-Plan/Agent.',
+      premium_without_plan:
+        'נעשה שימוש במודלים פרימיום ({models}) בלי Plan mode — הציעו Plan לתכנון, ואז Agent/עריכה ליישום.',
+      high_spend_low_acceptance:
+        'הוצאה נוספת על AI עם קבלה נמוכה ({acceptanceRate}%) — בדקו פרומптים ובחירת מודל; שגרה לא תמיד דורשת פרימיום.',
+    },
+  },
   aiChat: {
     title: 'עוזר מדדי AI',
     fabTooltip: 'שאלו את ה-AI על המדדים',
@@ -932,6 +975,74 @@ const he: MessageTree = {
       billingSku: 'אילו SKU-ים תורמים הכי הרבה לעלות?',
       prCreated: 'כמה PR-ים נוצרו על ידי Copilot?',
       prMergeRate: 'מה שיעור המיזוג של PR-ים מ-Copilot?',
+    },
+  },
+  invite: {
+    title: 'הזמנת חברים לארגון',
+    subtitle: 'הזמינו משתמשי GitHub לפי אימייל — אחד או ברשימה מקובץ Excel.',
+    scopeHint:
+      'נדרש טוקן בעלים של הארגון עם הרשאת admin:org (או הרשאה מקבילה ב-GitHub App). ההזמנות נשלחות באימייל על ידי GitHub.',
+    orgSection: 'ארגון יעד',
+    orgPicker: 'ארגון',
+    orgPickerHint: 'בחרו את הארגון שיקבל את ההזמנות',
+    manualOrg: 'מזהה ארגון (slug)',
+    manualOrgHint: 'הזינו login של ארגון GitHub אם הוא לא ברשימה',
+    currentOrg: 'נוכחי',
+    role: 'תפקיד חבר',
+    roleHint: 'ברירת מחדל: direct_member (חבר רגיל בארגון)',
+    roles: {
+      direct_member: 'חבר רגיל',
+      admin: 'בעלים (admin)',
+      billing_manager: 'מנהל חיוב',
+      reinstate_member: 'החזרת חבר',
+    },
+    inviteSection: 'הזמנות',
+    modeSingle: 'אימייל בודד',
+    modeBulk: 'Excel מרוכז',
+    singleEmail: 'כתובת אימייל',
+    sendSingle: 'שלח הזמנה',
+    excelLabel: 'קובץ Excel (.xlsx)',
+    excelHint:
+      'בגיליון הראשון חייבת להיות עמודה בשם email (ללא תלות ברישיות). שאר העמודות מתעלמות.',
+    parsedCount: '{count} כתובות אימייל ייחודיות מוכנות להזמנה.',
+    invalidRowCount: ' {count} שורות דולגו (אימייל לא תקין).',
+    sendBulk: 'הזמן {count} משתמשים',
+    clear: 'נקה קובץ',
+    cancel: 'בטל',
+    downloadTemplate: 'הורד תבנית Excel',
+    downloadResults: 'הורד תוצאות',
+    previewTitle: 'אימיילים להזמנה',
+    resultsTitle: 'תוצאות הזמנה',
+    colEmail: 'אימייל',
+    colStatus: 'סטטוס',
+    colMessage: 'הודעה',
+    statusOk: 'הוזמן',
+    statusFail: 'נכשל',
+    summary: 'ארגון {org}: {invited} הזמנות נוצרו, {failed} נכשלו.',
+    progressTitle: 'התקדמות',
+    progressCounts: '{done}/{total} · {invited} הצליחו · {failed} נכשלו',
+    progressCurrent: 'שולח: {email}',
+    progressWorking: 'בעבודה…',
+    progressIdle: 'הסתיים',
+    logTitle: 'יומן פעילות',
+    logStart: 'מתחיל הזמנות → ארגון={org} כמות={count} תפקיד={role}',
+    logParsed: 'פוענחו {count} אימיילים מגיליון "{sheet}"',
+    logSending: '[{index}/{total}] מזמין {email}',
+    logOk: 'הצלחה {email} (HTTP {status})',
+    logFail: 'כישלון {email} (HTTP {status}): {message}',
+    logDone: 'סיום. הצליחו={invited} נכשלו={failed}',
+    logCancelled: 'בוטל אחרי {done}/{total}',
+    logOrgsFailed: 'לא ניתן לטעון ארגוני Enterprise (IP allow list או הרשאות).',
+    errors: {
+      missingEmailColumn:
+        'בקובץ ה-Excel חייבת להיות עמודה בשם "email" (בכל רישיות).',
+      emptyFile: 'קובץ ה-Excel ריק או לא ניתן לקריאה.',
+      noEmails: 'לא נמצאו כתובות אימייל בעמודת email.',
+      invalidRows: 'בעמודת email יש ערכים, אך אף אחד מהם אינו אימייל תקין.',
+      parseFailed: 'לא ניתן לפרסר את קובץ ה-Excel. השתמשו ב-.xlsx עם עמודת email.',
+      invalidEmail: 'הזינו כתובת אימייל תקינה.',
+      orgRequired: 'בחרו או הזינו ארגון תחילה.',
+      sendFailed: 'שליחת ההזמנות נכשלה. בדקו הרשאות הטוקן (admin:org).',
     },
   },
 }

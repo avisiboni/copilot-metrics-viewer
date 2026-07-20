@@ -103,10 +103,11 @@ export async function fetchOrgAiCreditsByUser(
 
   for (const { year, month } of months) {
     const batchSize = 10
+    let consecutiveForbiddenBatches = 0
     for (let i = 0; i < uniqueLogins.length; i += batchSize) {
       if (userFilterBlocked) break
       const batch = uniqueLogins.slice(i, i + batchSize)
-      await Promise.all(
+      const batchResults = await Promise.all(
         batch.map(async (login) => {
           const userUrl =
             `${base}?year=${year}&month=${month}` +
@@ -118,14 +119,14 @@ export async function fetchOrgAiCreditsByUser(
               logger.warn(
                 `Org AI credits API blocks ?user= for ${org} (enterprise-owned org). Use enterprise billing API or NUXT_PUBLIC_GITHUB_ENT.`
               )
-              return
+              return 'blocked' as const
             }
             if (userResult.status !== 404) {
               logger.warn(
                 `Org AI credits for ${login} (${year}-${month}): HTTP ${userResult.status} ${userResult.message}`
               )
             }
-            return
+            return userResult.status === 403 ? ('forbidden' as const) : ('error' as const)
           }
           const responseUser = userResult.data.user?.trim() || login
           const items = (userResult.data.usageItems || []).map((raw) =>
@@ -136,8 +137,25 @@ export async function fetchOrgAiCreditsByUser(
             })
           )
           ingestAiCreditItems(map, items, responseUser)
+          return 'ok' as const
         })
       )
+      if (userFilterBlocked) break
+      const allForbidden =
+        batchResults.length > 0 && batchResults.every((r) => r === 'forbidden' || r === 'blocked')
+      if (allForbidden) {
+        consecutiveForbiddenBatches += 1
+      } else if (batchResults.some((r) => r === 'ok')) {
+        consecutiveForbiddenBatches = 0
+      }
+      // Enterprise-owned orgs often return generic 403s for every ?user= call.
+      if (consecutiveForbiddenBatches >= 2) {
+        userFilterBlocked = true
+        logger.warn(
+          `Org AI credits: stopping after repeated HTTP 403 batches for ${org} (likely no per-user access).`
+        )
+        break
+      }
     }
     if (userFilterBlocked) break
   }

@@ -6,21 +6,27 @@ title: קרדיטי AI
 
 **קרדיטי AI** — מדד חיוב מ-GitHub לצריכת Copilot מעבר למכסה הכלולה (מודלים פרימיום, Agent וכו'). זמין ב-[Budget and usage management APIs](https://github.blog/changelog/2026-06-04-budget-and-usage-management-apis-now-generally-available/) (GA, יוני 2026).
 
-## שני מקורות שונים ב-GitHub
+## שני מקורות (עם שילוב)
 
-| מקור | API | מה מקבלים |
-|------|-----|-----------|
-| **מדדי שימוש** | `/copilot/metrics/reports/users-*` | אינטראקציות, שורות, Agent/Chat — **ללא קרדיטי AI** |
-| **חיוב** | `/settings/billing/ai_credit/usage` | קרדיטים לפי מודל / משתמש + עלות נטו |
+| מקור | API / שדה | מה מקבלים |
+|------|-----------|-----------|
+| **מדדי שימוש** | `/copilot/metrics/reports/users-*` + שדה **`ai_credits_used`** | קרדיטי AI לפי משתמש ליום/28 יום — **מופיע מיד** עם דוח המשתמשים (יוני 2026) |
+| **חיוב** | `/settings/billing/ai_credit/usage` | קרדיטים + **עלות נטו USD** לפי מודל/משתמש |
 
-האפליקציה משתמשת בשניהם בנפרד. ייצוא CSV **אינו** כולל קרדיטי AI.
+האפליקציה **מעדיפה billing** כשנטען (כולל USD), ומשתמשת ב-`ai_credits_used` מדוח המדדים כ**גיבוי/תצוגה מיידית** — מסומן «מדוח מדדי שימוש».
+
+**מקור GitHub:** [AI credits consumed per user in usage metrics API](https://github.blog/changelog/2026-06-19-ai-credits-consumed-per-user-now-in-the-copilot-usage-metrics-api/)
+
+קריאות לדוחות מדדים שולחות `X-GitHub-Api-Version: 2026-03-10` (דרישת GitHub ל-Copilot usage metrics).
+
+ייצוא CSV **אינו** כולל קרדיטי AI.
 
 ## איפה רואים בלוח
 
 | מיקום | מה מוצג |
 |--------|---------|
 | **Usage & billing** — עמודה **קרדיטי AI** | כמות + USD (כשזמין) לכל משתמש |
-| **Users** — עמודה **קרדיטי AI** | אותו דבר; טעינה ברקע באצוות |
+| **Users** — עמודה **קרדיטי AI** | מיד מ-`ai_credits_used`; USD מ-billing כשנטען |
 | **דיאלוג שימוש** | כרטיס **קרדיטי AI (תקופת חיוב)** |
 
 ## דגל: השבתה
@@ -57,7 +63,7 @@ NUXT_PUBLIC_AI_CREDITS_FETCH_ENABLED=false
 - אצוות של **10** משתמשים לבקשה (`POST /api/user-ai-credits`).
 - מטמון שרת **10 דקות** למפתח (ארגון + טווח + משתמש).
 - ב-**Usage & billing** — שליפה בשרת עם טעינת `/api/usage-insights`.
-- ב-**Users** — טעינה ברקע לאחר אימות billing.
+- ב-**Users** — `ai_credits_used` מוצג מיד; billing נטען ברקע ל-USD.
 
 ## הבדל מ-PRU
 

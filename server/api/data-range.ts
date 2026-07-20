@@ -12,6 +12,11 @@
  *     live window when the storage is empty or unreachable.
  *   - Live mode: returns a rolling 28-day window ending yesterday (the GitHub
  *     metrics API has roughly a 1-day lag, so today is not yet available).
+ *
+ * Optional:
+ *   - BILLING_LOOKBACK_MONTHS: extend `earliest` backward so Usage & billing can
+ *     select longer cost windows. GitHub Billing is month-based and often has
+ *     more history than Copilot metrics reports (≈28 days).
  */
 
 import { Options } from '@/model/Options';
@@ -48,6 +53,29 @@ function liveWindow(): { earliest: string; latest: string } {
   // 28 days inclusive ending yesterday → start = latest - 27d
   const earliest = new Date(latest.getTime() - 27 * 24 * 60 * 60 * 1000);
   return { earliest: toIsoDay(earliest), latest: toIsoDay(latest) };
+}
+
+/**
+ * Optional billing lookback: GitHub Billing Usage APIs are monthly and often
+ * retain more history than Copilot metrics. Extending earliest lets the date
+ * picker select long cost windows without requiring a year of metrics in DB.
+ */
+export function applyBillingLookback(range: { earliest: string; latest: string }): {
+  earliest: string
+  latest: string
+} {
+  const months = parseInt(process.env.BILLING_LOOKBACK_MONTHS || '0', 10)
+  if (!Number.isFinite(months) || months <= 0) return range
+
+  const end = new Date(`${range.latest}T00:00:00.000Z`)
+  if (Number.isNaN(end.getTime())) return range
+
+  const lookback = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - months, end.getUTCDate()))
+  const lookbackDay = toIsoDay(lookback)
+  return {
+    earliest: lookbackDay < range.earliest ? lookbackDay : range.earliest,
+    latest: range.latest,
+  }
 }
 
 /** Extract every `day` (YYYY-MM-DD) field from a mock JSON `day_totals` array. */
@@ -111,19 +139,22 @@ export default defineEventHandler(async (event): Promise<DataRange> => {
   const identifier = options.githubOrg || options.githubEnt || '';
 
   if (options.isDataMocked) {
-    return { ...mockRange(scope), mode: 'mock' };
+    return { ...applyBillingLookback(mockRange(scope)), mode: 'mock' };
   }
 
-  // Whenever the DB is reachable and has data for this scope, use it.
-  // We don't gate this on ENABLE_HISTORICAL_MODE — writes happen via the
-  // sync pipeline regardless of the mode label.
-  try {
-    const stored = await historicalRange(scope, identifier);
-    if (stored) return { ...stored, mode: 'historical' };
-    logger.info('[data-range] No stored data yet, falling back to live window');
-  } catch (err) {
-    logger.warn('[data-range] Storage lookup failed, falling back to live window:', err);
+  const historicalEnabled = process.env.ENABLE_HISTORICAL_MODE === 'true';
+  const hasDatabase = !!process.env.DATABASE_URL;
+
+  // Direct API mode: skip PostgreSQL entirely unless historical mode or DATABASE_URL is configured.
+  if (historicalEnabled || hasDatabase) {
+    try {
+      const stored = await historicalRange(scope, identifier);
+      if (stored) return { ...applyBillingLookback(stored), mode: 'historical' };
+      logger.info('[data-range] No stored data yet, falling back to live window');
+    } catch (err) {
+      logger.warn('[data-range] Storage lookup failed, falling back to live window:', err);
+    }
   }
 
-  return { ...liveWindow(), mode: 'live' };
+  return { ...applyBillingLookback(liveWindow()), mode: 'live' };
 });

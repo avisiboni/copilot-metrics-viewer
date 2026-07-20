@@ -25,6 +25,7 @@ import type { MockInstance } from 'vitest';
 const {
   mockInitializeProxyAgent,
   mockSyncBulk,
+  mockSyncMetricsForDateRange,
   mockInitSchema,
   mockClosePool,
   mockGetSyncAuthHeaders,
@@ -37,6 +38,10 @@ const {
     skippedDays: 0,
     errors: [],
   }),
+  mockSyncMetricsForDateRange: vi.fn().mockResolvedValue([
+    { success: true, date: '2025-07-19', metricsCount: 1 },
+    { success: true, date: '2025-07-20', metricsCount: 1 },
+  ]),
   mockInitSchema: vi.fn().mockResolvedValue(undefined),
   mockClosePool: vi.fn().mockResolvedValue(undefined),
   mockGetSyncAuthHeaders: vi.fn().mockResolvedValue(new Headers({
@@ -52,6 +57,7 @@ vi.mock('../server/utils/proxy-agent', () => ({
 
 vi.mock('../server/services/sync-service', () => ({
   syncBulk: mockSyncBulk,
+  syncMetricsForDateRange: mockSyncMetricsForDateRange,
 }));
 
 vi.mock('../server/storage/db', () => ({
@@ -77,6 +83,8 @@ const MANAGED_VARS = [
   'NUXT_PUBLIC_GITHUB_ENT',
   'NUXT_PUBLIC_SCOPE',
   'SYNC_DAYS_BACK',
+  'SYNC_SINCE',
+  'SYNC_UNTIL',
 ] as const;
 
 /**
@@ -220,6 +228,21 @@ describe('sync-entry: happy path', () => {
     } finally {
       process.exitCode = previousExitCode;
     }
+  }));
+
+  it('uses syncMetricsForDateRange when SYNC_SINCE and SYNC_UNTIL are set', withEnv({
+    ...BASE_ENV,
+    SYNC_SINCE: '2025-07-19',
+    SYNC_UNTIL: '2026-07-18',
+  }, async () => {
+    await runSync();
+    expect(mockSyncMetricsForDateRange).toHaveBeenCalledOnce();
+    expect(mockSyncBulk).not.toHaveBeenCalled();
+    const [scope, identifier, since, until] = mockSyncMetricsForDateRange.mock.calls[0]!;
+    expect(scope).toBe('organization');
+    expect(identifier).toBe('test-org');
+    expect(since).toBe('2025-07-19');
+    expect(until).toBe('2026-07-18');
   }));
 });
 

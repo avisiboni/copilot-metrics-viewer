@@ -53,7 +53,8 @@ const en: MessageTree = {
     editors: 'Editors',
     copilotChat: 'Copilot chat',
     usageInsights: 'Usage insights',
-    users: 'Users',
+    users: 'Users analysis',
+    inviteMembers: 'Invite members',
     usageBilling: 'Usage & billing',
     seatAnalysis: 'Seat analysis',
     apiResponse: 'API response',
@@ -290,9 +291,9 @@ const en: MessageTree = {
     loading: 'Loading usage and billing',
     errorTitle: 'Error loading usage & billing',
     errorLoad: 'Failed to load usage insights.',
-    title: 'Usage & billing insights',
+    title: 'Usage & billing',
     subtitle:
-      'Per-user model activity from Copilot Metrics Reports; dollar amounts from GitHub Billing Usage when available.',
+      'Organization usage totals and GitHub Billing costs for the selected period. Per-user activity is on Users analysis.',
     emailUnavailableTitle: 'Emails not available from GitHub API',
     emailUnavailableBody:
       'User emails are not included in Copilot metrics API responses. Use login or display name to identify users. To export emails, an org admin needs the admin:org scope and SAML may restrict visibility.',
@@ -312,7 +313,18 @@ const en: MessageTree = {
       'GitHub returned usage for {usageRange} so far. Billing totals already include {billingRange}. Wait for the reload to finish or enable historical mode with daily sync for faster long ranges.',
     billingSpanNoteTitle: 'Costs cover your full date range',
     billingSpanNoteBody:
-      'Net spend and SKU charts use GitHub Billing for {billingRange}. Usage KPIs and the user table may reflect a shorter Copilot metrics window ({usageRange}) while long ranges load.',
+      'Net spend and SKU charts use GitHub Billing for {billingRange}. Usage KPIs may reflect a shorter Copilot metrics window ({usageRange}) while long ranges load.',
+    kpiSeatCost: 'Seat cost (period)',
+    kpiSeatCostHint: 'Assigned seats × {price}/seat (same as Seat analysis)',
+    kpiGithubSeatEmptyHint: 'No seat assignment data for this range yet',
+    kpiTooltipSeatCost:
+      'Estimated seat license cost for the selected period: monthly assigned seats × NUXT_PUBLIC_COPILOT_SEAT_UNIT_PRICE. Matches the Seat analysis invoice table. This is not the GitHub Billing ghec_licenses SKU (often unavailable on org billing).',
+    kpiUsageCost: 'Copilot cost (period)',
+    kpiUsageCostHint: 'Premium requests, AI credits, and other usage SKUs',
+    kpiCopilotEmptyHint: 'No Copilot SKUs in billing for this range',
+    kpiTooltipUsageCost:
+      'Total net spend from all GitHub Copilot Billing SKUs for the selected period (Copilot Enterprise, Premium Request, AI credits, and related Copilot lines).',
+    kpiSkuHintMultiple: '{sku} + {count} more',
     kpiNetSpend: 'Total net spend (period)',
     kpiNetSpendViewDetail: 'View breakdown',
     kpiNetSpendOpenDetail: 'Open net spend breakdown by SKU',
@@ -363,6 +375,7 @@ const en: MessageTree = {
     colTopModel: 'Top model',
     colAgent: 'Agent',
     colChat: 'Chat',
+    colCodingAgent: 'Coding agent',
     colPremiumCredits: 'Premium credits',
     colAiCredits: 'AI credits',
     colPruCost: 'PRU cost',
@@ -387,11 +400,16 @@ const en: MessageTree = {
       'Whether the user used Copilot Agent-style features (e.g. agent mode, agent edits) at least once in the period.',
     colChatHint:
       'Whether the user used Copilot Chat (panel or inline) at least once in the period.',
+    colCodingAgentHint:
+      'Whether the user triggered Copilot coding agent (issue assignment or @copilot in a PR comment) at least once in the period.',
     colPruCostHint:
       'Estimated net premium request (PRU) cost for this user in the billing period, from the GitHub Billing Usage API when available.',
     colAiCreditsHint:
-      'AI credits consumed by this user in the billing period, from GitHub Billing ai_credit/usage API when available.',
+      'AI credits consumed by this user in the period — from usage metrics `ai_credits_used` when available, otherwise from the GitHub Billing API.',
     aiCreditsUsed: '{count} credits',
+    aiCreditsFromMetrics: 'from usage metrics',
+    aiCreditsFromMetricsHint:
+      'Value comes from the Copilot usage metrics API (`ai_credits_used`). Billing API may refine totals when loaded.',
     aiCreditsLoading: 'Loading…',
     aiCreditsExceedsQuota: 'Over quota',
     aiCreditsExceedsQuotaHint: 'This user exceeded their AI credits budget or quota for the period.',
@@ -452,6 +470,7 @@ const en: MessageTree = {
       'users-28-day/latest (models, features, activity); user-teams-1-day (team rollups);',
     dataSourcesBillingEndpoints:
       'billing/usage, billing/usage/summary, billing/premium_request/usage, billing/ai_credit/usage.',
+    usersAnalysisHint: ' For per-user activity, open the Users analysis tab.',
     leaderboardReportLabel: '28-day usage report',
     premiumQuotaPerSeat: 'Premium requests (billing) · up to {quota} PRU/seat per month',
   },
@@ -460,7 +479,7 @@ const en: MessageTree = {
     errorTitle: 'Error Loading User Metrics',
     errorLoad: 'Failed to load user metrics.',
     errorBilling: 'Failed to check billing status.',
-    title: 'Per-user Copilot usage',
+    title: 'Users analysis',
     billingStatus: 'Billing status',
     billingStatusHint:
       'Checks the GitHub Billing Usage API for premium request data. Requires manage_billing:copilot.',
@@ -563,6 +582,9 @@ const en: MessageTree = {
     agent: 'Agent',
     chat: 'Chat',
     cli: 'CLI',
+    codingAgent: 'Coding agent',
+    serverSideTelemetryHint:
+      'This user appears active from server-side telemetry; feature and model breakdowns may be empty until richer telemetry is available.',
     noBreakdown: 'No model or feature breakdown for this user in the report window.',
     kpiInteractions: 'Interactions',
     kpiGenerations: 'Generations',
@@ -897,6 +919,27 @@ const en: MessageTree = {
       },
     },
   },
+  usageCoaching: {
+    panelTitle: 'Models & modes coaching',
+    panelSubtitle:
+      'From GitHub usage breakdown (Plan / Agent / Ask modes and models) — guidance only, not a rating.',
+    planModeNote:
+      'Plan mode appears in metrics as feature `{feature}` with models listed under Model × feature in the charts below.',
+    hints: {
+      insufficient_breakdown:
+        'Activity is recorded but model/feature breakdown is missing for this window — coaching on Plan mode or premium models is not reliable yet.',
+      plan_mode_summary:
+        'Used Plan mode ({interactions} chat interactions). Models in Plan mode: {models}.',
+      no_plan_mode:
+        'Chat or Agent is active but Plan mode was not used — for architecture or multi-step work, try Plan mode with a strong model (e.g. Opus) before coding.',
+      no_premium_models:
+        'No premium models detected in this period — fine for routine work; for complex planning consider Opus or similar on Plan/Agent tasks.',
+      premium_without_plan:
+        'Premium models used ({models}) but not in Plan mode — suggest Plan mode for design/refactors, then Agent or edits for implementation.',
+      high_spend_low_acceptance:
+        'Extra AI spend with low acceptance ({acceptanceRate}%) — review prompts and model choice; routine tasks may not need premium models.',
+    },
+  },
   aiChat: {
     title: 'AI Metrics Assistant',
     fabTooltip: 'Ask AI about metrics',
@@ -940,6 +983,76 @@ const en: MessageTree = {
       billingSku: 'Which billing SKUs drive the most cost?',
       prCreated: 'How many PRs were created by Copilot?',
       prMergeRate: 'What is the Copilot PR merge rate?',
+    },
+  },
+  invite: {
+    title: 'Invite members to organization',
+    subtitle:
+      'Invite GitHub users by email — one at a time or in bulk from an Excel file.',
+    scopeHint:
+      'Requires an organization owner token with admin:org (or equivalent GitHub App permission). Invitations are sent by GitHub email.',
+    orgSection: 'Target organization',
+    orgPicker: 'Organization',
+    orgPickerHint: 'Select the organization that will receive the invitations',
+    manualOrg: 'Organization slug',
+    manualOrgHint: 'Enter a GitHub organization login if it is not in the list',
+    currentOrg: 'current',
+    role: 'Member role',
+    roleHint: 'Default is direct_member (standard org member)',
+    roles: {
+      direct_member: 'Direct member',
+      admin: 'Owner (admin)',
+      billing_manager: 'Billing manager',
+      reinstate_member: 'Reinstate member',
+    },
+    inviteSection: 'Invitations',
+    modeSingle: 'Single email',
+    modeBulk: 'Bulk Excel',
+    singleEmail: 'Email address',
+    sendSingle: 'Send invitation',
+    excelLabel: 'Excel file (.xlsx)',
+    excelHint:
+      'The first sheet must include a column named email (case-insensitive). Other columns are ignored.',
+    parsedCount: '{count} unique email(s) ready to invite.',
+    invalidRowCount: ' {count} row(s) skipped (invalid email).',
+    sendBulk: 'Invite {count} users',
+    clear: 'Clear file',
+    cancel: 'Cancel',
+    downloadTemplate: 'Download Excel template',
+    downloadResults: 'Download results',
+    previewTitle: 'Emails to invite',
+    resultsTitle: 'Invitation results',
+    colEmail: 'Email',
+    colStatus: 'Status',
+    colMessage: 'Message',
+    statusOk: 'Invited',
+    statusFail: 'Failed',
+    summary:
+      'Organization {org}: {invited} invitation(s) created, {failed} failed.',
+    progressTitle: 'Progress',
+    progressCounts: '{done}/{total} · {invited} ok · {failed} failed',
+    progressCurrent: 'Sending: {email}',
+    progressWorking: 'Working…',
+    progressIdle: 'Finished',
+    logTitle: 'Activity log',
+    logStart: 'Starting invites → org={org} count={count} role={role}',
+    logParsed: 'Parsed {count} email(s) from sheet "{sheet}"',
+    logSending: '[{index}/{total}] Inviting {email}',
+    logOk: 'OK {email} (HTTP {status})',
+    logFail: 'FAIL {email} (HTTP {status}): {message}',
+    logDone: 'Done. invited={invited} failed={failed}',
+    logCancelled: 'Cancelled after {done}/{total}',
+    logOrgsFailed: 'Could not load enterprise organizations (IP allow list or permissions).',
+    errors: {
+      missingEmailColumn:
+        'The Excel file must include a column named "email" (any capitalization).',
+      emptyFile: 'The Excel file is empty or could not be read.',
+      noEmails: 'No email addresses found in the email column.',
+      invalidRows: 'The email column has values, but none are valid email addresses.',
+      parseFailed: 'Could not parse the Excel file. Use .xlsx with an email column.',
+      invalidEmail: 'Enter a valid email address.',
+      orgRequired: 'Select or enter an organization first.',
+      sendFailed: 'Failed to send invitations. Check token permissions (admin:org).',
     },
   },
 }

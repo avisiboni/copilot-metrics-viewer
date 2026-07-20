@@ -21,6 +21,7 @@ How to use the dashboard **without** server configuration.
 - [Organization](./organization) — KPIs, AI adoption cohorts
 - [Teams](./teams) · [Team-scoped URLs](./team-scoped-views)
 - [Users](./users) — table, PRU, adoption phase, **usage patterns**
+- [Invite members](./invite-members) — single or bulk Excel invite (`email` column required)
 - [Usage & billing](./usage-billing) — billing, user dialog
 - [Usage patterns](./usage-patterns) — heuristic labels, formulas, interpretation
 - [Usage insights](./usage-insights) — models and Agent

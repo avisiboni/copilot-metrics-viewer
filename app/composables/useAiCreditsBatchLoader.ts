@@ -1,5 +1,6 @@
 import { ref, type Ref } from 'vue'
 import type { UserAiCredits, UserUsageRecord } from '../../shared/types/copilot-usage'
+import { mergeUserAiCredits } from '../../shared/utils/ai-credits'
 import { AI_CREDITS_FETCH_BATCH_SIZE } from '../../shared/utils/ai-credits-constants'
 import { isAiCreditsFetchEnabled } from '../../shared/utils/ai-credits-feature'
 
@@ -33,7 +34,11 @@ export function useAiCreditsBatchLoader(users: Ref<UserUsageRecord[]>) {
     )
     users.value = users.value.map((user) => {
       const aiCredits = byLogin.get(user.user_login.toLowerCase())
-      return aiCredits ? { ...user, ai_credits: aiCredits } : user
+      if (!aiCredits) return user
+      return {
+        ...user,
+        ai_credits: mergeUserAiCredits(user.ai_credits, aiCredits)
+      }
     })
   }
 
@@ -106,7 +111,7 @@ export function useAiCreditsBatchLoader(users: Ref<UserUsageRecord[]>) {
     const user = users.value.find(
       (u) => u.user_login.toLowerCase() === login.toLowerCase()
     )
-    return !user?.ai_credits
+    return !user?.ai_credits || user.ai_credits.source === 'unavailable'
   }
 
   return {

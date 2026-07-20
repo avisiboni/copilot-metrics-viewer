@@ -413,6 +413,17 @@
                   {{ item.used_chat ? t('common.yes') : t('common.no') }}
                 </v-chip>
               </template>
+
+              <template #item.used_copilot_coding_agent="{ item }">
+                <v-chip
+                  size="small"
+                  variant="flat"
+                  class="brand-status-chip"
+                  :class="item.used_copilot_coding_agent ? 'brand-status-chip--yes' : 'brand-status-chip--no'"
+                >
+                  {{ item.used_copilot_coding_agent ? t('common.yes') : t('common.no') }}
+                </v-chip>
+              </template>
             </v-data-table>
           </BrandTableShell>
 
@@ -443,7 +454,7 @@ import BrandTableShell from '@/components/BrandTableShell.vue';
 import BrandUserAvatar from '@/components/BrandUserAvatar.vue';
 import UserUsageDetailDialog from '@/components/UserUsageDetailDialog.vue';
 import type { UserUsageLeaderboardRow } from '../../shared/types/usage-insights';
-import { billingAlertSummary } from '../../shared/utils/billing-api';
+import { billingAlertSummary } from '../../shared/utils/billing-alert';
 
 interface UserMetricsApiResponse {
   reportStartDay?: string;
@@ -634,6 +645,7 @@ export default defineComponent({
       used_chat: !!row.used_chat,
       used_cli: !!row.used_cli,
       used_code_review: !!(row.used_copilot_code_review_active || row.used_copilot_code_review_passive),
+      used_coding_agent: !!row.used_copilot_coding_agent,
       ai_adoption_phase: row.ai_adoption_phase,
       totals_by_model_feature: row.totals_by_model_feature,
       totals_by_feature: row.totals_by_feature,
@@ -691,7 +703,8 @@ export default defineComponent({
         },
         { title: t.value('billing.colLocAdded'), key: 'loc_added_sum', align: 'end' as const },
         { title: t.value('billing.colAgent'), key: 'used_agent', align: 'center' as const },
-        { title: t.value('billing.colChat'), key: 'used_chat', align: 'center' as const }
+        { title: t.value('billing.colChat'), key: 'used_chat', align: 'center' as const },
+        { title: t.value('billing.colCodingAgent'), key: 'used_copilot_coding_agent', align: 'center' as const }
       ];
     });
 
@@ -770,7 +783,8 @@ export default defineComponent({
           }).then(() => {
             if (aiCreditsMeta.value) {
               const withAi = allUsers.value.filter(
-                (u) => u.ai_credits?.source === 'billing' && (u.ai_credits?.used ?? 0) > 0
+                (u) => (u.ai_credits?.used ?? 0) > 0
+                  && (u.ai_credits?.source === 'billing' || u.ai_credits?.source === 'metrics')
               ).length;
               aiCreditsMeta.value = {
                 ...aiCreditsMeta.value,

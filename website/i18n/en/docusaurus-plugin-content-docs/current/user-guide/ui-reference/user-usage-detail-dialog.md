@@ -48,10 +48,11 @@ Usage patterns are computed in the dashboard — not from GitHub API. For coachi
 
 Each card has ⓘ with full text (`userDetail.kpi*`).
 
-## Premium credits and cost
+## Premium credits, AI credits, and cost
 
 | Element | Explanation |
 |---------|-------------|
+| **AI credits (billing period)** | `ai_credits_used` from users report immediately; USD from billing when available — `NUXT_PUBLIC_AI_CREDITS_FETCH_ENABLED=true` (default) · [AI credits](./ai-credits) |
 | **Premium credits** | Always shown; **Coming soon** when `NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED=false` |
 | **PRU cost** | `pruNetAmount` — only when PRU fetch is enabled **and** billing is available |
 
@@ -59,9 +60,20 @@ Each card has ⓘ with full text (`userDetail.kpi*`).
 
 List of `team_slug` from latest `user-teams-1-day` snapshot.
 
-## Agent / Chat / CLI chips
+## Agent / Chat / CLI / Coding agent chips
 
-Boolean usage for Agent, Chat, and CLI (if present in report).
+| Chip | Field | Meaning |
+|------|-------|---------|
+| **Agent** | `used_agent` | Agent mode **in the IDE** |
+| **Chat** | `used_chat` | Copilot Chat |
+| **CLI** | `used_cli` | Copilot CLI (if present) |
+| **Coding agent** | `used_copilot_coding_agent` | Copilot agent **on GitHub** (issue / `@copilot` on PR) — not IDE agent mode |
+
+## Server-side telemetry (June 2026)
+
+If a user has interactions/generations but **no** model/feature breakdown, an info banner explains GitHub detected activity from server-side telemetry; breakdown may stay empty until richer telemetry is available.
+
+[Changelog — more active users](https://github.blog/changelog/2026-06-15-copilot-usage-metrics-now-include-more-of-your-active-users/)
 
 ## Charts
 

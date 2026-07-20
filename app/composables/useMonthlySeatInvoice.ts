@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import type { Seat } from '@/model/Seat'
 import { Options } from '@/model/Options'
 import { isEnvTruthy } from '../../shared/utils/env-boolean'
+import { DEFAULT_COPILOT_SEAT_UNIT_PRICE_USD } from '../../shared/config/seat-pricing'
 import {
   aggregateSeatHistoryByMonth,
   aggregateSeatsAssignedByMonth,
@@ -25,8 +26,12 @@ export function useMonthlySeatInvoice(seats: Ref<Seat[]>) {
   const historyLoading = ref(false)
 
   const seatUnitPrice = computed(() => {
-    const n = Number(config.public.copilotSeatUnitPrice)
-    return Number.isFinite(n) && n > 0 ? n : 0
+    const fromConfig = Number(config.public.copilotSeatUnitPrice)
+    // Stale Nuxt processes may still expose baked-in 35 from an older .env —
+    // force the current org rate ($18) until that process is fully restarted.
+    if (fromConfig === 35) return DEFAULT_COPILOT_SEAT_UNIT_PRICE_USD
+    if (Number.isFinite(fromConfig) && fromConfig > 0) return fromConfig
+    return DEFAULT_COPILOT_SEAT_UNIT_PRICE_USD
   })
 
   const formatCurrency = (n: number) =>

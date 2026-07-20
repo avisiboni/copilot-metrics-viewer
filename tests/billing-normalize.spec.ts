@@ -2,6 +2,8 @@ import { describe, expect, test } from 'vitest'
 import {
   canonicalBillingSkuKey,
   displayBillingSkuLabel,
+  isCopilotBillingSku,
+  isGithubEnterpriseLicenseSku,
   isPremiumRequestSku,
   normalizeBillingSku,
   normalizeBillingUsageLineItem,
@@ -26,6 +28,19 @@ describe('billing-normalize', () => {
     expect(canonicalBillingSkuKey('actions linux')).toBe('actions_linux')
     expect(canonicalBillingSkuKey('Actions Linux')).toBe('actions_linux')
     expect(normalizeBillingSku('actions-linux')).toBe('actions_linux')
+    expect(canonicalBillingSkuKey('ghec_licenses')).toBe('ghec_licenses')
+    expect(displayBillingSkuLabel('ghec_licenses')).toBe('GitHub Enterprise Cloud licenses')
+  })
+
+  test('separates GitHub Enterprise licenses from Copilot SKUs', () => {
+    expect(isGithubEnterpriseLicenseSku('ghec_licenses', 'ghec')).toBe(true)
+    expect(isGithubEnterpriseLicenseSku('GitHub Enterprise Cloud licenses', 'ghec')).toBe(true)
+    expect(isGithubEnterpriseLicenseSku('Copilot Enterprise', 'copilot')).toBe(false)
+    expect(isCopilotBillingSku('Copilot Enterprise', 'copilot')).toBe(true)
+    expect(isCopilotBillingSku('Copilot Premium Request')).toBe(true)
+    expect(isCopilotBillingSku('copilot ai unit')).toBe(true)
+    expect(isCopilotBillingSku('Actions Linux', 'actions')).toBe(false)
+    expect(isCopilotBillingSku('ghec_licenses', 'ghec')).toBe(false)
   })
 
   test('normalizes REST usage line with camelCase', () => {

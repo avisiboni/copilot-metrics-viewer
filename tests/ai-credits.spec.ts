@@ -3,7 +3,10 @@ import type { BillingFetchResult } from '../shared/types/billing-usage'
 import {
   aggregateAiCreditsByUser,
   buildAiCreditsForUser,
-  enrichRowsWithAiCredits
+  enrichRowsWithAiCredits,
+  isServerSideTelemetryUser,
+  mergeUserAiCredits,
+  parseMetricsAiCredits
 } from '../shared/utils/ai-credits'
 
 describe('ai-credits', () => {
@@ -80,5 +83,34 @@ describe('ai-credits', () => {
     )
     expect(rows[0].ai_credits?.used).toBe(10)
     expect(rows[1].ai_credits).toBeUndefined()
+  })
+
+  test('parseMetricsAiCredits maps ai_credits_used from usage metrics reports', () => {
+    expect(parseMetricsAiCredits(42.5)).toEqual({ used: 42.5, source: 'metrics' })
+    expect(parseMetricsAiCredits(0)).toBeUndefined()
+  })
+
+  test('mergeUserAiCredits prefers billing but keeps metrics as fallback', () => {
+    const metrics = parseMetricsAiCredits(10)!
+    const billing = { used: 12, netAmount: 1.2, source: 'billing' as const }
+    expect(mergeUserAiCredits(metrics, billing)).toEqual(billing)
+    expect(mergeUserAiCredits(metrics, undefined)).toEqual(metrics)
+    expect(mergeUserAiCredits(undefined, billing)).toEqual(billing)
+  })
+
+  test('isServerSideTelemetryUser detects activity without breakdown rows', () => {
+    expect(
+      isServerSideTelemetryUser({
+        user_initiated_interaction_count: 3,
+        totals_by_feature: [],
+        totals_by_model_feature: []
+      })
+    ).toBe(true)
+    expect(
+      isServerSideTelemetryUser({
+        user_initiated_interaction_count: 3,
+        totals_by_feature: [{ feature: 'chat', user_initiated_interaction_count: 1 }]
+      })
+    ).toBe(false)
   })
 })

@@ -1,4 +1,5 @@
 import type { UsageReportMeta } from '../types/copilot-usage';
+import { withCopilotMetricsApiHeaders } from './github-api-headers';
 
 export async function downloadNdjsonLines(downloadUrl: string): Promise<Record<string, unknown>[]> {
   const response = await fetch(downloadUrl);
@@ -18,7 +19,9 @@ export async function fetchReportMeta(
   metaUrl: string,
   headers: HeadersInit
 ): Promise<UsageReportMeta | null> {
-  const meta = await $fetch<UsageReportMeta | null>(metaUrl, { headers });
+  const meta = await $fetch<UsageReportMeta | null>(metaUrl, {
+    headers: withCopilotMetricsApiHeaders(headers)
+  });
   return meta ?? null;
 }
 

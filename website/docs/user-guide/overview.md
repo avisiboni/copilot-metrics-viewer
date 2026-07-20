@@ -21,6 +21,7 @@ title: סקירת מדריך למשתמש
 - [Organization](./organization) — KPI, קוהורטות AI adoption
 - [Teams](./teams) · [URL לפי צוות](./team-scoped-views)
 - [Users](./users) — טבלה, PRU, שלב אימוץ, **דפוסי שימוש**
+- [הזמנת חברים](./invite-members) — הזמנה בודדת או Excel מרוכז (עמודת `email`)
 - [Usage & billing](./usage-billing) — חיוב, דיאלוג משתמש
 - [דפוסי שימוש](./usage-patterns) — סיווג היוריסטי, נוסחאות, פרשנות
 - [Usage insights](./usage-insights) — מודלים ו-Agent

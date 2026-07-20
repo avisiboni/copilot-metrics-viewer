@@ -170,8 +170,8 @@ export interface UserAiCredits {
   /** Net USD for AI credit usage when returned by billing API. */
   netAmount?: number;
   exceedsQuota?: boolean;
-  /** billing = from API; unavailable = per-user data not loaded yet or blocked */
-  source: 'billing' | 'unavailable';
+  /** metrics = usage metrics report `ai_credits_used`; billing = billing API; unavailable = not loaded */
+  source: 'metrics' | 'billing' | 'unavailable';
 }
 
 export interface UserUsageRecord {
@@ -196,6 +196,10 @@ export interface UserUsageRecord {
   used_cli?: boolean;
   used_copilot_code_review_active?: boolean;
   used_copilot_code_review_passive?: boolean;
+  /** Copilot coding agent (issue assignment / @copilot in PR comments). */
+  used_copilot_coding_agent?: boolean;
+  /** Per-user AI credits from usage metrics reports (June 2026+). */
+  ai_credits_used?: number;
   ai_adoption_phase?: AiAdoptionPhase;
   totals_by_feature?: UsageFeatureTotal[];
   totals_by_ide?: UsageIdeTotal[];

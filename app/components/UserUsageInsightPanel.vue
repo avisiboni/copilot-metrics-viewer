@@ -59,6 +59,33 @@
       </ul>
     </v-alert>
 
+    <v-alert
+      v-if="coachingHintLines.length"
+      type="info"
+      variant="tonal"
+      density="comfortable"
+      class="mb-4 brand-alert user-usage-insight-panel__reco"
+    >
+      <div class="text-subtitle-2 font-weight-medium mb-1">
+        {{ t('usageCoaching.panelTitle') }}
+      </div>
+      <p class="text-caption text-medium-emphasis mb-2">
+        {{ t('usageCoaching.panelSubtitle') }}
+      </p>
+      <ul class="user-usage-insight-panel__reco-list pl-4 mb-2">
+        <li
+          v-for="(line, index) in coachingHintLines"
+          :key="index"
+          class="text-body-2 mb-2"
+        >
+          {{ line }}
+        </li>
+      </ul>
+      <p class="text-caption text-medium-emphasis mb-0">
+        {{ t('usageCoaching.planModeNote', { feature: planModeFeature }) }}
+      </p>
+    </v-alert>
+
     <v-alert type="info" variant="tonal" density="compact" class="mb-3 brand-alert brand-alert--info">
       {{ t('usagePattern.disclaimer') }}
     </v-alert>
@@ -99,7 +126,9 @@
 <script lang="ts">
 import { computed, defineComponent } from 'vue'
 import type { UsageEffectiveness, UserUsageInsight } from '../../shared/types/usage-pattern'
+import type { UsageCoachingHint } from '../../shared/utils/usage-coaching-hints'
 import BrandUsagePatternChip from '@/components/BrandUsagePatternChip.vue'
+import { PLAN_MODE_FEATURE } from '../../shared/utils/usage-coaching-hints'
 
 const EFFECTIVENESS_COLORS: Record<UsageEffectiveness, string> = {
   unknown: '#94a3b8',
@@ -139,10 +168,15 @@ export default defineComponent({
     topModel: {
       type: String,
       default: ''
+    },
+    coachingHints: {
+      type: Array as () => UsageCoachingHint[],
+      default: () => []
     }
   },
   setup(props) {
     const { t } = useAppI18n()
+    const planModeFeature = PLAN_MODE_FEATURE
 
     const formatPct = (n: number) =>
       new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(n)
@@ -185,6 +219,12 @@ export default defineComponent({
         t.value(`usagePattern.actions.${id}`, { model })
       )
     })
+
+    const coachingHintLines = computed(() =>
+      props.coachingHints.map((hint) =>
+        t.value(`usageCoaching.hints.${hint.id}`, hint.params)
+      )
+    )
 
     const rateRows = computed(() => {
       const insight = props.insight
@@ -274,6 +314,8 @@ export default defineComponent({
       recommendationAlertType,
       recommendationHeadline,
       recommendationActions,
+      coachingHintLines,
+      planModeFeature,
       rateRows,
       rawRows
     }
