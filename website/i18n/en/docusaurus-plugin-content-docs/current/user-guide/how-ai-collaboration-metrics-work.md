@@ -6,9 +6,11 @@ title: How AI collaboration metrics work
 
 This guide explains in plain language how the dashboard measures whether a developer works well with Copilot — what is counted, what an interaction is, how usage patterns are built, and what the scores mean.
 
-:::caution Not an HR metric
+:::warning[Not an HR metric]
+
 These metrics are for **coaching and enablement**, not performance ranking, bonuses, or HR decisions.
 They also do **not** measure code quality — only how a developer collaborates with AI.
+
 :::
 
 ## The idea in short
@@ -106,8 +108,10 @@ So interactions and generations measure different things:
 
 A **usage pattern** is one label for *how* someone uses Copilot, not just *how much*.
 
-:::info Not from GitHub
+:::info[Not from GitHub]
+
 Usage patterns are **computed in the dashboard** (heuristics), not returned as-is from GitHub’s API.
+
 :::
 
 ### How classification works
