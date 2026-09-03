@@ -231,11 +231,15 @@ const he: MessageTree = {
     tableNoActivity30: 'ללא פעילות ב-30 הימים האחרונים',
     colSerial: 'מס׳',
     colLogin: 'התחברות',
+    colEmail: 'אימייל',
+    colEmailHint:
+      'אימייל ארגוני ממדריך חברי GitHub (GraphQL / SAML) כשזמין.',
     colGithubId: 'מזהה GitHub',
     colTeam: 'צוות מקצה',
     colAssigned: 'זמן הקצאה',
     colLastActivity: 'פעילות אחרונה',
     colLastEditor: 'עורך אחרון',
+    exportExcel: 'ייצוא לאקסל',
     tooltipTotal:
       'סה״כ מושבי Copilot מוקצים {scope}. לחצו להצגת כל המושבים בטבלה.',
     tooltipNeverUsed:
@@ -492,6 +496,11 @@ const he: MessageTree = {
     filterUser: 'סינון לפי משתמש',
     applyFilters: 'החל מסננים',
     searchUsers: 'חיפוש משתמשים',
+    exportExcel: 'ייצוא לאקסל',
+    colEmail: 'אימייל',
+    colEmailHint:
+      'אימייל ארגוני ממדריך חברי GitHub (GraphQL / SAML) כשזמין. לא מגיע מדוחות Copilot metrics בלבד.',
+    colName: 'שם',
     tableTitle: 'משתמשים',
     subtitleBillingUnavailable: 'קרדיט פרימיום: Billing API לא זמין לתקופה זו.',
     subtitleBillingRange: 'חיוב: {range}',

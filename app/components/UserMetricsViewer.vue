@@ -216,6 +216,17 @@
               </p>
             </BrandDismissibleAlert>
             <template #toolbar>
+              <v-btn
+                variant="outlined"
+                size="small"
+                height="40"
+                prepend-icon="mdi-microsoft-excel"
+                :disabled="!displayedUsers.length || exportingExcel"
+                :loading="exportingExcel"
+                @click="exportUsersExcel"
+              >
+                {{ t('users.exportExcel') }}
+              </v-btn>
               <v-text-field
                 v-model="tableSearch"
                 density="compact"
@@ -246,11 +257,16 @@
                   />
                   <div>
                     <div class="brand-table-user-cell__name">{{ item.user_login }}</div>
-                    <div v-if="item.name || item.email" class="brand-table-user-cell__sub">
-                      {{ [item.name, item.email].filter(Boolean).join(' · ') }}
+                    <div v-if="item.name" class="brand-table-user-cell__sub">
+                      {{ item.name }}
                     </div>
                   </div>
                 </div>
+              </template>
+
+              <template #item.email="{ item }">
+                <span v-if="item.email" class="brand-table-email">{{ item.email }}</span>
+                <span v-else class="brand-credits-cell--na">{{ t('common.emDash') }}</span>
               </template>
 
               <template #item.usage_pattern="{ item }">
@@ -270,6 +286,15 @@
                   :toggle-sort="toggleSort"
                   :label="t('billing.colUser')"
                   :tooltip="t('billing.colUserHint')"
+                />
+              </template>
+              <template #header.email="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('users.colEmail')"
+                  :tooltip="t('users.colEmailHint')"
                 />
               </template>
               <template #header.usage_pattern="{ column, getSortIcon, toggleSort }">
@@ -356,11 +381,13 @@
 
               <template #item.ai_credits="{ item }">
                 <BrandAiCreditsCell
-                  v-if="aiCreditsFetchEnabled && aiCreditsMeta?.available"
                   :credits="item.ai_credits"
-                  :loading="isAiCreditsLoginLoading(item.user_login)"
+                  :loading="
+                    aiCreditsFetchEnabled &&
+                    aiCreditsMeta?.available &&
+                    isAiCreditsLoginLoading(item.user_login)
+                  "
                 />
-                <span v-else class="brand-credits-cell--na">{{ t('common.emDash') }}</span>
               </template>
 
               <template #item.usageDetail="{ item }">
@@ -503,6 +530,10 @@ import BrandUsersTopKpiRow from '@/components/BrandUsersTopKpiRow.vue'
 import { useUsagePatternInsights } from '@/composables/useUsagePatternInsights'
 import { activityInputFromUsageRecord } from '../../shared/utils/usage-pattern-insights'
 import { pickTopUsersByCopilotQuality } from '../../shared/utils/users-top-kpi'
+import {
+  downloadUserAnalyticsExcel,
+  filterUsersForAnalyticsExport,
+} from '../../shared/utils/user-analytics-excel'
 
 export default defineComponent({
   name: 'UserMetricsViewer',
@@ -547,6 +578,7 @@ export default defineComponent({
     const selectedDay = ref<string | undefined>(undefined);
     const selectedUser = ref<string | null>(null);
     const tableSearch = ref('');
+    const exportingExcel = ref(false);
 
     const userFilterOptions = computed(() =>
       allUsers.value
@@ -668,6 +700,14 @@ export default defineComponent({
       };
       return [
         { title: t.value('billing.colUser'), key: 'user_login', minWidth: '200px' },
+        {
+          title: t.value('users.colEmail'),
+          key: 'email',
+          sortable: true,
+          minWidth: '220px',
+          sortRaw: (a: UserUsageRecord, b: UserUsageRecord) =>
+            (a.email || '').localeCompare(b.email || '', undefined, { sensitivity: 'base' })
+        },
         { title: t.value('billing.colUsage'), key: 'usageDetail', sortable: false, align: 'end' as const, width: '120px' },
         {
           title: t.value('usagePattern.colPattern'),
@@ -676,16 +716,14 @@ export default defineComponent({
           sortRaw: patternSortRaw,
           minWidth: '160px'
         },
-        ...(aiCreditsFetchEnabled.value
-          ? [{
-              title: t.value('billing.colAiCredits'),
-              key: 'ai_credits',
-              align: 'end' as const,
-              sortable: true,
-              sortRaw: (a: UserUsageRecord, b: UserUsageRecord) =>
-                (a.ai_credits?.used ?? -1) - (b.ai_credits?.used ?? -1)
-            }]
-          : []),
+        {
+          title: t.value('billing.colAiCredits'),
+          key: 'ai_credits',
+          align: 'end' as const,
+          sortable: true,
+          sortRaw: (a: UserUsageRecord, b: UserUsageRecord) =>
+            (a.ai_credits?.used ?? -1) - (b.ai_credits?.used ?? -1)
+        },
         {
           title: t.value('billing.colInteractions'),
           key: 'user_initiated_interaction_count',
@@ -709,6 +747,48 @@ export default defineComponent({
     });
 
     const formatNum = (n?: number) => (n ?? 0).toLocaleString();
+
+    const exportUsersExcel = async () => {
+      if (!displayedUsers.value.length || exportingExcel.value) return
+      exportingExcel.value = true
+      try {
+        const users = filterUsersForAnalyticsExport(
+          displayedUsers.value,
+          tableSearch.value,
+          getInsight
+        )
+        if (!users.length) return
+
+        await downloadUserAnalyticsExcel(users, {
+          // Metrics report always includes ai_credits_used; show it in Excel too.
+          includeAiCredits: true,
+          getInsight,
+          reportRange: reportRange.value || props.dateRangeDescription || null,
+          sheetName: t.value('users.tableTitle'),
+          labels: {
+            login: t.value('billing.colUser'),
+            name: t.value('users.colName'),
+            email: t.value('users.colEmail'),
+            usagePattern: t.value('usagePattern.colPattern'),
+            aiCreditsUsed: t.value('billing.colAiCredits'),
+            interactions: t.value('billing.colInteractions'),
+            generations: t.value('billing.colGenerations'),
+            acceptances: t.value('billing.colAcceptances'),
+            locAdded: t.value('billing.colLocAdded'),
+            usedAgent: t.value('billing.colAgent'),
+            usedChat: t.value('billing.colChat'),
+            usedCodingAgent: t.value('billing.colCodingAgent'),
+            adoptionPhase: t.value('adoption.colAdoptionPhase'),
+            yes: t.value('common.yes'),
+            no: t.value('common.no'),
+          },
+        })
+      } catch (err) {
+        console.error('Failed to export user analytics Excel', err)
+      } finally {
+        exportingExcel.value = false
+      }
+    }
 
     const loadUsers = async () => {
       loading.value = true;
@@ -911,8 +991,10 @@ export default defineComponent({
       selectedDay,
       selectedUser,
       tableSearch,
+      exportingExcel,
       brandSelectMenuProps,
       formatNum,
+      exportUsersExcel,
       loadUsers,
       checkBillingStatus,
       detailDialogOpen,

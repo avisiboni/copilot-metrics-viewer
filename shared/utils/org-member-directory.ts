@@ -319,6 +319,21 @@ export function enrichWithOrgDirectory<T extends { user_login: string; user_id?:
   })
 }
 
+/** Attach org-directory name/email onto Seat rows (login/id fields). */
+export function enrichSeatsWithOrgDirectory<T extends { login: string; id?: number; name?: string | null; email?: string | null }>(
+  seats: T[],
+  directory: Map<string, OrgMemberProfile>
+): T[] {
+  return seats.map((seat) => {
+    const profile = lookupOrgMember(directory, seat.login, seat.id)
+    const name = pickEmail(profile?.name, seat.name) ?? null
+    const email = pickEmail(profile?.email, seat.email)
+    seat.name = name
+    seat.email = email
+    return seat
+  })
+}
+
 export function formatUserLabel(row: {
   user_login: string
   name?: string | null

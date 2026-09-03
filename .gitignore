@@ -49,3 +49,5 @@ typecheck-output.txt
 errors-grouped.txt
 
 .tmp/
+.vite-cache/
+.vite-cache-user/

@@ -49,8 +49,9 @@
 
     <section class="brand-page-panel">
         <BrandTableShell :title="tableTitle">
-          <template v-if="seatFilter !== 'all'" #toolbar>
+          <template #toolbar>
             <v-chip
+              v-if="seatFilter !== 'all'"
               size="small"
               closable
               class="brand-filter-chip"
@@ -58,6 +59,17 @@
             >
               {{ activeFilterLabel }}
             </v-chip>
+            <v-btn
+              variant="outlined"
+              size="small"
+              height="40"
+              prepend-icon="mdi-microsoft-excel"
+              :disabled="!displayedSeats.length || exportingExcel"
+              :loading="exportingExcel"
+              @click="exportSeatsExcel"
+            >
+              {{ t('seats.exportExcel') }}
+            </v-btn>
           </template>
         <v-data-table
           :headers="headers"
@@ -70,6 +82,10 @@
             <tr>
               <td>{{ index + 1 }}</td>
               <td>{{ item.login }}</td>
+              <td>
+                <span v-if="item.email" class="brand-table-email">{{ item.email }}</span>
+                <span v-else class="brand-credits-cell--na">{{ t('common.emDash') }}</span>
+              </td>
               <td>{{ item.id }}</td>
               <td>{{ item.team }}</td>
               <td>{{ item.created_at }} {{ item.plan_type }}</td>
@@ -89,6 +105,7 @@ import BrandTableShell from '@/components/BrandTableShell.vue';
 import BrandMonthlySeatInvoiceSection from '@/components/BrandMonthlySeatInvoiceSection.vue';
 import type { Seat } from '@/model/Seat';
 import type { CopilotBillingSettings } from '../../shared/types/copilot-usage';
+import { downloadSeatAnalyticsExcel } from '../../shared/utils/seat-analytics-excel';
 
 export type SeatStatusFilter = 'all' | 'noshow' | 'inactive7' | 'inactive30';
 
@@ -144,6 +161,7 @@ export default defineComponent({
     const billing = ref<CopilotBillingSettings | null>(null);
     const allSeats = ref<Seat[]>([]);
     const seatFilter = ref<SeatStatusFilter>('all');
+    const exportingExcel = ref(false);
 
     const activityCutoffs = computed(() => {
       const oneWeekAgo = new Date();
@@ -262,6 +280,7 @@ export default defineComponent({
     const headers = computed(() => [
       { title: t.value('seats.colSerial'), key: 'serialNumber' },
       { title: t.value('seats.colLogin'), key: 'login' },
+      { title: t.value('seats.colEmail'), key: 'email' },
       { title: t.value('seats.colGithubId'), key: 'id' },
       { title: t.value('seats.colTeam'), key: 'team' },
       { title: t.value('seats.colAssigned'), key: 'created_at' },
@@ -273,6 +292,32 @@ export default defineComponent({
       seatFilter.value = seatFilter.value === filter ? 'all' : filter;
     }
 
+    async function exportSeatsExcel() {
+      if (!displayedSeats.value.length || exportingExcel.value) return
+      exportingExcel.value = true
+      try {
+        await downloadSeatAnalyticsExcel(displayedSeats.value, {
+          sheetName: t.value('seats.tableAll'),
+          filterLabel: tableTitle.value,
+          labels: {
+            serial: t.value('seats.colSerial'),
+            login: t.value('seats.colLogin'),
+            email: t.value('seats.colEmail'),
+            name: t.value('users.colName'),
+            githubId: t.value('seats.colGithubId'),
+            team: t.value('seats.colTeam'),
+            assignedAt: t.value('seats.colAssigned'),
+            lastActivityAt: t.value('seats.colLastActivity'),
+            lastActivityEditor: t.value('seats.colLastEditor'),
+          },
+        })
+      } catch (err) {
+        console.error('Failed to export seat analysis Excel', err)
+      } finally {
+        exportingExcel.value = false
+      }
+    }
+
     return {
       billing,
       allSeats,
@@ -282,6 +327,8 @@ export default defineComponent({
       tableTitle,
       activeFilterLabel,
       headers,
+      exportingExcel,
+      exportSeatsExcel,
       toggleSeatFilter,
       isTeamView,
       currentTeam,

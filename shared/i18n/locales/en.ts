@@ -235,11 +235,15 @@ const en: MessageTree = {
     tableNoActivity30: 'No activity in the last 30 days',
     colSerial: 'S.No',
     colLogin: 'Login',
+    colEmail: 'Email',
+    colEmailHint:
+      'Organization email from the GitHub member directory (GraphQL / SAML) when available.',
     colGithubId: 'GitHub ID',
     colTeam: 'Assigning team',
     colAssigned: 'Assigned time',
     colLastActivity: 'Last Activity At',
     colLastEditor: 'Last Activity Editor',
+    exportExcel: 'Export Excel',
     tooltipTotal:
       'Total Copilot seats assigned {scope}. Click to show all assigned seats in the table.',
     tooltipNeverUsed:
@@ -496,6 +500,11 @@ const en: MessageTree = {
     filterUser: 'Filter by user',
     applyFilters: 'Apply filters',
     searchUsers: 'Search users',
+    exportExcel: 'Export Excel',
+    colEmail: 'Email',
+    colEmailHint:
+      'Organization email from the GitHub member directory (GraphQL / SAML) when available. Not present on Copilot metrics API rows alone.',
+    colName: 'Name',
     tableTitle: 'Users',
     subtitleBillingUnavailable: 'Premium credits: billing API unavailable for this period.',
     subtitleBillingRange: 'Billing: {range}',

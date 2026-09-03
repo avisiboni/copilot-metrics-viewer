@@ -6,6 +6,10 @@ import { getLatestSeats } from '../storage/seats-storage';
 import { filterSeatsByTeamMembers } from '../utils/seats-filter';
 import { findNodeInTree, collectNodeAndDescendants, normalizeUPNtoLogin } from '../utils/entra-mock-tree';
 import type { MockTreeNode } from '../utils/entra-mock-tree';
+import {
+  enrichSeatsWithOrgDirectory,
+  fetchOrgMemberDirectory,
+} from '../../shared/utils/org-member-directory';
 
 /** UI page size cap — GitHub API max is 100, so 300 = 3 GitHub calls per page. */
 const UI_MAX_PER_PAGE = 300;
@@ -207,6 +211,37 @@ function paginateSeats(allSeats: Seat[], page: number, perPage: number): SeatsAp
   };
 }
 
+async function enrichSeatsWithEmails(
+  seats: Seat[],
+  options: Options,
+  headers: Headers | undefined,
+  logger: Console
+): Promise<Seat[]> {
+  const org = options.githubOrg;
+  if (!org || !headers?.has?.('Authorization')) {
+    return seats;
+  }
+  try {
+    const directory = await fetchOrgMemberDirectory(org, headers, logger);
+    return enrichSeatsWithOrgDirectory(seats, directory);
+  } catch (error) {
+    logger.warn('Seat email enrichment skipped:', error);
+    return seats;
+  }
+}
+
+async function respondWithSeats(
+  seats: Seat[],
+  page: number,
+  perPage: number,
+  options: Options,
+  headers: Headers | undefined,
+  logger: Console
+): Promise<SeatsApiResponse> {
+  const enriched = await enrichSeatsWithEmails(seats, options, headers, logger);
+  return paginateSeats(enriched, page, perPage);
+}
+
 export default defineEventHandler(async (event) => {
 
   const logger = console;
@@ -235,7 +270,7 @@ export default defineEventHandler(async (event) => {
       seatsData = filterSeatsByTeamMembers(seatsData, mockMembers);
     }
     logger.info('Using mocked data');
-    return paginateSeats(seatsData, uiPage, uiPerPage);
+    return respondWithSeats(seatsData, uiPage, uiPerPage, options, event.context.headers, logger);
   }
 
   if (!event.context.headers?.has('Authorization')) {
@@ -265,17 +300,21 @@ export default defineEventHandler(async (event) => {
     const scope      = options.scope      || 'organization';
     const identifier = options.githubOrg  || options.githubEnt || '';
     if (identifier) {
-      const stored = await getLatestSeats(scope, identifier);
-      if (stored) {
-        logger.info(`Serving ${stored.length} seats from storage`);
-        let seats = deduplicateSeats(stored);
-        if (options.githubTeam) {
-          const teamMembers = await fetchAllTeamMembers(options, event.context.headers);
-          seats = filterSeatsByTeamMembers(seats, teamMembers);
+      try {
+        const stored = await getLatestSeats(scope, identifier);
+        if (stored) {
+          logger.info(`Serving ${stored.length} seats from storage`);
+          let seats = deduplicateSeats(stored);
+          if (options.githubTeam) {
+            const teamMembers = await fetchAllTeamMembers(options, event.context.headers);
+            seats = filterSeatsByTeamMembers(seats, teamMembers);
+          }
+          return respondWithSeats(seats, uiPage, uiPerPage, options, event.context.headers, logger);
         }
-        return paginateSeats(seats, uiPage, uiPerPage);
+        logger.info('No seats in storage yet, falling back to live API');
+      } catch (error) {
+        logger.warn('Historical seats DB read failed, falling back to live API:', error);
       }
-      logger.info('No seats in storage yet, falling back to live API');
     }
   }
 
@@ -328,7 +367,8 @@ export default defineEventHandler(async (event) => {
     // Deduplicate first (handles rare cases where a user appears in multiple pages),
     // then slice to the window within these fetched pages.
     const deduped    = deduplicateSeats(fetched);
-    const pageSeats  = deduped.slice(localOffset, localOffset + uiPerPage);
+    const enriched   = await enrichSeatsWithEmails(deduped, options, event.context.headers, logger);
+    const pageSeats  = enriched.slice(localOffset, localOffset + uiPerPage);
     return {
       seats: pageSeats,
       total_seats: totalSeats,
@@ -367,5 +407,5 @@ export default defineEventHandler(async (event) => {
   let deduplicatedSeats = deduplicateSeats(seatsData);
   deduplicatedSeats = filterSeatsByTeamMembers(deduplicatedSeats, teamMembers);
 
-  return paginateSeats(deduplicatedSeats, uiPage, uiPerPage);
+  return respondWithSeats(deduplicatedSeats, uiPage, uiPerPage, options, event.context.headers, logger);
 })

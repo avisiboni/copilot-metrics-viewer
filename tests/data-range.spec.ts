@@ -93,7 +93,10 @@ describe('/api/data-range handler', () => {
     const { default: handler } = await import('../server/api/data-range')
     const result = await handler(makeEvent() as any)
 
-    expect(result).toEqual({ earliest: '2026-01-15', latest: '2026-06-14', mode: 'historical' })
+    expect(result.earliest).toBe('2026-01-15')
+    expect(result.mode).toBe('historical')
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    expect(result.latest).toBe(yesterday > '2026-06-14' ? yesterday : '2026-06-14')
     delete process.env.DATABASE_URL
   })
 
@@ -106,7 +109,10 @@ describe('/api/data-range handler', () => {
     const { default: handler } = await import('../server/api/data-range')
     const result = await handler(makeEvent() as any)
 
-    expect(result).toEqual({ earliest: '2026-01-15', latest: '2026-06-14', mode: 'historical' })
+    expect(result.earliest).toBe('2026-01-15')
+    expect(result.mode).toBe('historical')
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    expect(result.latest).toBe(yesterday > '2026-06-14' ? yesterday : '2026-06-14')
     expect(mockPoolQuery).toHaveBeenCalledTimes(1)
     // organization (not the team-* variant) is forwarded to the query
     const [, params] = mockPoolQuery.mock.calls[0]!
@@ -160,7 +166,23 @@ describe('/api/data-range handler', () => {
     const result = await handler(makeEvent() as any)
 
     expect(result.mode).toBe('historical')
-    expect(result.latest).toBe('2026-07-18')
+    // latest is extended to at least yesterday so the current month stays selectable
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    expect(result.latest).toBe(yesterday > '2026-07-18' ? yesterday : '2026-07-18')
     expect(result.earliest).toBe('2025-07-18')
+  })
+
+  it('extends latest to yesterday when DB sync lags behind', async () => {
+    process.env.ENABLE_HISTORICAL_MODE = 'true'
+    mockPoolQuery.mockResolvedValue({
+      rows: [{ earliest: '2026-06-21', latest: '2026-08-20' }],
+    })
+
+    const { default: handler } = await import('../server/api/data-range')
+    const result = await handler(makeEvent() as any)
+
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    expect(result.mode).toBe('historical')
+    expect(result.latest).toBe(yesterday)
   })
 })

@@ -56,6 +56,21 @@ function liveWindow(): { earliest: string; latest: string } {
 }
 
 /**
+ * Keep the date picker open through "now" (yesterday UTC) even when the DB
+ * sync is a day or two behind — so the current month stays selectable.
+ */
+export function extendLatestToPresent(range: { earliest: string; latest: string }): {
+  earliest: string
+  latest: string
+} {
+  const yesterday = liveWindow().latest
+  return {
+    earliest: range.earliest,
+    latest: range.latest < yesterday ? yesterday : range.latest,
+  }
+}
+
+/**
  * Optional billing lookback: GitHub Billing Usage APIs are monthly and often
  * retain more history than Copilot metrics. Extending earliest lets the date
  * picker select long cost windows without requiring a year of metrics in DB.
@@ -139,7 +154,7 @@ export default defineEventHandler(async (event): Promise<DataRange> => {
   const identifier = options.githubOrg || options.githubEnt || '';
 
   if (options.isDataMocked) {
-    return { ...applyBillingLookback(mockRange(scope)), mode: 'mock' };
+    return { ...extendLatestToPresent(applyBillingLookback(mockRange(scope))), mode: 'mock' };
   }
 
   const historicalEnabled = process.env.ENABLE_HISTORICAL_MODE === 'true';
@@ -149,12 +164,17 @@ export default defineEventHandler(async (event): Promise<DataRange> => {
   if (historicalEnabled || hasDatabase) {
     try {
       const stored = await historicalRange(scope, identifier);
-      if (stored) return { ...applyBillingLookback(stored), mode: 'historical' };
+      if (stored) {
+        return {
+          ...extendLatestToPresent(applyBillingLookback(stored)),
+          mode: 'historical',
+        };
+      }
       logger.info('[data-range] No stored data yet, falling back to live window');
     } catch (err) {
       logger.warn('[data-range] Storage lookup failed, falling back to live window:', err);
     }
   }
 
-  return { ...applyBillingLookback(liveWindow()), mode: 'live' };
+  return { ...extendLatestToPresent(applyBillingLookback(liveWindow())), mode: 'live' };
 });
