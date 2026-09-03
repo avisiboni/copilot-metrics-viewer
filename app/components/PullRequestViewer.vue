@@ -31,7 +31,10 @@
     <div class="tiles-container">
       <v-card elevation="4" color="surface" variant="elevated" class="my-2">
         <v-card-item>
-          <v-tooltip location="bottom" open-on-hover open-delay="200" close-delay="200">
+          <BrandTooltip
+            location="bottom"
+            text="Total pull requests created during the reporting period. Includes PRs created by both developers and Copilot agents."
+          >
             <template #activator="{ props }">
               <div v-bind="props" class="tiles-text">
                 <div class="spacing-10"/>
@@ -40,16 +43,16 @@
                 <p class="kpi-value text-primary">{{ totalCreated }}</p>
               </div>
             </template>
-            <v-card class="pa-3 metric-tooltip">
-              <span class="tooltip-text">Total pull requests created during the reporting period. Includes PRs created by both developers and Copilot agents.</span>
-            </v-card>
-          </v-tooltip>
+          </BrandTooltip>
         </v-card-item>
       </v-card>
 
       <v-card elevation="4" color="surface" variant="elevated" class="my-2">
         <v-card-item>
-          <v-tooltip location="bottom" open-on-hover open-delay="200" close-delay="200">
+          <BrandTooltip
+            location="bottom"
+            text="Pull requests that received at least one code review. Indicates team collaboration and code quality practices."
+          >
             <template #activator="{ props }">
               <div v-bind="props" class="tiles-text">
                 <div class="spacing-10"/>
@@ -58,16 +61,16 @@
                 <p class="kpi-value text-info">{{ totalReviewed }}</p>
               </div>
             </template>
-            <v-card class="pa-3 metric-tooltip">
-              <span class="tooltip-text">Pull requests that received at least one code review. Indicates team collaboration and code quality practices.</span>
-            </v-card>
-          </v-tooltip>
+          </BrandTooltip>
         </v-card-item>
       </v-card>
 
       <v-card elevation="4" color="surface" variant="elevated" class="my-2">
         <v-card-item>
-          <v-tooltip location="bottom" open-on-hover open-delay="200" close-delay="200">
+          <BrandTooltip
+            location="bottom"
+            text="Pull requests successfully merged into target branches. Represents completed work delivered to the codebase."
+          >
             <template #activator="{ props }">
               <div v-bind="props" class="tiles-text">
                 <div class="spacing-10"/>
@@ -76,16 +79,16 @@
                 <p class="kpi-value text-success">{{ totalMerged }}</p>
               </div>
             </template>
-            <v-card class="pa-3 metric-tooltip">
-              <span class="tooltip-text">Pull requests successfully merged into target branches. Represents completed work delivered to the codebase.</span>
-            </v-card>
-          </v-tooltip>
+          </BrandTooltip>
         </v-card-item>
       </v-card>
 
       <v-card elevation="4" color="surface" variant="elevated" class="my-2">
         <v-card-item>
-          <v-tooltip location="bottom" open-on-hover open-delay="200" close-delay="200">
+          <BrandTooltip
+            location="bottom"
+            text="Pull requests created by Copilot coding agent. Shows automated code contributions from agent-driven workflows."
+          >
             <template #activator="{ props }">
               <div v-bind="props" class="tiles-text">
                 <div class="spacing-10"/>
@@ -94,10 +97,7 @@
                 <p class="kpi-value text-warning">{{ totalCreatedByCopilot }}</p>
               </div>
             </template>
-            <v-card class="pa-3 metric-tooltip">
-              <span class="tooltip-text">Pull requests created by Copilot coding agent. Shows automated code contributions from agent-driven workflows.</span>
-            </v-card>
-          </v-tooltip>
+          </BrandTooltip>
         </v-card-item>
       </v-card>
     </div>
@@ -150,7 +150,15 @@
     </template>
 
     <div v-else class="mx-4 mb-4">
-      <v-alert type="info" density="compact" text="No pull request data available. PR metrics require organization-level API access." />
+      <BrandDismissibleAlert
+        type="info"
+        density="compact"
+        storage-key="pr-metrics-unavailable"
+        close-label="Close"
+        alert-class="brand-alert brand-alert--info"
+      >
+        No pull request data available. PR metrics require organization-level API access.
+      </BrandDismissibleAlert>
     </div>
   </div>
 </template>
@@ -164,12 +172,13 @@ import {
   PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler
 } from 'chart.js';
 import { PALETTE, weekendPlugin, gradientFillPlugin, makeLineOptions, makeBarOptions } from '@/utils/chartPlugins';
+import BrandDismissibleAlert from '@/components/BrandDismissibleAlert.vue';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
 export default defineComponent({
   name: 'PullRequestViewer',
-  components: { Line, Bar },
+  components: { Line, Bar, BrandDismissibleAlert },
   props: {
     reportData: { type: Array as PropType<ReportDayTotals[]>, required: true },
     dateRangeDescription: { type: String, default: 'Over the last 28 days' }

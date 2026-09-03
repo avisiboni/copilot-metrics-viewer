@@ -1,4 +1,5 @@
 import type { H3Event, EventHandlerRequest } from 'h3'
+import { shouldUseMockData } from '../../shared/utils/mock-mode'
 import { buildGitHubAppHeaders } from './github-app-auth'
 
 // https://www.telerik.com/blogs/implementing-sso-vue-nuxt-auth-github-comprehensive-guide
@@ -19,26 +20,19 @@ export async function authenticateAndGetGitHubHeaders(event: H3Event<EventHandle
     const config = useRuntimeConfig(event);
     const query = getQuery(event);
 
-    // simple way to check if mock data requested in path
-    const dataMocked = query.mock || query.isDataMocked || false;
-
-    if (config.public.isDataMocked || dataMocked) {
+    if (shouldUseMockData(config.public, query)) {
         return buildHeaders('mock-token');
     }
 
-    // GitHub App installation token (preferred for decoupled auth — no PAT needed)
-    // Requires NUXT_GITHUB_APP_ID (numeric App ID) and NUXT_GITHUB_APP_PRIVATE_KEY
     const githubAppId = config.githubAppId;
     if (githubAppId && config.githubAppPrivateKey) {
         return await buildGitHubAppHeaders(event);
     }
 
-    // Personal Access Token
     if (config.githubToken) {
         return buildHeaders(config.githubToken);
     }
 
-    // User's own GitHub OAuth token (GitHub OAuth login only)
     const { secure } = await getUserSession(event);
 
     if (secure?.expires_at && secure.expires_at < new Date(Date.now() - 30 * 1000)) {
@@ -60,7 +54,6 @@ function buildHeaders(token: string): Headers {
     return new Headers({
         Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
-        Authorization: `token ${token}`
+        Authorization: `Bearer ${token}`
     });
 }
-

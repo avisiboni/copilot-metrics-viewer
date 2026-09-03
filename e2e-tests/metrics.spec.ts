@@ -4,9 +4,9 @@ import { DashboardPage } from './pages/DashboardPage';
 const tag = { tag: ['@ent', '@org', '@team'] };
 
 [
-    { name: 'Teams', url: '/orgs/octodemo-org/teams/the-a-team?mock=true' },
-    { name: 'Orgs', url: '/orgs/octodemo-org?mock=true' },
-    { name: 'Enterprises', url: '/enterprises/octo-enterprise?mock=true' },
+    { name: 'Teams', url: '/orgs/demo-org/teams/demo-team?mock=true' },
+    { name: 'Orgs', url: '/orgs/demo-org?mock=true' },
+    { name: 'Enterprises', url: '/enterprises/demo-enterprise?mock=true' },
 ].forEach(({ name, url }) => {
 
     test.describe('tests for ' + name, () => {

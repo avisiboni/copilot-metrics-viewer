@@ -1,340 +1,206 @@
 <template>
-    <div class="models-container">
-        <!-- Info panel -->
-        <v-card variant="outlined" class="mx-4 mt-3 mb-4 pa-3" density="compact">
-          <div class="d-flex flex-wrap align-start gap-2 text-body-2">
-            <div class="mr-3" style="flex: 1; min-width: 250px;">
-              <div class="font-weight-bold text-body-1 mb-1">🤖 Models & Feature Usage</div>
-              <div class="text-medium-emphasis">
-                Deep dive into which AI models and features your organization uses. View interactions by model, feature, and their combination.
-                For per-user breakdowns see the User Metrics tab; for agent/edit code-change stats see Agent Activity.
-              </div>
-            </div>
-            <v-divider vertical class="mx-2 hidden-sm-and-down" />
-            <div class="d-flex flex-column gap-1 flex-shrink-0">
-              <div class="text-caption text-medium-emphasis font-weight-medium mb-1">LEARN MORE</div>
-              <a href="https://docs.github.com/en/copilot/reference/copilot-usage-metrics" target="_blank" rel="noopener"
-                 class="text-decoration-none d-flex align-center gap-1 text-body-2" style="color: inherit;">
-                <v-icon size="x-small" color="primary">mdi-open-in-new</v-icon>
-                <span class="text-primary">How metrics are calculated</span>
-              </a>
-              <a href="https://docs.github.com/en/copilot/reference/interpret-copilot-metrics" target="_blank" rel="noopener"
-                 class="text-decoration-none d-flex align-center gap-1 text-body-2" style="color: inherit;">
-                <v-icon size="x-small" color="primary">mdi-open-in-new</v-icon>
-                <span class="text-primary">Interpreting Copilot metrics</span>
-              </a>
-            </div>
-          </div>
-        </v-card>
+    <div class="github-com-container">
+        <section class="brand-page-panel">
+                <BrandPageSkeleton
+                    v-if="loading"
+                    layout="agent-mode"
+                    :aria-label="t('usageInsights.loading')"
+                />
 
-        <!-- Loading state -->
-        <div v-if="loading" class="d-flex justify-center align-center" style="min-height: 200px;">
-            <v-progress-circular indeterminate size="64" color="primary" />
-        </div>
+                <!-- Error state -->
+                <div v-else-if="error" class="d-flex justify-center align-center" style="min-height: 300px;">
+                    <BrandDismissibleAlert
+                        type="error"
+                        alert-class="brand-alert brand-alert--error mb-4"
+                        :close-label="t('common.close')"
+                        :title="t('usageInsights.errorTitle')"
+                    >
+                        {{ error }}
+                    </BrandDismissibleAlert>
+                </div>
 
-        <!-- Error state -->
-        <div v-else-if="error" class="mx-4">
-            <v-alert type="error" class="mb-4">
-                <v-alert-title>Error Loading Statistics</v-alert-title>
-                {{ error }}
-            </v-alert>
-        </div>
+                <!-- Main content -->
+                <div v-else>
+                    <!-- Agent Mode Statistics Title -->
+                    <BrandChartTitle
+                        :title="t('usageInsights.title')"
+                        :tooltip="chartTooltips.usageInsightsOverview"
+                        heading-class="mb-4"
+                    />
 
-        <!-- Main content -->
-        <div v-else>
-            <!-- KPI Tiles -->
-            <div class="tiles-container">
-                <v-card elevation="4" color="surface" variant="elevated" class="my-2">
-                    <v-card-item>
-                        <div class="tiles-text">
-                            <div class="spacing-10"/>
-                            <div class="text-h6 mb-1">Code Completions</div>
-                            <div class="text-caption text-medium-emphasis">IDE users with activity</div>
-                            <p class="kpi-value mt-1 text-primary">{{ stats.totalIdeCodeCompletionUsers }}</p>
-                            <div class="text-caption text-medium-emphasis mt-1">{{ stats.totalIdeCodeCompletionModels }} models used</div>
-                        </div>
-                    </v-card-item>
-                </v-card>
+                    <BrandAiAdoptionPanel
+                        v-if="showAiAdoptionCohorts && adoptionByPhase.length"
+                        :phases="adoptionByPhase"
+                    />
 
-                <v-card elevation="4" color="surface" variant="elevated" class="my-2">
-                    <v-card-item>
-                        <div class="tiles-text">
-                            <div class="spacing-10"/>
-                            <div class="text-h6 mb-1">IDE Chat</div>
-                            <div class="text-caption text-medium-emphasis">Users with chat activity</div>
-                            <p class="kpi-value mt-1 text-success">{{ stats.totalIdeChatUsers }}</p>
-                            <div class="text-caption text-medium-emphasis mt-1">{{ stats.totalIdeChatModels }} models used</div>
-                        </div>
-                    </v-card-item>
-                </v-card>
+                    <!-- Agent Mode Overview Cards -->
+                    <v-row class="mb-4">
+                        <v-col cols="12" md="6" lg="3">
+                            <v-card variant="flat" class="brand-kpi-card brand-metric-card--purple">
+                                <BrandKpiTooltip :text="t('usageInsights.kpiTooltipCompletions')" />
+                                <v-card-title class="text-h6">{{ t('usageInsights.ideCompletions') }}</v-card-title>
+                                <v-card-text>
+                                    <div class="text-h4 mb-2">{{ stats.totalIdeCodeCompletionUsers }}</div>
+                                    <div class="text-caption">{{ t('usageInsights.totalUsersActivity') }}</div>
+                                    <div class="text-subtitle2 mt-2">
+                                      {{ t('usageInsights.modelsUsed', { count: stats.totalIdeCodeCompletionModels }) }}
+                                    </div>
+                                </v-card-text>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="6" lg="3">
+                            <v-card variant="flat" class="brand-kpi-card brand-metric-card--turquoise">
+                                <BrandKpiTooltip :text="t('usageInsights.kpiTooltipChat')" />
+                                <v-card-title class="text-h6">{{ t('usageInsights.ideChat') }}</v-card-title>
+                                <v-card-text>
+                                    <div class="text-h4 mb-2">{{ stats.totalIdeChatUsers }}</div>
+                                    <div class="text-caption">{{ t('usageInsights.totalUsersActivity') }}</div>
+                                    <div class="text-subtitle2 mt-2">
+                                      {{ t('usageInsights.modelsUsed', { count: stats.totalIdeChatModels }) }}
+                                    </div>
+                                </v-card-text>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="6" lg="3">
+                            <v-card variant="flat" class="brand-kpi-card brand-metric-card--lavender">
+                                <BrandKpiTooltip :text="t('usageInsights.kpiTooltipCli')" />
+                                <v-card-title class="text-h6">{{ t('usageInsights.copilotCli') }}</v-card-title>
+                                <v-card-text>
+                                    <div class="text-h4 mb-2">{{ stats.totalCliUsers }}</div>
+                                    <div class="text-caption">{{ t('usageInsights.cliActiveUsers') }}</div>
+                                </v-card-text>
+                            </v-card>
+                        </v-col>
+                        <v-col cols="12" md="6" lg="3">
+                            <v-card variant="flat" class="brand-kpi-card brand-metric-card--accent">
+                                <BrandKpiTooltip :text="t('usageInsights.kpiTooltipReview')" />
+                                <v-card-title class="text-h6">{{ t('usageInsights.codeReview') }}</v-card-title>
+                                <v-card-text>
+                                    <div class="text-h4 mb-2">{{ stats.totalCodeReviewActiveUsers }}</div>
+                                    <div class="text-caption">{{ t('usageInsights.activeReviewUsers') }}</div>
+                                    <div class="text-subtitle2 mt-2">{{ t('usageInsights.passive', { count: stats.totalCodeReviewPassiveUsers }) }}</div>
+                                    <div class="text-subtitle2">{{ t('usageInsights.agentLocAdded', { count: stats.totalAgentLocAdded }) }}</div>
+                                </v-card-text>
+                            </v-card>
+                        </v-col>
+                    </v-row>
 
-                <v-card v-if="stats.hasReportData" elevation="4" color="surface" variant="elevated" class="my-2">
-                    <v-card-item>
-                        <div class="tiles-text">
-                            <div class="spacing-10"/>
-                            <div class="text-h6 mb-1">Unique Models</div>
-                            <div class="text-caption text-medium-emphasis">All AI models in use</div>
-                            <p class="kpi-value mt-1 text-info">{{ stats.allModels?.length || 0 }}</p>
-                            <div class="text-caption text-medium-emphasis mt-1">{{ stats.allFeatures?.length || 0 }} features active</div>
-                        </div>
-                    </v-card-item>
-                </v-card>
-
-                <v-card v-if="!stats.hasReportData" elevation="4" color="surface" variant="elevated" class="my-2">
-                    <v-card-item>
-                        <div class="tiles-text">
-                            <div class="spacing-10"/>
-                            <div class="text-h6 mb-1">GitHub.com Chat</div>
-                            <div class="text-caption text-medium-emphasis">Users with activity</div>
-                            <p class="kpi-value mt-1 text-info">{{ stats.totalDotcomChatUsers }}</p>
-                            <div class="text-caption text-medium-emphasis mt-1">{{ stats.totalDotcomChatModels }} models used</div>
-                        </div>
-                    </v-card-item>
-                </v-card>
-
-                <v-card v-if="!stats.hasReportData" elevation="4" color="surface" variant="elevated" class="my-2">
-                    <v-card-item>
-                        <div class="tiles-text">
-                            <div class="spacing-10"/>
-                            <div class="text-h6 mb-1">GitHub.com PR</div>
-                            <div class="text-caption text-medium-emphasis">Users with PR summaries</div>
-                            <p class="kpi-value mt-1 text-warning">{{ stats.totalDotcomPRUsers }}</p>
-                            <div class="text-caption text-medium-emphasis mt-1">{{ stats.totalDotcomPRModels }} models used</div>
-                        </div>
-                    </v-card-item>
-                </v-card>
-            </div>
-
-            <!-- Charts section -->
-            <v-container :fluid="chartColumns === 'full'" :class="['elevation-2', chartColumns === 'full' ? 'px-0' : 'px-4']">
-              <div class="d-flex justify-end mb-2">
-                <v-btn-toggle v-model="chartColumns" density="compact" variant="outlined" mandatory>
-                  <v-btn value="1" size="small" title="Single column"><v-icon size="18">mdi-view-agenda</v-icon></v-btn>
-                  <v-btn value="2" size="small" title="Two columns"><v-icon size="18">mdi-view-grid</v-icon></v-btn>
-                  <v-btn value="full" size="small" title="Full width"><v-icon size="18">mdi-fullscreen</v-icon></v-btn>
-                </v-btn-toggle>
-              </div>
-
-              <!-- New API: Model + Feature bar charts -->
-              <v-row v-if="stats.hasReportData" class="mb-2">
-                <v-col cols="12" :md="chartColumns === '2' ? 6 : 12">
-                  <v-card variant="elevated" elevation="2">
-                    <v-card-title class="text-subtitle-1 font-weight-medium pt-3 px-4">Top Models by Interactions</v-card-title>
-                    <v-card-text>
-                      <div style="height:220px">
-                        <BarChart v-if="modelBarChartData.labels.length" :data="modelBarChartData" :options="horizBarOpts" />
-                      </div>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-                <v-col cols="12" :md="chartColumns === '2' ? 6 : 12">
-                  <v-card variant="elevated" elevation="2">
-                    <v-card-title class="text-subtitle-1 font-weight-medium pt-3 px-4">Top Features by Interactions</v-card-title>
-                    <v-card-text>
-                      <div style="height:220px">
-                        <BarChart v-if="featureBarChartData.labels.length" :data="featureBarChartData" :options="horizBarOpts" />
-                      </div>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-              </v-row>
-
-              <!-- New API: Model Usage by Feature (table) -->
-              <v-row v-if="stats.hasReportData && stats.modelFeatureTable?.length > 0" class="mb-4">
-                <v-col cols="12">
-                  <v-card variant="elevated" elevation="2">
-                    <v-card-title class="text-subtitle-1 font-weight-medium pt-3 px-4">Model Usage by Feature</v-card-title>
-                    <v-card-text class="pa-0">
-                      <v-data-table :headers="modelFeatureHeaders" :items="stats.modelFeatureTable" :sort-by="[{ key: 'locAdded', order: 'desc' }]" />
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-              </v-row>
-
-              <!-- New API: Charts side by side -->
-              <v-row v-if="stats.hasReportData && (stats.featureSummary?.length > 0 || stats.modelSummary?.length > 0)" class="mb-4">
-                <v-col v-if="stats.featureSummary?.length > 0" cols="12" :md="chartColumns === '2' ? 6 : 12" class="d-flex">
-                  <v-card variant="elevated" elevation="2" class="flex-grow-1">
-                    <v-card-title class="text-subtitle-1 font-weight-medium pt-3 px-4">Lines Added by Feature</v-card-title>
-                    <v-card-text>
-                      <div style="height:240px">
-                        <BarChart v-if="locByFeatureBarData.labels.length" :data="locByFeatureBarData" :options="horizBarOpts" />
-                      </div>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-                <v-col v-if="stats.modelSummary?.length > 0" cols="12" :md="chartColumns === '2' ? 6 : 12" class="d-flex">
-                  <v-card variant="elevated" elevation="2" class="flex-grow-1">
-                    <v-card-title class="text-subtitle-1 font-weight-medium pt-3 px-4">Lines Added by Model</v-card-title>
-                    <v-card-text>
-                      <div style="height:240px">
-                        <BarChart v-if="locByModelBarData.labels.length" :data="locByModelBarData" :options="horizBarOpts" />
-                      </div>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-              </v-row>
-
-              <!-- New API: Feature Summary table (full width) -->
-              <v-row v-if="stats.hasReportData && stats.featureSummary?.length > 0" class="mb-4">
-                <v-col cols="12">
-                  <v-card variant="elevated" elevation="2">
-                    <v-card-title class="text-subtitle-1 font-weight-medium pt-3 px-4">Feature Summary</v-card-title>
-                    <v-card-text class="pa-0">
-                      <v-data-table :headers="featureSummaryHeaders" :items="stats.featureSummary" :sort-by="[{ key: 'codeGenerations', order: 'desc' }]" density="compact" />
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-              </v-row>
-
-              <!-- New API: Model Summary table (full width) -->
-              <v-row v-if="stats.hasReportData && stats.modelSummary?.length > 0" class="mb-4">
-                <v-col cols="12">
-                  <v-card variant="elevated" elevation="2">
-                    <v-card-title class="text-subtitle-1 font-weight-medium pt-3 px-4">Model Summary</v-card-title>
-                    <v-card-text class="pa-0">
-                      <v-data-table :headers="modelSummaryHeaders" :items="stats.modelSummary" :sort-by="[{ key: 'locAdded', order: 'desc' }]" density="compact" />
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-              </v-row>
-
-              <!-- Legacy: Expansion panels for old API model details -->
-              <v-row v-if="!stats.hasReportData" class="mb-4">
-                <v-col cols="12">
-                  <v-card variant="elevated" elevation="2" class="mb-4">
-                    <v-card-title class="text-subtitle-1 font-weight-medium pt-3 px-4">Models by Feature</v-card-title>
-                    <v-card-text class="pa-0">
-                      <v-expansion-panels>
-                        <v-expansion-panel v-if="stats.ideCodeCompletionModels.length > 0">
-                          <v-expansion-panel-title>
-                            <v-icon start>mdi-code-braces</v-icon>
-                            IDE Code Completions Models ({{ stats.ideCodeCompletionModels.length }})
-                          </v-expansion-panel-title>
-                          <v-expansion-panel-text>
-                            <v-data-table :headers="codeCompletionHeaders" :items="stats.ideCodeCompletionModels" />
-                          </v-expansion-panel-text>
-                        </v-expansion-panel>
-                        <v-expansion-panel v-if="stats.ideChatModels.length > 0">
-                          <v-expansion-panel-title>
-                            <v-icon start>mdi-chat</v-icon>
-                            IDE Chat Models ({{ stats.ideChatModels.length }})
-                          </v-expansion-panel-title>
-                          <v-expansion-panel-text>
-                            <v-data-table :headers="ideChatHeaders" :items="stats.ideChatModels" />
-                          </v-expansion-panel-text>
-                        </v-expansion-panel>
-                        <v-expansion-panel v-if="stats.dotcomChatModels.length > 0">
-                          <v-expansion-panel-title>
-                            <v-icon start>mdi-web</v-icon>
-                            GitHub.com Chat Models ({{ stats.dotcomChatModels.length }})
-                          </v-expansion-panel-title>
-                          <v-expansion-panel-text>
-                            <v-data-table :headers="dotcomChatHeaders" :items="stats.dotcomChatModels" />
-                          </v-expansion-panel-text>
-                        </v-expansion-panel>
-                        <v-expansion-panel v-if="stats.dotcomPRModels.length > 0">
-                          <v-expansion-panel-title>
-                            <v-icon start>mdi-source-pull</v-icon>
-                            GitHub.com PR Summary Models ({{ stats.dotcomPRModels.length }})
-                          </v-expansion-panel-title>
-                          <v-expansion-panel-text>
-                            <v-data-table :headers="dotcomPRHeaders" :items="stats.dotcomPRModels" />
-                          </v-expansion-panel-text>
-                        </v-expansion-panel>
-                      </v-expansion-panels>
-                    </v-card-text>
-                  </v-card>
-
-                  <!-- Model Usage Distribution -->
-                  <v-card variant="elevated" elevation="2">
-                    <v-card-title class="text-subtitle-1 font-weight-medium pt-3 px-4">Model Usage Distribution</v-card-title>
-                    <v-card-text>
-                      <div class="chart-container">
-                        <BarChart v-if="stats.modelUsageChartData.labels.length" :data="stats.modelUsageChartData" :options="barChartOptions" />
-                      </div>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-              </v-row>
-
-              <!-- Feature usage over time chart — moved to Organization tab -->
-
-              <!-- Model Usage from reportData -->
-              <v-row v-if="modelUsagePerDayChartData.labels.length" class="mb-2">
-                <v-col cols="12">
-                  <v-card variant="elevated" elevation="2">
-                    <v-card-title class="text-subtitle-1 font-weight-medium pt-3 px-4">Model Usage Per Day</v-card-title>
-                    <v-card-subtitle class="px-4 pb-1">Daily breakdown of models used in chat requests (% share) · <span class="font-italic">Shaded columns = weekends</span></v-card-subtitle>
-                    <v-card-text>
-                      <div class="chart-container">
-                        <LineChart :data="modelUsagePerDayChartData" :options="stackedAreaOptions" :plugins="[gradientFillPlugin, weekendPlugin]" />
-                      </div>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-              </v-row>
-
-              <v-row v-if="chatModelDonutData.labels.length" class="mb-2">
-                <v-col cols="12" :md="chartColumns === '2' ? 6 : 12">
-                  <v-card variant="elevated" elevation="2" class="d-flex flex-column align-center">
-                    <v-card-title class="text-subtitle-1 font-weight-medium pt-3 px-4">Chat Model Usage</v-card-title>
-                    <v-card-subtitle class="px-4 pb-1">Distribution of models across all chat modes</v-card-subtitle>
-                    <v-card-text style="width:100%">
-                      <div style="height:260px; display:flex; justify-content:center;">
-                        <Doughnut :data="chatModelDonutData" :options="donutOptions" />
-                      </div>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-                <v-col v-if="modelPerChatModeData.labels.length" cols="12" :md="chartColumns === '2' ? 6 : 12">
-                  <v-card variant="elevated" elevation="2">
-                    <v-card-title class="text-subtitle-1 font-weight-medium pt-3 px-4">Model Usage Per Chat Mode</v-card-title>
-                    <v-card-subtitle class="px-4 pb-1">Most frequently used models for each chat mode</v-card-subtitle>
-                    <v-card-text>
-                      <div style="height:260px">
-                        <BarChart :data="modelPerChatModeData" :options="groupedModelBarOptions" />
-                      </div>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-              </v-row>
-
-              <!-- Premium requests info card -->
-              <v-row class="mb-2">
-                <v-col cols="12">
-                  <v-alert variant="tonal" color="info" icon="mdi-information-outline" density="compact">
-                    <div class="text-body-2">
-                      <strong>Premium requests</strong> — some models consume multiple Copilot request units (e.g. Claude Opus 4.7 = 7.5×, GPT-5.4 mini = 0.25×).
-                      This dashboard shows request counts; to view quota usage and estimated costs, check your
-                      <a :href="billingUrl" target="_blank" rel="noopener" class="text-primary">billing settings</a>
-                      or the
-                      <a href="https://docs.github.com/en/copilot/concepts/billing/copilot-requests#model-multipliers" target="_blank" rel="noopener" class="text-primary">model multipliers docs</a>.
+                    <!-- Agent Mode Statistics Chart -->
+                    <BrandChartTitle
+                        :title="t('usageInsights.chartFeatureUsage')"
+                        :tooltip="chartTooltips.copilotFeatureUsageOverTime"
+                    />
+                    <div class="chart-container">
+                        <LineChart
+v-if="stats.featureUsageChartData.labels.length" :data="stats.featureUsageChartData"
+                            :options="chartOptions" />
                     </div>
-                  </v-alert>
-                </v-col>
-              </v-row>
-            </v-container>
-        </div>
+
+                    <BrandChartTitle
+                        :title="t('usageInsights.chartDauWauMau')"
+                        :tooltip="chartTooltips.usageInsightsDauWauMau"
+                        wrapper-class="mt-6"
+                    />
+                    <div class="chart-container">
+                        <LineChart
+v-if="stats.activeUsersChartData.labels.length" :data="stats.activeUsersChartData"
+                            :options="chartOptions" />
+                    </div>
+
+                    <BrandChartTitle
+                        :title="t('usageInsights.chartChatByMode')"
+                        :tooltip="chartTooltips.usageInsightsChatByMode"
+                        wrapper-class="mt-6"
+                    />
+                    <div class="chart-container">
+                        <LineChart
+v-if="stats.chatModeChartData.labels.length" :data="stats.chatModeChartData"
+                            :options="chartOptions" />
+                    </div>
+
+                    <BrandChartTitle
+                        :title="t('usageInsights.chartCli')"
+                        :tooltip="chartTooltips.usageInsightsCli"
+                        wrapper-class="mt-6"
+                    />
+                    <div class="chart-container">
+                        <LineChart
+v-if="stats.cliChartData.labels.length" :data="stats.cliChartData"
+                            :options="chartOptions" />
+                    </div>
+
+                    <!-- Models Used Section -->
+                    <BrandChartTitle
+                        :title="t('usageInsights.chartModels')"
+                        :tooltip="chartTooltips.modelsUsedByUsers"
+                        wrapper-class="mt-6"
+                        heading-class="mb-4"
+                    />
+
+                    <!-- Models by Agent Mode -->
+                    <v-expansion-panels class="mb-4">
+                        <v-expansion-panel v-if="stats.ideCodeCompletionModels.length > 0">
+                            <v-expansion-panel-title>
+                                <v-icon start>mdi-code-braces</v-icon>
+                                {{ t('usageInsights.panelCompletions', { count: stats.ideCodeCompletionModels.length }) }}
+                            </v-expansion-panel-title>
+                            <v-expansion-panel-text>
+                                <v-data-table
+:headers="codeCompletionHeaders" :items="stats.ideCodeCompletionModels"
+                                    class="brand-data-table" item-key="name" density="comfortable" />
+                            </v-expansion-panel-text>
+                        </v-expansion-panel>
+
+                        <v-expansion-panel v-if="stats.ideChatModels.length > 0">
+                            <v-expansion-panel-title>
+                                <v-icon start>mdi-chat</v-icon>
+                                {{ t('usageInsights.panelChat', { count: stats.ideChatModels.length }) }}
+                            </v-expansion-panel-title>
+                            <v-expansion-panel-text>
+                                <v-data-table
+:headers="ideChatHeaders" :items="stats.ideChatModels" class="brand-data-table"
+                                    item-key="name" density="comfortable" />
+                            </v-expansion-panel-text>
+                        </v-expansion-panel>
+
+                    </v-expansion-panels>
+                </div>
+        </section>
     </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, watch, computed, type PropType, shallowRef } from 'vue';
+import { defineComponent, ref, watch, type PropType, shallowRef } from 'vue';
+import BrandPageSkeleton from '@/components/BrandPageSkeleton.vue';
+import BrandDismissibleAlert from '@/components/BrandDismissibleAlert.vue';
+import { useChartTooltips } from '@/utils/chart-tooltips';
 import type { CopilotMetrics } from '@/model/Copilot_Metrics';
-import type { ReportDayTotals } from '#server/services/github-copilot-usage-api';
 import { Options } from '@/model/Options';
 import { useRoute } from 'vue-router';
-import { Line as LineChart, Bar as BarChart, Doughnut } from 'vue-chartjs';
+import { Line as LineChart } from 'vue-chartjs';
+import { brandLineChartOptions } from '@/utils/chart-theme';
 import {
-    Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement,
-    ArcElement, Title, Tooltip, Legend
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    BarElement,
+    Title,
+    Tooltip,
+    Legend
 } from 'chart.js';
 
-import { PALETTE, weekendPlugin, gradientFillPlugin, makeLineOptions } from '@/utils/chartPlugins';
-
-import { Filler } from 'chart.js';
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend, Filler);
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    BarElement,
+    Title,
+    Tooltip,
+    Legend
+);
 
 interface ModelData {
     name: string;
@@ -362,54 +228,37 @@ interface ChartData {
 interface GitHubStats {
     totalIdeCodeCompletionUsers: number;
     totalIdeChatUsers: number;
-    totalDotcomChatUsers: number;
-    totalDotcomPRUsers: number;
-    totalPRSummariesCreated: number;
+    totalCliUsers: number;
+    totalCodeReviewActiveUsers: number;
+    totalCodeReviewPassiveUsers: number;
+    totalAgentLocAdded: number;
+    totalAgentLocDeleted: number;
     totalIdeCodeCompletionModels: number;
     totalIdeChatModels: number;
-    totalDotcomChatModels: number;
-    totalDotcomPRModels: number;
     ideCodeCompletionModels: ModelData[];
     ideChatModels: ModelData[];
-    dotcomChatModels: ModelData[];
-    dotcomPRModels: ModelData[];
-    agentModeChartData: ChartData;
-    modelUsageChartData: ChartData;
-    // New API data
-    hasReportData: boolean;
-    allModels: string[];
-    allFeatures: string[];
-    modelFeatureTable: any[];
-    featureSummary: any[];
-    modelSummary: any[];
-    dailyActiveUsers: { day: string; daily: number; weekly: number; monthly: number }[];
-    agentUsers: { day: string; monthlyAgentUsers: number; monthlyChatUsers: number }[];
+    featureUsageChartData: ChartData;
+    activeUsersChartData: ChartData;
+    chatModeChartData: ChartData;
+    cliChartData: ChartData;
 }
 
 const defaultStats: GitHubStats = {
     totalIdeCodeCompletionUsers: 0,
     totalIdeChatUsers: 0,
-    totalDotcomChatUsers: 0,
-    totalDotcomPRUsers: 0,
-    totalPRSummariesCreated: 0,
+    totalCliUsers: 0,
+    totalCodeReviewActiveUsers: 0,
+    totalCodeReviewPassiveUsers: 0,
+    totalAgentLocAdded: 0,
+    totalAgentLocDeleted: 0,
     totalIdeCodeCompletionModels: 0,
     totalIdeChatModels: 0,
-    totalDotcomChatModels: 0,
-    totalDotcomPRModels: 0,
     ideCodeCompletionModels: [],
     ideChatModels: [],
-    dotcomChatModels: [],
-    dotcomPRModels: [],
-    agentModeChartData: { labels: [], datasets: [] },
-    modelUsageChartData: { labels: [], datasets: [] },
-    hasReportData: false,
-    allModels: [],
-    allFeatures: [],
-    modelFeatureTable: [],
-    featureSummary: [],
-    modelSummary: [],
-    dailyActiveUsers: [],
-    agentUsers: [],
+    featureUsageChartData: { labels: [], datasets: [] },
+    activeUsersChartData: { labels: [], datasets: [] },
+    chatModeChartData: { labels: [], datasets: [] },
+    cliChartData: { labels: [], datasets: [] }
 };
 
 interface DateRange {
@@ -419,294 +268,171 @@ interface DateRange {
 
 export default defineComponent({
     name: 'AgentModeViewer',
-    components: { LineChart, BarChart, Doughnut },
+    components: {
+        LineChart,
+        BrandPageSkeleton,
+        BrandDismissibleAlert
+    },
     props: {
-        dateRange: { type: Object as PropType<DateRange>, required: true },
-        originalMetrics: { type: Array as PropType<CopilotMetrics[]>, required: true },
-        dateRangeDescription: { type: String, default: '' },
-        reportData: { type: Array as PropType<ReportDayTotals[]>, default: () => [] },
+        dateRange: {
+            type: Object as PropType<DateRange>,
+            required: true
+        },
+        originalMetrics: {
+            type: Array as PropType<CopilotMetrics[]>,
+            required: true
+        },
+        dateRangeDescription: {
+            type: String,
+            default: ''
+        },
+        adoptionByPhase: {
+            type: Array as PropType<import('../../shared/types/copilot-usage').AiAdoptionPhaseAggregate[]>,
+            default: () => []
+        }
     },
     setup(props) {
+        const chartTooltips = useChartTooltips()
+        const { t } = useAppI18n()
+        const { visible: showAiAdoptionCohorts } = useAiAdoptionCohortsFeature()
+        // Use shallowRef for better performance with large objects
         const stats = shallowRef<GitHubStats>({ ...defaultStats });
         const loading = ref(false);
         const error = ref<string | null>(null);
         const route = useRoute();
+
+        // Cache to prevent unnecessary API calls
         const lastMetricsHash = ref<string>('');
         const lastDateRange = ref<string>('');
 
+        // Optimized fetch function with caching and debouncing
         let fetchTimeout: ReturnType<typeof setTimeout> | null = null;
         const fetchStats = async () => {
             if (props.originalMetrics.length === 0) return;
 
+            // Create a simple hash of the metrics to detect changes
             const currentHash = JSON.stringify(props.originalMetrics.map(m => ({
-                date: m.date, activeUsers: m.total_active_users, engagedUsers: m.total_engaged_users
+                date: m.date,
+                activeUsers: m.total_active_users,
+                engagedUsers: m.total_engaged_users
             })));
             const currentDateRange = props.dateRangeDescription || '';
+
             if (currentHash === lastMetricsHash.value && currentDateRange === lastDateRange.value) return;
 
-            if (fetchTimeout) clearTimeout(fetchTimeout);
+            if (fetchTimeout) {
+                clearTimeout(fetchTimeout);
+            }
 
             fetchTimeout = setTimeout(async () => {
                 loading.value = true;
                 error.value = null;
+
                 try {
+                    // Extract date range from props.originalMetrics if available
                     const options = Options.fromRoute(route, props.dateRange.since, props.dateRange.until);
                     const params = options.toParams();
                     const queryString = new URLSearchParams(params).toString();
                     const apiUrl = queryString ? `/api/github-stats?${queryString}` : '/api/github-stats';
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const response = await ($fetch as any)(apiUrl) as GitHubStats;
-                    stats.value = { ...defaultStats, ...response };
+                    Object.assign(stats.value, defaultStats, response);
                     lastMetricsHash.value = currentHash;
                     lastDateRange.value = currentDateRange;
                 } catch (err: unknown) {
-                    error.value = err instanceof Error ? err.message : 'Failed to fetch GitHub statistics';
+                    error.value = err instanceof Error ? err.message : t.value('usageInsights.errorLoad');
                     console.error('Error fetching GitHub stats:', err);
                 } finally {
                     loading.value = false;
                 }
-            }, 150);
+            }, 150); // Reduced debounce time for better responsiveness
         };
 
+        // Watch for changes with improved performance
         watch(() => [props.originalMetrics, props.dateRangeDescription, props.dateRange], fetchStats, { immediate: true, deep: false });
 
-        // Active Users chart from reportData
-        const activeUsersChartData = computed(() => {
-            const users = stats.value.dailyActiveUsers || [];
-            if (users.length === 0) return { labels: [], datasets: [] };
-            return {
-                labels: users.map(u => u.day),
-                datasets: [
-                    {
-                        label: 'Daily Active Users', data: users.map(u => u.daily),
-                        borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgba(75, 192, 192, 0.2)', tension: 0.1
-                    },
-                    {
-                        label: 'Monthly Active Users', data: users.map(u => u.monthly),
-                        borderColor: 'rgb(153, 102, 255)', backgroundColor: 'rgba(153, 102, 255, 0.2)', tension: 0.1
-                    },
-                ]
-            };
-        });
-
-        // Table headers
-        const modelFeatureHeaders = [
-            { title: 'Model', key: 'model' },
-            { title: 'Feature', key: 'feature' },
-            { title: 'Interactions', key: 'interactions' },
-            { title: 'Code Generations', key: 'codeGenerations' },
-            { title: 'Lines Added', key: 'locAdded' },
-            { title: 'Lines Deleted', key: 'locDeleted' },
-        ];
-        const featureSummaryHeaders = [
-            { title: 'Feature', key: 'feature' },
-            { title: 'Interactions', key: 'interactions' },
-            { title: 'Code Generations', key: 'codeGenerations' },
-            { title: 'Lines Added', key: 'locAdded' },
-        ];
-        const modelSummaryHeaders = [
-            { title: 'Model', key: 'model' },
-            { title: 'Interactions', key: 'interactions' },
-            { title: 'Code Generations', key: 'codeGenerations' },
-            { title: 'Lines Added', key: 'locAdded' },
-        ];
+        // Static table headers (avoid recreating on every render)
         const codeCompletionHeaders = [
-            { title: 'Model Name', key: 'name' }, { title: 'Editor', key: 'editor' },
-            { title: 'Type', key: 'model_type' }, { title: 'Total Users', key: 'total_engaged_users' }
+            { title: t.value('usageInsights.colModel'), key: 'name' },
+            { title: t.value('usageInsights.colEditor'), key: 'editor' },
+            { title: t.value('usageInsights.colType'), key: 'model_type' },
+            { title: t.value('usageInsights.colTotalUsers'), key: 'total_engaged_users' }
         ];
+
         const ideChatHeaders = [
-            { title: 'Model Name', key: 'name' }, { title: 'Editor', key: 'editor' },
-            { title: 'Type', key: 'model_type' }, { title: 'Total Users', key: 'total_engaged_users' },
-            { title: 'Total Chats', key: 'total_chats' }, { title: 'Insertions', key: 'total_chat_insertion_events' },
-            { title: 'Copy Events', key: 'total_chat_copy_events' }
-        ];
-        const dotcomChatHeaders = [
-            { title: 'Model Name', key: 'name' }, { title: 'Type', key: 'model_type' },
-            { title: 'Total Users', key: 'total_engaged_users' }, { title: 'Total Chats', key: 'total_chats' }
-        ];
-        const dotcomPRHeaders = [
-            { title: 'Model Name', key: 'name' }, { title: 'Repository', key: 'repository' },
-            { title: 'Type', key: 'model_type' }, { title: 'Total Users', key: 'total_engaged_users' },
-            { title: 'PR Summaries', key: 'total_pr_summaries_created' }
+            { title: t.value('usageInsights.colModel'), key: 'name' },
+            { title: t.value('usageInsights.colEditor'), key: 'editor' },
+            { title: t.value('usageInsights.colType'), key: 'model_type' },
+            { title: t.value('usageInsights.colTotalUsers'), key: 'total_engaged_users' },
+            { title: t.value('usageInsights.colTotalChats'), key: 'total_chats' },
+            { title: t.value('usageInsights.colInsertions'), key: 'total_chat_insertion_events' },
+            { title: t.value('usageInsights.colCopyEvents'), key: 'total_chat_copy_events' }
         ];
 
-        const chartOptions = makeLineOptions({
+        const chartOptions = brandLineChartOptions({
             animation: { duration: 0 },
-            scales: { y: { beginAtZero: true, title: { display: true, text: 'Users' } } },
-        });
-        const barChartOptions = {
-            responsive: true, maintainAspectRatio: false,
-            animation: { duration: 0 },
-            scales: { y: { beginAtZero: true, title: { display: true, text: 'Number of Models' } } },
-            plugins: { legend: { display: true, position: 'top' as const } },
-            interaction: { intersect: false }
-        };
-
-        // Bar charts for model and feature summaries
-        const modelBarChartData = computed(() => {
-            const rows = (stats.value.modelSummary || []).slice(0, 10).sort((a: any, b: any) => b.interactions - a.interactions);
-            return {
-                labels: rows.map((r: any) => r.model),
-                datasets: [{ label: 'Interactions', data: rows.map((r: any) => r.interactions), backgroundColor: PALETTE.slice(0, rows.length).map(p => p.bg), borderColor: PALETTE.slice(0, rows.length).map(p => p.border), borderWidth: 1 }]
-            };
-        });
-        const featureBarChartData = computed(() => {
-            const rows = (stats.value.featureSummary || []).slice(0, 10).sort((a: any, b: any) => b.interactions - a.interactions);
-            return {
-                labels: rows.map((r: any) => r.feature),
-                datasets: [{ label: 'Interactions', data: rows.map((r: any) => r.interactions), backgroundColor: PALETTE.slice(0, rows.length).map(p => p.bg), borderColor: PALETTE.slice(0, rows.length).map(p => p.border), borderWidth: 1 }]
-            };
-        });
-        const horizBarOpts = { responsive: true, maintainAspectRatio: false, indexAxis: 'y' as const, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } };
-
-        const locByFeatureBarData = computed(() => {
-            const rows = (stats.value.featureSummary || []).filter((r: any) => r.locAdded > 0).sort((a: any, b: any) => b.locAdded - a.locAdded).slice(0, 10);
-            return {
-                labels: rows.map((r: any) => r.feature),
-                datasets: [{ label: 'Lines Added', data: rows.map((r: any) => r.locAdded), backgroundColor: PALETTE.slice(0, rows.length).map(p => p.bg), borderColor: PALETTE.slice(0, rows.length).map(p => p.border), borderWidth: 1 }]
-            };
-        });
-        const locByModelBarData = computed(() => {
-            const rows = (stats.value.modelSummary || []).filter((r: any) => r.locAdded > 0).sort((a: any, b: any) => b.locAdded - a.locAdded).slice(0, 10);
-            return {
-                labels: rows.map((r: any) => r.model),
-                datasets: [{ label: 'Lines Added', data: rows.map((r: any) => r.locAdded), backgroundColor: PALETTE.slice(0, rows.length).map(p => p.bg), borderColor: PALETTE.slice(0, rows.length).map(p => p.border), borderWidth: 1 }]
-            };
-        });
-
-        const billingUrl = computed(() => {
-            const org = route.params.org as string;
-            const ent = route.params.ent as string;
-            if (ent) return `https://github.com/enterprises/${ent}/settings/billing/copilot`;
-            if (org) return `https://github.com/organizations/${org}/settings/billing/copilot`;
-            return 'https://github.com/settings/billing/copilot';
-        });
-
-        // ── Model charts from reportData ─────────────────────────────────
-        const FEATURE_LABEL: Record<string, string> = {
-            code_completion: 'Code Completion', agent_edit: 'Agent Edit',
-            chat_panel_ask_mode: 'Ask', chat_panel_agent_mode: 'Agent', chat_panel_custom_mode: 'Custom',
-            chat_panel_edit_mode: 'Edit', chat_panel_plan_mode: 'Plan', chat_inline: 'Inline',
-            pull_request: 'PR Summary', copilot_cli: 'CLI', plan_mode: 'Plan',
-        };
-        const modelUsagePerDayChartData = ref<{ labels: string[]; datasets: any[] }>({ labels: [], datasets: [] });
-        const chatModelDonutData = ref<{ labels: string[]; datasets: any[] }>({ labels: [], datasets: [] });
-        const modelPerChatModeData = ref<{ labels: string[]; datasets: any[] }>({ labels: [], datasets: [] });
-
-        const stackedAreaOptions = {
-            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
             scales: {
-                x: { stacked: true, ticks: { maxTicksLimit: 14 } },
-                y: { stacked: true, min: 0, max: 120, ticks: { callback: (v: any) => v + '%' } },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: t.value('usageInsights.yAxisUsers'),
+                        color: '#343546',
+                        font: { family: "'Assistant', Arial, sans-serif", size: 12 }
+                    }
+                }
             },
             plugins: {
-                legend: { position: 'bottom' as const },
-                tooltip: { callbacks: { label: (ctx: any) => `${ctx.dataset.label}: ${ctx.raw?.toFixed(1)}%` } },
-            },
-        };
-        const donutOptions = {
-            responsive: true, maintainAspectRatio: false, cutout: '55%',
-            plugins: { legend: { position: 'right' as const } },
-        };
-        const groupedModelBarOptions = {
-            responsive: true, maintainAspectRatio: false,
-            scales: { x: { ticks: { maxTicksLimit: 14 } }, y: { beginAtZero: true } },
-            plugins: { legend: { position: 'bottom' as const } },
-        };
-
-        watch(() => props.reportData, (data) => {
-            if (!data || data.length === 0) return;
-            const labels = data.map(d => d.day ?? '');
-
-            // model interactions by day
-            const modelInterByDay: Record<string, number[]> = {};
-            const dayTotals: number[] = data.map(() => 0);
-            data.forEach((d, idx) => {
-                for (const mf of (d.totals_by_model_feature ?? [])) {
-                    if (mf.feature === 'code_completion') continue;
-                    const model = mf.model ?? 'Unknown';
-                    if (!modelInterByDay[model]) modelInterByDay[model] = data.map(() => 0);
-                    const cnt = mf.user_initiated_interaction_count ?? 0;
-                    modelInterByDay[model]![idx] = (modelInterByDay[model]![idx] ?? 0) + cnt;
-                    dayTotals[idx] = (dayTotals[idx] ?? 0) + cnt;
-                }
-            });
-            const allModels = Object.entries(modelInterByDay).sort((a, b) => b[1].reduce((s, v) => s + v, 0) - a[1].reduce((s, v) => s + v, 0));
-            const top5 = allModels.slice(0, 5);
-            const otherData = allModels.slice(5).reduce((acc, [, vals]) => acc.map((v, i) => v + (vals[i] ?? 0)), data.map(() => 0));
-
-            modelUsagePerDayChartData.value = {
-                labels,
-                datasets: [
-                    ...top5.map(([model, vals], i) => ({
-                        label: model,
-                        data: vals.map((v, idx) => { const dt = dayTotals[idx] ?? 0; return dt > 0 ? parseFloat((v / dt * 100).toFixed(2)) : 0; }),
-                        backgroundColor: PALETTE[i % PALETTE.length]!.bg, borderColor: PALETTE[i % PALETTE.length]!.border,
-                        fill: 'stack', tension: 0.3,
-                    })),
-                    ...(allModels.length > 5 ? [{
-                        label: 'Other',
-                        data: otherData.map((v, idx) => { const dt = dayTotals[idx] ?? 0; return dt > 0 ? parseFloat((v / dt * 100).toFixed(2)) : 0; }),
-                        backgroundColor: PALETTE[5]!.bg, borderColor: PALETTE[5]!.border,
-                        fill: 'stack', tension: 0.3,
-                    }] : [])
-                ],
-            };
-
-            const modelAggregates = allModels.map(([model, vals]) => ({ model, total: vals.reduce((s, v) => s + v, 0) }))
-                .sort((a, b) => b.total - a.total);
-            chatModelDonutData.value = {
-                labels: modelAggregates.map(m => m.model),
-                datasets: [{ data: modelAggregates.map(m => m.total), backgroundColor: modelAggregates.map((_, i) => PALETTE[i % PALETTE.length]!.bg), borderColor: modelAggregates.map((_, i) => PALETTE[i % PALETTE.length]!.border) }],
-            };
-
-            const modeModelMatrix: Record<string, Record<string, number>> = {};
-            for (const d of data) {
-                for (const mf of (d.totals_by_model_feature ?? [])) {
-                    if (mf.feature === 'code_completion') continue;
-                    const mode = FEATURE_LABEL[mf.feature ?? ''] ?? mf.feature ?? 'Unknown';
-                    const model = mf.model ?? 'Unknown';
-                    if (!modeModelMatrix[mode]) modeModelMatrix[mode] = {};
-                    modeModelMatrix[mode][model] = (modeModelMatrix[mode][model] ?? 0) + (mf.user_initiated_interaction_count ?? 0);
+                title: {
+                    display: true,
+                    text: t.value('usageInsights.chartFeatureUsage'),
+                    color: '#343546',
+                    font: { family: "'Assistant', Arial, sans-serif", size: 14, weight: 'bold' }
+                },
+                legend: {
+                    display: true,
+                    position: 'top'
                 }
             }
-            const topModelLabels = allModels.slice(0, 5).map(([m]) => m);
-            if (allModels.length > 5) topModelLabels.push('Other');
-            const modeKeys = Object.keys(modeModelMatrix);
-            modelPerChatModeData.value = {
-                labels: topModelLabels,
-                datasets: modeKeys.map((mode, i) => {
-                    const totals = modeModelMatrix[mode] ?? {};
-                    return {
-                        label: mode,
-                        data: topModelLabels.map(m => m === 'Other'
-                            ? allModels.slice(5).reduce((s, [model]) => s + (totals[model] ?? 0), 0)
-                            : totals[m] ?? 0),
-                        backgroundColor: PALETTE[i % PALETTE.length]!.bg,
-                        borderColor: PALETTE[i % PALETTE.length]!.border,
-                    };
-                }),
-            };
-        }, { immediate: true, deep: false });
+        });
 
         return {
-            stats, loading, error, activeUsersChartData,
-            modelBarChartData, featureBarChartData, locByFeatureBarData, locByModelBarData, horizBarOpts,
-            modelFeatureHeaders, featureSummaryHeaders, modelSummaryHeaders,
-            codeCompletionHeaders, ideChatHeaders, dotcomChatHeaders, dotcomPRHeaders,
-            chartOptions, barChartOptions,
-            weekendPlugin, gradientFillPlugin,
-            billingUrl,
-            modelUsagePerDayChartData, chatModelDonutData, modelPerChatModeData,
-            stackedAreaOptions, donutOptions, groupedModelBarOptions,
+            t,
+            showAiAdoptionCohorts,
+            chartTooltips,
+            stats,
+            loading,
+            error,
+            codeCompletionHeaders,
+            ideChatHeaders,
+            chartOptions
         };
-    },
-    data() {
-        return { chartColumns: '2' };
-    },
+    }
 });
 </script>
 
 <style scoped>
-.chart-container { height: 400px; width: 100%; position: relative; }
+.github-com-container {
+    padding: 16px;
+}
+
+.v-card {
+    margin-bottom: 16px;
+}
+
+.v-expansion-panel {
+    margin-bottom: 8px;
+}
+
+.v-data-table {
+    margin-top: 16px;
+}
+
+/* Optimize chart rendering */
+.chart-container {
+    height: 400px;
+    width: 100%;
+    position: relative;
+}
 </style>

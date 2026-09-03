@@ -11,7 +11,7 @@ test.describe('AgentModeViewer Component', () => {
 
   test.beforeAll(async ({ browser }) => {
     const page = await browser.newPage();
-    await page.goto('/orgs/octo-demo-org?mock=true');
+    await page.goto('/orgs/demo-org?mock=true');
 
     dashboard = new DashboardPage(page);
 
@@ -35,7 +35,7 @@ test.describe('AgentModeViewer Component', () => {
     await modelsTab.expectContainerVisible();
   });
 
-  test('should display Copilot Statistics title', async () => {
+  test('should display Copilot usage insights title', async () => {
     // Wait for the component to load and display the title
     
     await modelsTab.expectStatisticsTitleVisible();

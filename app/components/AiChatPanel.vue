@@ -1,218 +1,233 @@
 <template>
   <Teleport to="body">
-    <div class="ai-chat-panel" style="position: fixed; bottom: 16px; right: 16px; z-index: 2147483647;">
-      <!-- Floating Action Button -->
+    <div class="ai-chat-panel">
       <v-btn
         v-if="!isOpen"
         class="ai-chat-fab"
-        color="indigo"
+        color="primary"
         icon
         size="large"
         elevation="6"
-        style="position: fixed; bottom: 24px; right: 24px; z-index: 2147483647;"
         @click="isOpen = true"
       >
         <v-icon>mdi-robot-outline</v-icon>
-        <v-tooltip activator="parent" :z-index="2147483647" location="left">Ask AI about metrics</v-tooltip>
+        <BrandTooltip
+          activator="parent"
+          :text="t('aiChat.fabTooltip')"
+          :z-index="2147483647"
+          :location="fabTooltipLocation"
+        />
       </v-btn>
 
-      <!-- Chat Dialog -->
-      <v-card
-        v-if="isOpen"
-        class="ai-chat-card"
-        elevation="12"
-        rounded="lg"
-        style="z-index: 2147483647; background: #ffffff;"
-      >
-      <!-- Header -->
-      <v-toolbar color="indigo" density="compact" flat>
-        <v-icon class="ml-3">mdi-robot-outline</v-icon>
-        <v-toolbar-title class="text-body-1 font-weight-medium">
-          AI Metrics Assistant
-        </v-toolbar-title>
-        <v-spacer />
-        <v-btn v-if="userToken" icon size="small" variant="text" @click="clearUserToken" title="Disconnect token">
-          <v-icon size="small">mdi-key-remove</v-icon>
-          <v-tooltip activator="parent" :z-index="2147483647" location="bottom">Disconnect personal token</v-tooltip>
-        </v-btn>
-        <v-btn icon size="small" variant="text" @click="clearConversation">
-          <v-icon size="small">mdi-delete-outline</v-icon>
-          <v-tooltip activator="parent" :z-index="2147483647" location="bottom">Clear conversation</v-tooltip>
-        </v-btn>
-        <v-btn icon size="small" variant="text" @click="isOpen = false">
-          <v-icon size="small">mdi-close</v-icon>
-        </v-btn>
-      </v-toolbar>
+      <v-card v-if="isOpen" class="ai-chat-card" elevation="12" rounded="lg">
+        <v-toolbar class="brand-toolbar ai-chat-toolbar" density="compact" flat>
+          <v-icon class="ms-3">mdi-robot-outline</v-icon>
+          <v-toolbar-title class="text-body-1 font-weight-medium">
+            {{ t('aiChat.title') }}
+          </v-toolbar-title>
+          <v-spacer />
+          <v-btn
+            v-if="userToken"
+            icon
+            size="small"
+            variant="text"
+            :title="t('aiChat.disconnectToken')"
+            @click="clearUserToken"
+          >
+            <v-icon size="small">mdi-key-remove</v-icon>
+            <BrandTooltip
+              activator="parent"
+              :text="t('aiChat.disconnectToken')"
+              :z-index="2147483647"
+              location="bottom"
+            />
+          </v-btn>
+          <v-btn icon size="small" variant="text" @click="clearConversation">
+            <v-icon size="small">mdi-delete-outline</v-icon>
+            <BrandTooltip
+              activator="parent"
+              :text="t('aiChat.clearConversation')"
+              :z-index="2147483647"
+              location="bottom"
+            />
+          </v-btn>
+          <v-btn icon size="small" variant="text" @click="isOpen = false">
+            <v-icon size="small">mdi-close</v-icon>
+          </v-btn>
+        </v-toolbar>
 
-      <!-- Messages -->
-      <div ref="messagesContainer" class="ai-chat-messages">
-        <!-- Welcome message -->
-        <div v-if="messages.length === 0 && !tokenSetupNeeded" class="ai-chat-welcome">
-          <v-icon size="48" color="grey-lighten-1" class="mb-3">mdi-robot-happy-outline</v-icon>
-          <p class="text-body-2 text-grey-darken-1 mb-4">
-            Ask me anything about your Copilot metrics!
-          </p>
-
-          <!-- Suggested questions -->
-          <div class="ai-chat-suggestions">
-            <v-chip
-              v-for="(q, i) in suggestedQuestions"
-              :key="i"
-              size="small"
-              variant="outlined"
-              color="indigo"
-              class="ma-1"
-              @click="askQuestion(q)"
-            >
-              {{ q }}
-            </v-chip>
+        <div ref="messagesContainer" class="ai-chat-messages">
+          <div v-if="messages.length === 0 && !tokenSetupNeeded" class="ai-chat-welcome">
+            <v-icon size="48" color="primary" class="mb-3 opacity-60">mdi-robot-happy-outline</v-icon>
+            <p class="text-body-2 text-medium-emphasis mb-4">
+              {{ t('aiChat.welcome') }}
+            </p>
+            <div class="ai-chat-suggestions">
+              <v-chip
+                v-for="(q, i) in suggestedQuestions"
+                :key="i"
+                size="small"
+                variant="outlined"
+                color="primary"
+                class="ma-1 ai-chat-suggestion-chip"
+                @click="askQuestion(q)"
+              >
+                {{ q }}
+              </v-chip>
+            </div>
           </div>
-        </div>
 
-        <!-- Token setup guide -->
-        <div v-if="tokenSetupNeeded" class="ai-chat-token-setup pa-3">
-          <v-icon size="40" color="warning" class="mb-2">mdi-key-alert</v-icon>
-          <p class="text-body-2 font-weight-medium mb-2">AI Token Required</p>
-          <p class="text-body-2 text-grey-darken-1 mb-3">
-            {{ tokenErrorMessage }}
-          </p>
+          <div v-if="tokenSetupNeeded" class="ai-chat-token-setup pa-3">
+            <v-icon size="40" color="warning" class="mb-2">mdi-key-alert</v-icon>
+            <p class="text-body-2 font-weight-medium mb-2">{{ t('aiChat.tokenRequired') }}</p>
+            <p class="text-body-2 text-medium-emphasis mb-3">
+              {{ tokenErrorMessage }}
+            </p>
 
-          <v-expansion-panels variant="accordion" class="mb-3">
-            <v-expansion-panel>
-              <v-expansion-panel-title class="text-body-2 py-2">
-                <v-icon size="small" class="mr-2">mdi-server</v-icon>
-                Option 1: Server environment variable
-              </v-expansion-panel-title>
-              <v-expansion-panel-text>
-                <p class="text-caption text-grey-darken-1 mb-2">
-                  An administrator can set the <code>NUXT_AI_TOKEN</code> environment variable on the server
-                  with a GitHub fine-grained PAT that has <strong>Models → Read</strong> permission.
-                </p>
-                <p class="text-caption text-grey-darken-1">
-                  The token must be scoped to a <strong>personal account</strong> (not an organization).
-                </p>
-              </v-expansion-panel-text>
-            </v-expansion-panel>
-            <v-expansion-panel>
-              <v-expansion-panel-title class="text-body-2 py-2">
-                <v-icon size="small" class="mr-2">mdi-account-key</v-icon>
-                Option 2: Provide your personal token
-              </v-expansion-panel-title>
-              <v-expansion-panel-text>
-                <p class="text-caption text-grey-darken-1 mb-2">
-                  Create a
-                  <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener" class="text-indigo">
-                    fine-grained personal access token
-                  </a>
-                  scoped to your <strong>personal account</strong> with <strong>Models → Read</strong> permission.
-                </p>
-                <v-text-field
-                  v-model="userTokenInput"
-                  type="password"
-                  placeholder="github_pat_..."
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  class="mb-2"
-                  prepend-inner-icon="mdi-key"
-                />
-                <v-btn
-                  color="indigo"
-                  size="small"
-                  block
-                  :disabled="!userTokenInput.trim()"
-                  @click="saveUserToken"
-                >
-                  Save &amp; connect
-                </v-btn>
-                <p class="text-caption text-grey-darken-2 mt-2">
-                  <v-icon size="x-small">mdi-information-outline</v-icon>
-                  Token is stored in your browser session only and sent securely to the server per request.
-                </p>
-              </v-expansion-panel-text>
-            </v-expansion-panel>
-          </v-expansion-panels>
-        </div>
-
-        <!-- Message bubbles -->
-        <div
-          v-for="(msg, idx) in messages"
-          :key="idx"
-          :class="['ai-chat-message', msg.role === 'user' ? 'ai-chat-message-user' : 'ai-chat-message-assistant']"
-        >
-          <div class="ai-chat-bubble">
-            <div v-if="msg.role === 'assistant'" class="ai-chat-bubble-content" v-html="formatMarkdown(msg.content)" />
-            <div v-else class="ai-chat-bubble-content">{{ msg.content }}</div>
+            <v-expansion-panels variant="accordion" class="mb-3 ai-chat-token-panels">
+              <v-expansion-panel>
+                <v-expansion-panel-title class="text-body-2 py-2">
+                  <v-icon size="small" class="me-2">mdi-server</v-icon>
+                  {{ t('aiChat.tokenOptionServer') }}
+                </v-expansion-panel-title>
+                <v-expansion-panel-text>
+                  <p class="text-caption text-medium-emphasis mb-2">
+                    {{
+                      t('aiChat.tokenOptionServerHint', {
+                        code: 'NUXT_AI_TOKEN',
+                        permission: 'Models → Read',
+                      })
+                    }}
+                  </p>
+                  <p class="text-caption text-medium-emphasis">
+                    {{ t('aiChat.tokenOptionServerAccount') }}
+                  </p>
+                </v-expansion-panel-text>
+              </v-expansion-panel>
+              <v-expansion-panel>
+                <v-expansion-panel-title class="text-body-2 py-2">
+                  <v-icon size="small" class="me-2">mdi-account-key</v-icon>
+                  {{ t('aiChat.tokenOptionPersonal') }}
+                </v-expansion-panel-title>
+                <v-expansion-panel-text>
+                  <p class="text-caption text-medium-emphasis mb-2">
+                    {{ t('aiChat.tokenOptionPersonalHint', { permission: 'Models → Read' }) }}
+                    <a
+                      href="https://github.com/settings/personal-access-tokens/new"
+                      target="_blank"
+                      rel="noopener"
+                      class="ai-chat-link"
+                    >
+                      {{ t('aiChat.tokenLinkLabel') }}
+                    </a>
+                  </p>
+                  <v-text-field
+                    v-model="userTokenInput"
+                    type="password"
+                    :placeholder="t('aiChat.tokenPlaceholder')"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    class="mb-2"
+                    prepend-inner-icon="mdi-key"
+                  />
+                  <v-btn
+                    color="primary"
+                    size="small"
+                    block
+                    :disabled="!userTokenInput.trim()"
+                    @click="saveUserToken"
+                  >
+                    {{ t('aiChat.tokenSave') }}
+                  </v-btn>
+                  <p class="text-caption text-medium-emphasis mt-2">
+                    <v-icon size="x-small">mdi-information-outline</v-icon>
+                    {{ t('aiChat.tokenStorageHint') }}
+                  </p>
+                </v-expansion-panel-text>
+              </v-expansion-panel>
+            </v-expansion-panels>
           </div>
-        </div>
 
-        <!-- Loading indicator -->
-        <div v-if="isLoading" class="ai-chat-message ai-chat-message-assistant">
-          <div class="ai-chat-bubble ai-chat-loading">
-            <v-progress-circular size="16" width="2" indeterminate color="indigo" class="mr-2" />
-            <span class="text-body-2 text-grey-darken-1">
-              {{ loadingText }}
-            </span>
+          <div
+            v-for="(msg, idx) in messages"
+            :key="idx"
+            :class="['ai-chat-message', msg.role === 'user' ? 'ai-chat-message-user' : 'ai-chat-message-assistant']"
+          >
+            <div class="ai-chat-bubble">
+              <div
+                v-if="msg.role === 'assistant'"
+                class="ai-chat-bubble-content"
+                v-html="formatMarkdown(msg.content)"
+              />
+              <div v-else class="ai-chat-bubble-content">{{ msg.content }}</div>
+            </div>
           </div>
+
+          <div v-if="isLoading" class="ai-chat-message ai-chat-message-assistant">
+            <div class="ai-chat-bubble ai-chat-loading">
+              <v-progress-circular size="16" width="2" indeterminate color="primary" class="me-2" />
+              <span class="text-body-2 text-medium-emphasis">
+                {{ loadingText }}
+              </span>
+            </div>
+          </div>
+
+          <v-alert
+            v-if="errorMessage"
+            type="error"
+            density="compact"
+            variant="tonal"
+            class="ma-2"
+            closable
+            @click:close="errorMessage = ''"
+          >
+            {{ errorMessage }}
+          </v-alert>
         </div>
 
-        <!-- Error message -->
-        <v-alert
-          v-if="errorMessage"
-          type="error"
-          density="compact"
-          variant="tonal"
-          class="ma-2"
-          closable
-          @click:close="errorMessage = ''"
-        >
-          {{ errorMessage }}
-        </v-alert>
-      </div>
-
-      <!-- Input -->
-      <v-divider />
-      <div class="ai-chat-input pa-2">
-        <v-text-field
-          v-model="inputText"
-          placeholder="Ask about your Copilot metrics..."
-          variant="outlined"
-          density="compact"
-          hide-details
-          :disabled="isLoading"
-          @keyup.enter="sendMessage"
-        >
-          <template #append-inner>
-            <v-btn
-              icon
-              size="small"
-              variant="text"
-              color="indigo"
-              :disabled="!inputText.trim() || isLoading"
-              @click="sendMessage"
-            >
-              <v-icon>mdi-send</v-icon>
-            </v-btn>
-          </template>
-        </v-text-field>
-      </div>
-    </v-card>
-  </div>
+        <v-divider />
+        <div class="ai-chat-input pa-2">
+          <v-text-field
+            v-model="inputText"
+            :placeholder="t('aiChat.inputPlaceholder')"
+            variant="outlined"
+            density="compact"
+            hide-details
+            :disabled="isLoading"
+            @keyup.enter="sendMessage"
+          >
+            <template #append-inner>
+              <v-btn
+                icon
+                size="small"
+                variant="text"
+                color="primary"
+                :disabled="!inputText.trim() || isLoading"
+                @click="sendMessage"
+              >
+                <v-icon>mdi-send</v-icon>
+              </v-btn>
+            </template>
+          </v-text-field>
+        </div>
+      </v-card>
+    </div>
   </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, computed } from 'vue';
-import { getSuggestedQuestions } from '../../server/services/ai-tools';
+import { ref, watch, nextTick, computed } from 'vue'
+import { getAiChatSuggestedQuestions } from '../../shared/i18n/aiChatSuggestions'
 
 interface Props {
-  currentTab?: string;
-  queryParams?: Record<string, string>;
-  metrics?: unknown[];
-  seats?: unknown[];
-  totalSeats?: number;
-  userMetrics?: unknown[];
-  reportData?: unknown[];
+  currentTab?: string
+  queryParams?: Record<string, string>
+  metrics?: unknown[]
+  seats?: unknown[]
+  totalSeats?: number
+  userMetrics?: unknown[]
+  reportData?: unknown[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -223,83 +238,88 @@ const props = withDefaults(defineProps<Props>(), {
   totalSeats: undefined,
   userMetrics: undefined,
   reportData: undefined,
-});
+})
 
 interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
+  role: 'user' | 'assistant'
+  content: string
 }
 
-const isOpen = ref(false);
-const inputText = ref('');
-const messages = ref<ChatMessage[]>([]);
-const isLoading = ref(false);
-const loadingText = ref('Thinking...');
-const errorMessage = ref('');
-const messagesContainer = ref<HTMLElement | null>(null);
-const tokenSetupNeeded = ref(false);
-const tokenErrorMessage = ref('');
-const userTokenInput = ref('');
-const userToken = ref('');
+const { t, locale, isRtl } = useAppI18n()
 
-// Restore user token from sessionStorage
+const isOpen = ref(false)
+const inputText = ref('')
+const messages = ref<ChatMessage[]>([])
+const isLoading = ref(false)
+const loadingText = ref('')
+const errorMessage = ref('')
+const messagesContainer = ref<HTMLElement | null>(null)
+const tokenSetupNeeded = ref(false)
+const tokenErrorMessage = ref('')
+const userTokenInput = ref('')
+const userToken = ref('')
+
+loadingText.value = t.value('aiChat.thinking')
+
+const fabTooltipLocation = computed(() => (isRtl.value ? 'right' : 'left'))
+
+const suggestedQuestions = computed(() =>
+  getAiChatSuggestedQuestions(props.currentTab, t.value)
+)
+
 if (import.meta.client) {
-  const stored = sessionStorage.getItem('ai-chat-user-token');
-  if (stored) userToken.value = stored;
+  const stored = sessionStorage.getItem('ai-chat-user-token')
+  if (stored) userToken.value = stored
 }
-
-const suggestedQuestions = computed(() => getSuggestedQuestions(props.currentTab));
 
 function clearConversation() {
-  messages.value = [];
-  errorMessage.value = '';
-  tokenSetupNeeded.value = false;
+  messages.value = []
+  errorMessage.value = ''
+  tokenSetupNeeded.value = false
 }
 
 function saveUserToken() {
-  const token = userTokenInput.value.trim();
-  if (!token) return;
-  userToken.value = token;
-  userTokenInput.value = '';
-  tokenSetupNeeded.value = false;
+  const token = userTokenInput.value.trim()
+  if (!token) return
+  userToken.value = token
+  userTokenInput.value = ''
+  tokenSetupNeeded.value = false
   if (import.meta.client) {
-    sessionStorage.setItem('ai-chat-user-token', token);
+    sessionStorage.setItem('ai-chat-user-token', token)
   }
 }
 
 function clearUserToken() {
-  userToken.value = '';
-  userTokenInput.value = '';
+  userToken.value = ''
+  userTokenInput.value = ''
   if (import.meta.client) {
-    sessionStorage.removeItem('ai-chat-user-token');
+    sessionStorage.removeItem('ai-chat-user-token')
   }
 }
 
 function askQuestion(question: string) {
-  inputText.value = question;
-  sendMessage();
+  inputText.value = question
+  sendMessage()
 }
 
 async function sendMessage() {
-  const question = inputText.value.trim();
-  if (!question || isLoading.value) return;
+  const question = inputText.value.trim()
+  if (!question || isLoading.value) return
 
-  inputText.value = '';
-  errorMessage.value = '';
+  inputText.value = ''
+  errorMessage.value = ''
 
-  // Add user message
-  messages.value.push({ role: 'user', content: question });
-  await scrollToBottom();
+  messages.value.push({ role: 'user', content: question })
+  await scrollToBottom()
 
-  isLoading.value = true;
-  loadingText.value = 'Analyzing metrics...';
+  isLoading.value = true
+  loadingText.value = t.value('aiChat.analyzing')
 
   try {
-    // Build conversation history for context (limit to last 10 messages)
-    const history = messages.value.slice(0, -1).slice(-10).map(m => ({
+    const history = messages.value.slice(0, -1).slice(-10).map((m) => ({
       role: m.role,
       content: m.content,
-    }));
+    }))
 
     const response = await $fetch('/api/ai/chat', {
       method: 'POST',
@@ -307,6 +327,7 @@ async function sendMessage() {
         question,
         conversationHistory: history,
         currentTab: props.currentTab,
+        locale: locale.value,
         queryParams: props.queryParams,
         userToken: userToken.value || undefined,
         dashboardData: {
@@ -317,43 +338,51 @@ async function sendMessage() {
           reportData: props.reportData,
         },
       },
-    });
+    })
 
-    const result = response as { answer: string; toolsUsed?: string[]; rounds?: number };
+    const result = response as { answer: string; toolsUsed?: string[]; rounds?: number }
 
     messages.value.push({
       role: 'assistant',
       content: result.answer,
-    });
+    })
   } catch (error: unknown) {
-    const err = error as { statusCode?: number; statusMessage?: string; data?: { statusMessage?: string; data?: { code?: string; message?: string } }; message?: string };
-    const errorCode = err.data?.data?.code || err.statusMessage;
-    const errorMsg = err.data?.data?.message || err.data?.statusMessage || err.message || 'An error occurred';
+    const err = error as {
+      statusCode?: number
+      statusMessage?: string
+      data?: { statusMessage?: string; data?: { code?: string; message?: string } }
+      message?: string
+    }
+    const errorCode = err.data?.data?.code || err.statusMessage
+    const errorMsg =
+      err.data?.data?.message ||
+      err.data?.statusMessage ||
+      err.message ||
+      t.value('aiChat.errorGeneric')
 
     if (errorCode === 'missing_token' || errorCode === 'invalid_token') {
-      tokenSetupNeeded.value = true;
-      tokenErrorMessage.value = errorMsg;
-      // Remove the user's message that triggered the error so they can retry
-      messages.value.pop();
+      tokenSetupNeeded.value = true
+      tokenErrorMessage.value = errorMsg
+      messages.value.pop()
     } else {
-      errorMessage.value = errorMsg;
+      errorMessage.value = errorMsg
     }
   } finally {
-    isLoading.value = false;
-    await scrollToBottom();
+    isLoading.value = false
+    loadingText.value = t.value('aiChat.thinking')
+    await scrollToBottom()
   }
 }
 
 async function scrollToBottom() {
-  await nextTick();
+  await nextTick()
   if (messagesContainer.value) {
-    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
   }
 }
 
 function formatMarkdown(text: string): string {
-  if (!text) return '';
-  // Basic markdown formatting for assistant messages
+  if (!text) return ''
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -361,24 +390,29 @@ function formatMarkdown(text: string): string {
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/`(.*?)`/g, '<code>$1</code>')
-    .replace(/\n/g, '<br>');
+    .replace(/\n/g, '<br>')
 }
 
-// Auto-scroll when messages change
-watch(messages, () => scrollToBottom(), { deep: true });
+watch(locale, () => {
+  loadingText.value = t.value('aiChat.thinking')
+})
+
+watch(messages, () => scrollToBottom(), { deep: true })
 </script>
 
 <style scoped>
 .ai-chat-panel {
   position: fixed;
-  bottom: 16px;
-  right: 16px;
+  inset-block-end: 16px;
+  inset-inline-end: 16px;
+  z-index: 2147483647;
 }
 
 .ai-chat-fab {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  inset-block-end: 24px;
+  inset-inline-end: 24px;
+  z-index: 2147483647;
 }
 
 .ai-chat-card {
@@ -386,6 +420,14 @@ watch(messages, () => scrollToBottom(), { deep: true });
   max-height: 600px;
   display: flex;
   flex-direction: column;
+  background: #ffffff !important;
+  border: 1px solid color-mix(in srgb, var(--brand-lavender) 80%, white);
+  box-shadow: var(--brand-shadow-lg);
+  z-index: 2147483647;
+}
+
+.ai-chat-toolbar {
+  flex-shrink: 0;
 }
 
 .ai-chat-messages {
@@ -394,6 +436,7 @@ watch(messages, () => scrollToBottom(), { deep: true });
   padding: 12px;
   min-height: 200px;
   max-height: 420px;
+  background: #ffffff;
 }
 
 .ai-chat-welcome {
@@ -412,16 +455,19 @@ watch(messages, () => scrollToBottom(), { deep: true });
   text-align: center;
 }
 
-.ai-chat-token-setup .v-expansion-panels {
+.ai-chat-token-panels {
   width: 100%;
-  text-align: left;
+  text-align: start;
 }
 
-.ai-chat-token-setup code {
-  background-color: rgba(0, 0, 0, 0.08);
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-size: 0.85em;
+.ai-chat-link {
+  color: var(--brand-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ai-chat-link:hover {
+  text-decoration: underline;
 }
 
 .ai-chat-suggestions {
@@ -429,6 +475,34 @@ watch(messages, () => scrollToBottom(), { deep: true });
   flex-wrap: wrap;
   justify-content: center;
   gap: 4px;
+}
+
+/* Outlined chips fill with primary on hover — keep label white for contrast */
+.ai-chat-suggestions :deep(.ai-chat-suggestion-chip) {
+  border-color: var(--brand-primary) !important;
+  color: var(--brand-primary-dark) !important;
+}
+
+.ai-chat-suggestions :deep(.ai-chat-suggestion-chip .v-chip__content) {
+  color: var(--brand-primary-dark) !important;
+}
+
+.ai-chat-suggestions :deep(.ai-chat-suggestion-chip:hover),
+.ai-chat-suggestions :deep(.ai-chat-suggestion-chip:focus-visible),
+.ai-chat-suggestions :deep(.ai-chat-suggestion-chip.v-chip--selected) {
+  background: var(--brand-primary) !important;
+  color: #ffffff !important;
+}
+
+.ai-chat-suggestions :deep(.ai-chat-suggestion-chip:hover .v-chip__content),
+.ai-chat-suggestions :deep(.ai-chat-suggestion-chip:focus-visible .v-chip__content),
+.ai-chat-suggestions :deep(.ai-chat-suggestion-chip.v-chip--selected .v-chip__content) {
+  color: #ffffff !important;
+}
+
+.ai-chat-suggestions :deep(.ai-chat-suggestion-chip:hover .v-chip__overlay),
+.ai-chat-suggestions :deep(.ai-chat-suggestion-chip:focus-visible .v-chip__overlay) {
+  opacity: 0 !important;
 }
 
 .ai-chat-message {
@@ -447,20 +521,21 @@ watch(messages, () => scrollToBottom(), { deep: true });
 .ai-chat-bubble {
   max-width: 85%;
   padding: 8px 12px;
-  border-radius: 12px;
+  border-radius: var(--brand-radius-md);
   font-size: 0.875rem;
   line-height: 1.5;
 }
 
 .ai-chat-message-user .ai-chat-bubble {
-  background-color: #3f51b5;
-  color: white;
-  border-bottom-right-radius: 4px;
+  background: var(--brand-primary);
+  color: #ffffff;
+  border-end-end-radius: 4px;
 }
 
 .ai-chat-message-assistant .ai-chat-bubble {
-  background-color: #f5f5f5;
-  border-bottom-left-radius: 4px;
+  background: color-mix(in srgb, var(--brand-lavender) 45%, white);
+  color: var(--brand-text);
+  border-end-start-radius: 4px;
 }
 
 .ai-chat-loading {
@@ -469,14 +544,15 @@ watch(messages, () => scrollToBottom(), { deep: true });
 }
 
 .ai-chat-bubble-content :deep(code) {
-  background-color: rgba(0, 0, 0, 0.08);
+  background-color: color-mix(in srgb, var(--brand-primary) 12%, white);
   padding: 1px 4px;
-  border-radius: 3px;
+  border-radius: 4px;
   font-size: 0.85em;
 }
 
 .ai-chat-input {
   background-color: #ffffff;
+  flex-shrink: 0;
 }
 
 @media (max-width: 480px) {

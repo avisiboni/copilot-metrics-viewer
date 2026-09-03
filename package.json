@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "nuxt build",
+    "build": "npm run docs:embed && nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
@@ -14,7 +14,12 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest",
-    "test:e2e": "npx playwright test"
+    "test:e2e": "npx playwright test",
+    "docs:dev": "npm run start --prefix website",
+    "docs:dev:en": "npm run start:en --prefix website",
+    "docs:build": "npm run build --prefix website",
+    "docs:embed": "npm run build:embed --prefix website && node website/scripts/embed-in-app-public.mjs",
+    "docs:sync-en": "npm run docs:sync-en --prefix website"
   },
   "dependencies": {
     "@azure/msal-browser": "^5.9.0",
@@ -31,7 +36,8 @@
     "vue": "latest",
     "vue-chartjs": "^5.3.2",
     "vuetify": "^3.7.3",
-    "webfontloader": "^1.6.28"
+    "webfontloader": "^1.6.28",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@mdi/font": "^7.4.47",

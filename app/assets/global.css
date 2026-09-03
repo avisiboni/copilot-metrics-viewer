@@ -1,13 +1,10 @@
-/* App theme variables */
+/* App theme variables — Menora Mivtachim brand */
 :root {
-  /* Use Vuetify primary as the single source of truth for accent */
-  --app-accent: var(--v-theme-primary, #1976D2);
-  /* Fallback translucent variants (based on #1976D2) */
-  --app-accent-weak: rgba(25, 118, 210, 0.10);    /* subtle bg */
-  --app-accent-overlay: rgba(25, 118, 210, 0.12); /* tab overlay */
+  --app-accent: var(--v-theme-primary, var(--brand-primary));
+  --app-accent-weak: rgba(100, 54, 223, 0.10);
+  --app-accent-overlay: rgba(100, 54, 223, 0.12);
 }
 
-/* Prefer dynamic derivation when supported */
 @supports (color: color-mix(in srgb, red, transparent)) {
   :root {
     --app-accent-weak: color-mix(in srgb, var(--app-accent), transparent 90%);
@@ -15,295 +12,1640 @@
   }
 }
 
-/* System font stack — matches GitHub's look */
-.v-application, .v-application *:not(.v-icon):not(.mdi) {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+:root {
+  --brand-primary: #6436df;
+  --brand-primary-dark: #320f5b;
+  --brand-primary-light: #9766fd;
+  --brand-lavender: #dad9eb;
+  --brand-surface: #f0f1f6;
+  --brand-text: #343546;
+  --brand-accent: #ffc700;
+  --brand-turquoise: #06c5d7;
+  --brand-focus: #b5b4c5;
+
+  --brand-radius-sm: 8px;
+  --brand-radius-md: 12px;
+  --brand-radius-lg: 27px;
+  --brand-radius-kpi: 20px;
+
+  --brand-shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.06);
+  --brand-shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.2);
+  --brand-kpi-shadow: 0 4px 22px rgba(50, 15, 91, 0.07);
+
+  --kpi-tint-mint-bg: #e5f7f4;
+  --kpi-tint-mint-accent: #06c5d7;
+  --kpi-tint-lavender-bg: #ede8fc;
+  --kpi-tint-lavender-accent: #6436df;
+  --kpi-tint-blue-bg: #e8f1ff;
+  --kpi-tint-blue-accent: #5b7fd6;
+  --kpi-tint-peach-bg: #fff2e8;
+  --kpi-tint-peach-accent: #e89b4a;
 }
 
-/* KPI tile grid — Row 1 (5 tiles) and Row 2 (4 tiles) each in independent auto-fit grids */
-.tiles-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
-  padding: 4px 16px;
+body {
+  color: var(--brand-text);
+  background-color: var(--brand-surface);
 }
-  .tiles-text {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-  }
 
-/* Unified KPI value — all tiles use the same base size; long text scales down gracefully */
-.kpi-value {
-  font-size: clamp(1.4rem, 3.2vw, 2.8rem);
-  font-weight: 700;
-  line-height: 1.15;
-  word-break: break-word;
-  overflow-wrap: break-word;
+/* Hebrew: document dir is rtl; Vuetify SSR may still emit v-locale--is-ltr on v-app */
+html[dir='rtl'] .v-locale-provider.v-locale--is-rtl {
+  direction: rtl;
 }
-/* Secondary / de-emphasised row (row 2 tiles) */
-.kpi-value-sm {
-  font-size: clamp(1.1rem, 2.2vw, 1.9rem);
+
+html[dir='rtl'] .brand-page-panel > h2,
+html[dir='rtl'] .brand-page-panel .brand-page-panel__title,
+html[dir='rtl'] .brand-table-shell__title {
+  text-align: start;
+}
+
+/*
+ * Native date/time inputs stay LTR (ISO values); in RTL layout only align the value
+ * to the visual end and keep the calendar icon on the inline-end (right) without overlap.
+ */
+html[dir='rtl'] .v-field input[type='date'],
+html[dir='rtl'] .v-field input[type='datetime-local'],
+html[dir='rtl'] .v-field input[type='time'] {
+  direction: ltr;
+  text-align: right;
+  /* LTR input keeps the picker on the right; reserve space so the value does not overlap it */
+  padding-right: 2.25rem;
+  padding-left: 0.75rem;
+}
+
+html[dir='rtl'] .v-field input[type='date']::-webkit-calendar-picker-indicator,
+html[dir='rtl'] .v-field input[type='datetime-local']::-webkit-calendar-picker-indicator,
+html[dir='rtl'] .v-field input[type='time']::-webkit-calendar-picker-indicator {
+  margin: 0;
+  cursor: pointer;
+  opacity: 1;
+}
+
+/* Users tab filters toolbar */
+.brand-users-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+}
+
+.brand-users-filters__date.v-input {
+  flex: 0 0 12rem;
+  width: 12rem;
+  max-width: 100%;
+}
+
+.brand-users-filters__user.v-input {
+  flex: 0 1 22rem;
+  width: min(22rem, 100%);
+  min-width: 14rem;
+}
+
+.brand-users-filters__apply {
+  flex: 0 0 auto;
+}
+
+.brand-users-filters__day-hint {
+  flex: 0 0 100%;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  margin: 0;
+  max-width: 12rem;
+}
+
+/* RTL day filter: native date stays LTR; align value + picker to the visual right */
+html[dir='rtl'] .brand-users-filters__date .v-field__input {
+  justify-content: flex-end;
+}
+
+html[dir='rtl'] .brand-users-filters__date.v-input input[type='date'] {
+  direction: ltr !important;
+  text-align: right !important;
+  width: 100%;
+  padding-right: 2.25rem !important;
+  padding-left: 0.5rem !important;
+}
+
+html[dir='rtl'] .brand-users-filters__date input[type='date']::-webkit-datetime-edit,
+html[dir='rtl'] .brand-users-filters__date input[type='date']::-webkit-datetime-edit-fields-wrapper {
+  text-align: right;
+}
+
+html[dir='rtl'] .brand-users-filters__date input[type='date']::-webkit-datetime-edit-fields-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.brand-users-filters__apply.v-btn {
+  height: 40px;
+}
+
+/* Date range panel — compact date inputs in RTL (expanded toolbar) */
+html[dir='rtl'] .date-range-panel__date-field .v-field__input {
+  justify-content: flex-end;
+}
+
+html[dir='rtl'] .date-range-panel__date-field.v-input input[type='date'] {
+  direction: ltr !important;
+  text-align: right !important;
+  width: 100%;
+  padding-right: 2.25rem !important;
+  padding-left: 0.5rem !important;
+}
+
+html[dir='rtl'] .date-range-panel__date-field input[type='date']::-webkit-datetime-edit-fields-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+/* Collapsed date bar: pack summary cluster to inline-start (visual right in RTL) */
+html[dir='rtl'] .date-range-panel :deep(.v-expansion-panel-title__content) {
+  justify-content: flex-start;
+}
+
+html[dir='ltr'] .date-range-panel :deep(.v-expansion-panel-title__content) {
+  justify-content: flex-start;
+}
+
+
+.v-application {
+  font-family: 'Assistant', Arial, sans-serif;
+  color: var(--brand-text);
+  background: var(--brand-surface);
+}
+
+.v-toolbar.brand-toolbar {
+  background: var(--brand-primary) !important;
+  color: #fff;
+}
+
+.v-navigation-drawer.brand-nav-drawer {
+  border-inline-end: 1px solid color-mix(in srgb, var(--brand-lavender) 80%, white);
+  background: #fff !important;
+}
+
+.brand-nav-drawer__head {
+  min-height: 48px;
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-lavender) 70%, white);
+}
+
+.brand-nav-drawer__head--rail {
+  justify-content: center;
+  padding-inline: 4px !important;
+}
+
+.brand-nav-drawer__logo {
+  height: 28px;
+  width: auto;
+  max-width: 160px;
+}
+
+.brand-nav-list .v-list-item {
+  text-transform: capitalize;
+  font-size: 0.8125rem;
+  color: var(--brand-text) !important;
+}
+
+.brand-nav-list .v-list-item .v-icon {
+  color: var(--brand-text) !important;
+  opacity: 0.85;
+}
+
+.brand-nav-list .v-list-item .v-list-item__overlay,
+.brand-nav-list .v-list-item--active .v-list-item__overlay {
+  opacity: 0 !important;
+}
+
+.brand-nav-list .v-list-item--active {
+  background: color-mix(in srgb, var(--brand-lavender) 70%, white) !important;
   font-weight: 600;
-  line-height: 1.2;
+  box-shadow: inset-inline-start 3px 0 0 var(--brand-primary);
 }
-/* Legacy alias kept for any remaining usages */
-.kpi-text-value {
-  font-size: clamp(1.4rem, 3.2vw, 2.8rem);
+
+.brand-nav-list .v-list-item--active .v-icon {
+  color: var(--brand-primary) !important;
+  opacity: 1;
+}
+
+.brand-nav-list .v-list-item--active .v-list-item-title {
+  color: var(--brand-primary-dark) !important;
+}
+
+.brand-nav-list .v-list-item:hover:not(.v-list-item--active) {
+  background: color-mix(in srgb, var(--brand-lavender) 35%, white) !important;
+}
+
+.brand-nav-list .v-list-item:hover:not(.v-list-item--active) .v-icon {
+  color: var(--brand-primary) !important;
+  opacity: 1;
+}
+
+.v-app-bar.brand-app-bar {
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-lavender) 80%, white);
+  background: #fff !important;
+}
+
+/* Match main content horizontal padding so locale control aligns with filters below */
+.v-app-bar.brand-app-bar .v-toolbar__content {
+  padding-inline: 20px;
+}
+
+.brand-app-bar__locale {
+  margin-inline: 0.75rem;
+  flex-shrink: 0;
+}
+
+.brand-app-bar__locale .language-switcher.brand-filter-chip {
+  height: 2rem;
+  box-shadow: none;
+}
+
+.v-toolbar.brand-toolbar .v-toolbar-title,
+.v-toolbar.brand-toolbar .v-btn,
+.v-toolbar.brand-toolbar .v-icon {
+  color: #fff;
+}
+
+.brand-toolbar__logo {
+  height: 36px;
+  width: auto;
+  margin-inline-end: 12px;
+}
+
+.v-footer.brand-footer {
+  background: var(--brand-primary-dark) !important;
+  color: #fff;
+}
+
+.v-footer.brand-footer a {
+  color: #fff;
+}
+
+/* Selected tab: yellow underline per digital guidelines */
+.v-tabs.brand-tabs .v-tab--selected {
   font-weight: 700;
-  line-height: 1.15;
-  word-break: break-word;
-  overflow-wrap: break-word;
 }
 
-  .error-message {
-    color: red;
-  }
+.v-tabs.brand-tabs .v-tab--selected .v-tab__slider {
+  background: var(--brand-accent) !important;
+  opacity: 1;
+  height: 3px;
+}
 
-  .spacing-10 {
-    margin-bottom: 10px;
-  }
+.brand-surface-card {
+  background-color: var(--brand-surface) !important;
+}
 
-  .spacing-25 {
-    margin-bottom: 25px;
-  }
+.brand-info-banner {
+  background-color: color-mix(in srgb, var(--brand-lavender) 55%, white) !important;
+  border-inline-start: 4px solid var(--brand-primary);
+  color: var(--brand-primary-dark) !important;
+}
 
-  /* Fix tab hover styles - dark blue overlay using pseudo-element */
-  .v-tab {
-    position: relative !important;
-  }
-  
-  .v-tab:hover::before {
-    content: '' !important;
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-  background-color: var(--app-accent-overlay) !important;
-    pointer-events: none !important;
-    z-index: 1 !important;
-  }
+.brand-info-banner.v-card,
+.brand-info-banner.v-card.text-caption {
+  color: var(--brand-primary-dark) !important;
+}
 
-  /* Ensure tab content is above overlay */
-  .v-tab .v-tab__content {
-    position: relative !important;
-    z-index: 2 !important;
-  }
+.brand-info-banner .text-body-2,
+.brand-info-banner .text-caption,
+.brand-info-banner .v-card-title,
+.brand-info-banner strong {
+  color: var(--brand-primary-dark) !important;
+}
 
-  /* Fix expansion panel title overlay on hover - gray overlay */
-  .v-expansion-panel-title:hover .v-expansion-panel-title__overlay {
-    display: block !important;
-    background-color: rgba(0, 0, 0, 0.04) !important;
-    opacity: 1 !important;
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    pointer-events: none !important;
-  }
+/* Tonal alerts were rendering solid dark blocks (underlay uses on-surface at full opacity) */
+.v-alert.brand-alert,
+.v-alert.v-alert--variant-tonal {
+  color: var(--brand-text) !important;
+}
 
-  /* Fix button hover styles - light gray background */
-  .v-btn:hover {
-  background-color: var(--app-accent-weak) !important;
-  }
-  
-  .v-btn:hover .v-btn__overlay {
-    display: none !important;
-  }
+.v-alert.brand-alert .v-alert__underlay,
+.v-alert.brand-alert .v-alert__background,
+.v-alert.v-alert--variant-tonal .v-alert__underlay,
+.v-alert.v-alert--variant-tonal .v-alert__background {
+  opacity: 0 !important;
+  background: transparent !important;
+}
 
-  /* Override Vuetify's default overlay behavior for tabs */
-  .v-tab.v-btn--variant-text .v-tab__overlay {
-    background: transparent !important;
-  }
+.v-alert.brand-alert .v-alert-title,
+.v-alert.v-alert--variant-tonal .v-alert-title {
+  color: var(--brand-primary-dark) !important;
+  font-weight: 600;
+}
 
-  /* Override Vuetify's default overlay behavior for variant-text buttons in tabs */
-  .v-tab .v-btn--variant-text .v-btn__overlay {
-    background: transparent !important;
-  }
+.v-alert.brand-alert .v-alert__content,
+.v-alert.brand-alert code,
+.v-alert.v-alert--variant-tonal .v-alert__content,
+.v-alert.v-alert--variant-tonal code {
+  color: var(--brand-text) !important;
+}
 
+.v-alert.brand-alert--info,
+.v-alert.v-alert--variant-tonal.text-info {
+  background-color: color-mix(in srgb, var(--brand-turquoise) 18%, white) !important;
+  border: 1px solid color-mix(in srgb, var(--brand-turquoise) 45%, white);
+}
 
-  /* Chips palette: light primary tint background — text follows theme */
-  .v-chip.select-chip,
-  .v-chip.selected-team-chip {
-    background-color: var(--app-accent-weak) !important;
-    border-color: var(--app-accent-weak) !important;
-    background-image: none !important;
-  }
-  /* In light mode: force black text for contrast on light chip */
-  html.v-theme--light .v-chip.select-chip,
-  html.v-theme--light .v-chip.selected-team-chip {
-    color: #000 !important;
-  }
-  html.v-theme--light .v-chip.select-chip .v-icon,
-  html.v-theme--light .v-chip.selected-team-chip .v-icon,
-  html.v-theme--light .v-chip.select-chip .v-chip__content,
-  html.v-theme--light .v-chip.selected-team-chip .v-chip__content {
-    color: #000 !important;
-  }
-  /* In dark mode: force light text on the tinted chip */
-  html.v-theme--dark .v-chip.select-chip,
-  html.v-theme--dark .v-chip.selected-team-chip {
-    color: #e8e8e8 !important;
-  }
-  html.v-theme--dark .v-chip.select-chip .v-icon,
-  html.v-theme--dark .v-chip.selected-team-chip .v-icon,
-  html.v-theme--dark .v-chip.select-chip .v-chip__content,
-  html.v-theme--dark .v-chip.selected-team-chip .v-chip__content {
-    color: #e8e8e8 !important;
-  }
-  .v-chip.select-chip .v-chip__overlay,
-  .v-chip.selected-team-chip .v-chip__overlay {
-    background: transparent !important;
-  }
-  .v-chip.select-chip .v-chip__underlay,
-  .v-chip.selected-team-chip .v-chip__underlay {
-    background-color: var(--app-accent-weak) !important;
-  }
-  .v-chip.select-chip:hover .v-chip__overlay,
-  .v-chip.selected-team-chip:hover .v-chip__overlay {
-    background: transparent !important;
-  }
+.v-alert.brand-alert--warning,
+.v-alert.v-alert--variant-tonal.text-warning {
+  background-color: color-mix(in srgb, var(--brand-accent) 40%, white) !important;
+  border: 1px solid color-mix(in srgb, var(--brand-accent) 70%, white);
+}
 
-  /* Data table pagination & items-per-page menu styling */
-  /* Ensure pagination toolbar inherits surface background and consistent spacing */
-  .v-data-table .v-data-table-footer { 
-    background-color: rgb(var(--v-theme-surface)) !important;
-  }
+.v-alert.brand-alert--error,
+.v-alert.v-alert--variant-tonal.text-error {
+  background-color: #fde8f8 !important;
+  border: 1px solid #f5b8eb;
+  color: #6b1a5c !important;
+}
 
-  /* Items-per-page activator button */
-  .v-data-table .v-data-table-footer .v-field { 
-    min-width: 90px; 
-  }
+.v-alert.brand-alert--success,
+.v-alert.v-alert--variant-tonal.text-success {
+  background-color: #e8f5e9 !important;
+  border: 1px solid #a5d6a7;
+  color: #1b5e20 !important;
+}
 
+/* Keep dismiss (X) readable on brand alerts */
+.v-alert.brand-alert .v-alert__close,
+.v-alert.brand-alert .v-alert__close .v-btn,
+.v-alert.brand-alert .v-alert__close .v-icon {
+  color: var(--brand-primary-dark) !important;
+  opacity: 1 !important;
+}
 
+.v-chip.brand-filter-chip {
+  background-color: var(--brand-lavender) !important;
+  color: var(--brand-primary-dark) !important;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 25%, white);
+}
 
-  html.v-theme--dark .v-overlay__content .v-list-item[role="option"]:hover,
-  html.v-theme--dark .v-overlay__content .v-list-item[role="option"].v-list-item--active {
-    background: #2a3a6e !important;
-  }
-  .v-overlay__content .v-list-item[role="option"]:hover { 
-    background: var(--app-accent-weak) !important; 
-  }
-  .v-overlay__content .v-list-item[role="option"].v-list-item--active { 
-    background: var(--app-accent-weak) !important; 
-  }
+/* Tonal variant paints a primary underlay that hides dark label text on purple */
+.v-chip.brand-filter-chip .v-chip__overlay,
+.v-chip.brand-filter-chip .v-chip__underlay {
+  opacity: 0 !important;
+  background: transparent !important;
+}
 
-  /* Remove dark overlay layer inside those list items */
-  .v-overlay__content .v-list-item[role="option"] .v-list-item__overlay { 
-    background: transparent !important; 
-  }
+.v-chip.brand-filter-chip .v-chip__content,
+.v-chip.brand-filter-chip .v-icon {
+  color: var(--brand-primary-dark) !important;
+}
 
-  /* Pagination buttons hover state unify with buttons */
-  .v-data-table .v-data-table-footer .v-btn:hover { 
-    background-color: var(--app-accent-weak) !important; 
-  }
+.v-chip.brand-effectiveness-chip {
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 20%, white);
+}
 
-  /* ── Explicit text color utilities (ensures CSS vars work in SSR/module builds) ── */
-.text-primary { color: rgb(var(--v-theme-primary)) !important; }
-.text-success { color: rgb(var(--v-theme-success)) !important; }
-.text-info    { color: rgb(var(--v-theme-info))    !important; }
-.text-error   { color: rgb(var(--v-theme-error))   !important; }
-.text-warning { color: rgb(var(--v-theme-warning)) !important; }
+.v-chip.brand-effectiveness-chip .v-chip__overlay,
+.v-chip.brand-effectiveness-chip .v-chip__underlay {
+  opacity: 0 !important;
+  background: transparent !important;
+}
 
-/* ── Toolbar ── */
-.app-toolbar {
-  background: linear-gradient(135deg, #1565c0 0%, #1976d2 50%, #1e88e5 100%) !important;
+.v-chip.brand-effectiveness-chip .v-chip__content,
+.v-chip.brand-effectiveness-chip .v-icon {
+  color: #fff !important;
+}
+
+.v-chip.brand-usage-pattern-chip .v-chip__overlay,
+.v-chip.brand-usage-pattern-chip .v-chip__underlay {
+  opacity: 0 !important;
+  background: transparent !important;
+}
+
+.v-chip.brand-usage-pattern-chip--on-dark,
+.v-chip.brand-usage-pattern-chip--on-dark .v-chip__content,
+.v-chip.brand-usage-pattern-chip--on-dark .v-icon {
+  color: #fff !important;
+}
+
+.v-chip.brand-filter-chip--warning {
+  background-color: color-mix(in srgb, var(--brand-accent) 45%, white) !important;
+  color: var(--brand-text) !important;
+}
+
+/* Modern KPI tiles — soft pastel cards (dashboard-style) */
+.brand-kpi-card.v-card,
+.v-card.brand-metric-kpi {
+  position: relative;
+  overflow: hidden;
+  border: none !important;
+  border-radius: var(--brand-radius-kpi) !important;
+  box-shadow: var(--brand-kpi-shadow) !important;
+  color: var(--brand-text) !important;
+  min-height: 148px;
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.brand-kpi-card.v-card::before,
+.v-card.brand-metric-kpi::before {
+  content: '';
+  position: absolute;
+  inset-inline-end: -28px;
+  top: -28px;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: var(--kpi-accent, var(--brand-primary));
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.brand-kpi-card.v-card::after,
+.v-card.brand-metric-kpi::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 56px;
+  background: linear-gradient(180deg, transparent, var(--kpi-accent, var(--brand-primary)));
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.brand-metric-card--purple {
+  --kpi-bg: color-mix(in srgb, var(--kpi-tint-lavender-bg) 65%, white);
+  --kpi-accent: var(--kpi-tint-lavender-accent);
+}
+
+.brand-metric-card--turquoise {
+  --kpi-bg: var(--kpi-tint-mint-bg);
+  --kpi-accent: var(--kpi-tint-mint-accent);
+}
+
+.brand-metric-card--lavender {
+  --kpi-bg: var(--kpi-tint-blue-bg);
+  --kpi-accent: var(--kpi-tint-blue-accent);
+}
+
+.brand-metric-card--accent {
+  --kpi-bg: var(--kpi-tint-peach-bg);
+  --kpi-accent: var(--kpi-tint-peach-accent);
+}
+
+.brand-kpi-card.v-card,
+.v-card.brand-metric-card--purple,
+.v-card.brand-metric-card--turquoise,
+.v-card.brand-metric-card--lavender,
+.v-card.brand-metric-card--accent,
+.v-card.brand-metric-kpi {
+  background: var(--kpi-bg, #f7f7fb) !important;
+}
+
+.tiles-container > .brand-kpi-card:nth-child(4n + 1) {
+  --kpi-bg: var(--kpi-tint-mint-bg);
+  --kpi-accent: var(--kpi-tint-mint-accent);
+}
+
+.tiles-container > .brand-kpi-card:nth-child(4n + 2) {
+  --kpi-bg: var(--kpi-tint-peach-bg);
+  --kpi-accent: var(--kpi-tint-peach-accent);
+}
+
+.tiles-container > .brand-kpi-card:nth-child(4n + 3) {
+  --kpi-bg: color-mix(in srgb, var(--kpi-tint-lavender-bg) 65%, white);
+  --kpi-accent: var(--kpi-tint-lavender-accent);
+}
+
+.tiles-container > .brand-kpi-card:nth-child(4n + 3) .brand-kpi-card__label,
+.tiles-container > .brand-kpi-card:nth-child(4n + 3) .brand-kpi-card__value,
+.tiles-container > .brand-kpi-card:nth-child(4n + 3) .brand-kpi-card__hint {
+  color: var(--brand-primary-dark) !important;
+}
+
+.tiles-container > .brand-kpi-card:nth-child(4n + 4) {
+  --kpi-bg: var(--kpi-tint-blue-bg);
+  --kpi-accent: var(--kpi-tint-blue-accent);
+}
+
+.brand-kpi-card .v-card__overlay,
+.brand-kpi-card:hover > .v-card__overlay,
+.brand-metric-card--purple .v-card__overlay,
+.brand-metric-card--purple:hover > .v-card__overlay,
+.brand-metric-card--turquoise .v-card__overlay,
+.brand-metric-card--turquoise:hover > .v-card__overlay,
+.brand-metric-card--lavender .v-card__overlay,
+.brand-metric-card--lavender:hover > .v-card__overlay,
+.brand-metric-card--accent .v-card__overlay,
+.brand-metric-card--accent:hover > .v-card__overlay,
+.brand-metric-kpi .v-card__overlay,
+.brand-metric-kpi:hover > .v-card__overlay {
+  opacity: 0 !important;
+  background: transparent !important;
+}
+
+.brand-kpi-card .v-card-item,
+.brand-kpi-card .v-card-text,
+.brand-metric-kpi .v-card-text {
+  position: relative;
+  z-index: 1;
+  padding: 20px 22px !important;
+}
+
+.brand-kpi-card .v-card-title {
+  padding: 20px 22px 0 !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+  color: #6e6e7a !important;
+  white-space: normal;
+}
+
+.brand-kpi-card .v-card-text {
+  padding-top: 8px !important;
+}
+
+.brand-kpi-card__label,
+.brand-kpi-card .text-h6,
+.brand-metric-kpi .text-caption {
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  color: #343546 !important;
+  line-height: 1.35 !important;
+}
+
+.brand-kpi-card__value,
+.brand-kpi-card .text-h4,
+.brand-kpi-card .text-h5,
+.brand-metric-kpi .text-h5 {
+  font-size: 1.875rem !important;
+  font-weight: 700 !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.02em;
+  color: var(--brand-text) !important;
+  margin: 10px 0 6px !important;
+}
+
+.brand-kpi-card__body {
+  position: relative;
+  z-index: 1;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 120px;
+}
+
+.brand-kpi-card__hint,
+.brand-kpi-card .text-caption:not(.brand-kpi-card__label),
+.brand-kpi-card .text-subtitle2 {
+  font-size: 0.75rem !important;
+  color: #52525f !important;
+  line-height: 1.35 !important;
+}
+
+.brand-kpi-card__hint {
+  margin-top: auto !important;
+  padding-top: 4px;
+}
+
+.brand-kpi-card .v-card-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.brand-kpi-card .v-card-text > .text-h4 {
+  order: 1;
+  margin-top: 4px !important;
+  margin-bottom: 8px !important;
+}
+
+.brand-kpi-card .v-card-text > .text-caption {
+  order: 2;
+}
+
+.brand-kpi-card .v-card-text > .text-subtitle2 {
+  order: 3;
+}
+
+.brand-kpi-card--interactive {
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.brand-kpi-card--interactive:hover {
+  box-shadow: 0 8px 28px rgba(100, 54, 223, 0.14) !important;
+  transform: translateY(-2px);
+}
+
+.brand-kpi-card--interactive.brand-kpi-card--active,
+.brand-kpi-card--interactive.brand-kpi-card--active:hover {
+  background: #ffffff !important;
+  box-shadow:
+    0 8px 28px rgba(100, 54, 223, 0.18),
+    inset 0 0 0 2px var(--brand-primary) !important;
+  transform: translateY(-1px);
+}
+
+/* KPI tiles — always dark text on pastel backgrounds (never theme primary on primary) */
+.brand-kpi-card.v-card,
+.v-card.brand-metric-kpi,
+.brand-kpi-card.v-card .v-card-item,
+.brand-kpi-card.v-card .v-card-text,
+.brand-kpi-card.v-card .tiles-text {
+  color: var(--brand-text) !important;
+}
+
+.brand-kpi-card.v-card .brand-kpi-card__label,
+.brand-kpi-card.v-card .text-h6,
+.tiles-container .brand-kpi-card .brand-kpi-card__label,
+.tiles-container .brand-kpi-card .text-h6 {
+  color: #52525f !important;
+}
+
+.brand-kpi-card.v-card .brand-kpi-card__value,
+.brand-kpi-card.v-card .text-h4,
+.brand-kpi-card.v-card .text-h5,
+.tiles-container .brand-kpi-card .brand-kpi-card__value,
+.tiles-container .brand-kpi-card .text-h4 {
+  color: #1f1230 !important;
+}
+
+.brand-kpi-card.v-card .brand-kpi-card__hint,
+.brand-kpi-card.v-card .text-caption,
+.brand-kpi-card.v-card .text-medium-emphasis,
+.tiles-container .brand-kpi-card .brand-kpi-card__hint,
+.tiles-container .brand-kpi-card .text-caption {
+  color: #6e6e7a !important;
+}
+
+.brand-kpi-card.v-card .text-primary,
+.brand-metric-kpi.text-primary,
+.brand-kpi-card.v-card .text-primary {
+  color: #1f1230 !important;
+}
+
+.brand-kpi-card--interactive.brand-kpi-card--active .brand-kpi-card__label,
+.brand-kpi-card--interactive.brand-kpi-card--active .brand-kpi-card__value,
+.brand-kpi-card--interactive.brand-kpi-card--active .brand-kpi-card__hint,
+.brand-kpi-card--interactive.brand-kpi-card--active .text-h6,
+.brand-kpi-card--interactive.brand-kpi-card--active .text-h4,
+.brand-kpi-card--interactive.brand-kpi-card--active .text-caption {
+  color: var(--brand-primary-dark) !important;
+}
+
+.v-card.brand-metric-card--purple .brand-kpi-card__label,
+.v-card.brand-metric-card--purple .brand-kpi-card__hint,
+.v-card.brand-metric-card--purple .brand-kpi-card__value {
+  color: var(--brand-primary-dark) !important;
+}
+
+.brand-kpi-card--interactive:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 3px;
+}
+
+.brand-metric-card--purple:hover,
+.brand-metric-card--turquoise:hover,
+.brand-metric-card--lavender:hover,
+.brand-metric-card--accent:hover,
+.brand-metric-kpi:hover {
+  box-shadow: 0 8px 24px rgba(100, 54, 223, 0.12) !important;
+  transform: translateY(-2px);
+}
+
+.brand-kpi-tooltip {
+  position: absolute;
+  top: 10px;
+  inset-inline-end: 10px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  color: #6e6e7a;
+  cursor: help;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.brand-kpi-tooltip:hover,
+.brand-kpi-tooltip:focus-visible {
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--brand-primary);
+  outline: none;
+}
+
+.brand-kpi-tooltip__panel {
+  max-width: 380px;
+}
+
+.brand-kpi-tooltip__text {
+  margin: 0;
+  font-size: 0.875rem !important;
+  font-weight: 400;
+  line-height: 1.5 !important;
+  color: var(--brand-text) !important;
+  white-space: pre-line;
+}
+
+.brand-usage-pattern-tooltip {
+  max-width: min(400px, 92vw);
+}
+
+.brand-usage-pattern-tooltip__title {
+  color: var(--brand-primary-dark) !important;
+  line-height: 1.35;
+}
+
+.brand-usage-pattern-tooltip__hint,
+.brand-usage-pattern-tooltip__headline {
+  color: var(--brand-text) !important;
+  line-height: 1.5;
+}
+
+.brand-usage-pattern-tooltip__meta {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  color: var(--brand-text) !important;
+  line-height: 1.6;
+}
+
+.brand-usage-pattern-tooltip__meta li + li {
+  margin-top: 0.25rem;
+}
+
+.brand-usage-pattern-tooltip__effectiveness {
+  color: var(--brand-primary-dark) !important;
+  line-height: 1.4;
+}
+
+/* Chart section titles with inline ⓘ tooltip */
+.brand-chart-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.brand-chart-title__heading {
+  margin: 0;
+}
+
+.brand-chart-title__info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(100, 54, 223, 0.1);
+  color: #6436df;
+  cursor: help;
+  flex-shrink: 0;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.brand-chart-title__info:hover,
+.brand-chart-title__info:focus-visible {
+  background: rgba(100, 54, 223, 0.18);
+  color: #4c1d95;
+  outline: none;
+}
+
+.brand-kpi-card:has(.brand-kpi-tooltip) .brand-kpi-card__body,
+.brand-kpi-card:has(.brand-kpi-tooltip) .v-card-item,
+.brand-kpi-card:has(.brand-kpi-tooltip) .v-card-title {
+  padding-inline-end: 44px !important;
+}
+
+.brand-tooltip-card {
+  background-color: #fff !important;
+  border: 1px solid color-mix(in srgb, var(--brand-lavender) 80%, white);
+  border-radius: var(--brand-radius-md) !important;
+  box-shadow: var(--brand-shadow-lg) !important;
+  max-width: min(380px, 92vw);
+  pointer-events: auto;
+}
+
+/* Column-header tooltips must not block clicks on table rows (e.g. Usage detail buttons). */
+.v-overlay.v-tooltip {
+  pointer-events: none !important;
+}
+
+/* BrandTooltip — card supplies the white surface; overlay wrapper stays transparent */
+.v-overlay__content.brand-tooltip-overlay,
+.v-overlay__content:has(.brand-tooltip-card) {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+/* Fallback: any remaining Vuetify :text tooltips get a solid white panel */
+.v-overlay.v-tooltip > .v-overlay__content:not(.brand-tooltip-overlay):not(:has(.brand-tooltip-card)) {
+  background-color: #ffffff !important;
+  color: var(--brand-text, #343546) !important;
+  border: 1px solid color-mix(in srgb, var(--brand-lavender) 80%, white);
+  border-radius: var(--brand-radius-md, 12px);
+  box-shadow: var(--brand-shadow-lg, 0 8px 24px rgba(50, 15, 91, 0.12));
+  padding: 12px 14px !important;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.5;
+  white-space: pre-line;
+  max-width: min(380px, 92vw);
+}
+
+.app-shell__main {
+  /*
+   * Only bottom padding here — never set padding-left/right/top with !important;
+   * that overrides Vuetify layout offsets (drawer width, app-bar height).
+   */
+  padding-bottom: calc(56px + env(safe-area-inset-bottom)) !important;
+  box-sizing: border-box;
+}
+
+.app-shell__page {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 20px 0;
+  box-sizing: border-box;
+}
+
+.app-shell__body {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.app-shell__body .v-window,
+.app-shell__body .v-window__container,
+.app-shell__body .v-window-item {
+  width: 100%;
+}
+
+.app-shell__body .v-window-item > .v-card {
+  width: 100%;
+  display: block;
+}
+
+/* Page sections — use instead of nested v-main inside tab content */
+.brand-page-panel {
+  width: 100%;
+  max-width: 100%;
+  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--brand-lavender) 80%, white);
+  border-radius: var(--brand-radius-md);
+  padding: 18px 24px 20px;
+  margin: 0 0 12px;
+  box-shadow: 0 1px 3px rgba(50, 15, 91, 0.06);
+  box-sizing: border-box;
+}
+
+.brand-page-panel > h2,
+.brand-page-panel .brand-page-panel__title {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+/* Modern data tables */
+.brand-table-shell {
+  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--brand-lavender) 70%, white);
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(50, 15, 91, 0.06);
+  overflow: hidden;
+  margin: 4px 0 12px;
+}
+
+.brand-table-shell__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid #f0f0f4;
+}
+
+.brand-table-shell__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--brand-text);
+}
+
+.brand-table-shell__subtitle {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  color: #9494a1;
+  line-height: 1.4;
+}
+
+.brand-table-shell__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: min(100%, 280px);
+}
+
+.brand-table-shell .brand-data-table {
+  background: transparent !important;
+}
+
+.brand-data-table {
+  font-size: 0.8125rem;
+}
+
+.brand-data-table .v-table {
+  background: transparent !important;
+}
+
+.brand-data-table .v-table__wrapper > table > thead > tr > th {
+  background: #fafafc !important;
+  color: #7a7a88 !important;
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #ececf2 !important;
+  padding: 12px 14px !important;
+  white-space: nowrap;
+}
+
+.brand-data-table .v-data-table__th--sortable {
+  cursor: pointer;
+}
+
+.brand-table-header-hint--sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.brand-table-header-hint--sortable:focus-visible {
+  outline: 2px solid var(--brand-primary, #6436df);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.brand-table-header-hint__sort-icon {
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+.brand-data-table .v-data-table__th--sorted .brand-table-header-hint__sort-icon {
+  opacity: 1;
+  color: var(--brand-primary, #6436df);
+}
+
+.brand-data-table .v-table__wrapper > table > tbody > tr > td {
+  padding: 14px 14px !important;
+  border-bottom: 1px solid #f2f2f6 !important;
+  color: var(--brand-text);
+  vertical-align: middle;
+}
+
+.brand-data-table .v-table__wrapper > table > tbody > tr:hover > td {
+  background: #faf9fe !important;
+}
+
+.brand-data-table .v-table__wrapper > table > tbody > tr:last-child > td {
   border-bottom: none !important;
 }
-.v-theme--dark .app-toolbar {
-  background: #1a1b2e !important;
-  border-bottom: 1px solid rgba(255,255,255,0.10) !important;
+
+.brand-data-table .v-data-table-footer {
+  padding: 8px 14px !important;
+  border-top: 1px solid #f0f0f4;
+  background: #fafafc;
 }
 
-/* Force white text/icons inside the charcoal toolbar */
-.app-toolbar .v-toolbar-title,
-.app-toolbar .toolbar-title,
-.app-toolbar .v-btn,
-.app-toolbar .v-icon,
-.app-toolbar .error-message,
-.app-toolbar .user-info {
-  color: rgba(255, 255, 255, 0.92) !important;
+.brand-table-user-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
-.app-toolbar .v-btn:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
+
+.brand-table-user-cell--clickable {
+  padding: 4px 8px 4px 4px;
+  margin: -4px -8px -4px -4px;
+  border: none;
+  border-radius: var(--brand-radius-sm, 8px);
+  background: transparent;
+  cursor: pointer;
+  text-align: inherit;
+  font: inherit;
+  color: inherit;
+  transition: background-color 0.15s ease;
 }
-/* Tabs inside toolbar: inactive = muted white, active = bright white + underline */
-.app-toolbar .v-tab {
-  color: rgba(255, 255, 255, 0.55) !important;
+
+.brand-table-user-cell--clickable:hover,
+.brand-table-user-cell--clickable:focus-visible {
+  background: rgba(100, 54, 223, 0.08);
+  outline: none;
 }
-.app-toolbar .v-tab--selected {
-  color: #ffffff !important;
+
+/* Usage & billing — per-user detail trigger */
+.brand-usage-detail-btn.v-btn {
+  background: #ede9fe !important;
+  color: #4c1d95 !important;
+  border: 1px solid rgba(100, 54, 223, 0.35) !important;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
-.app-toolbar .v-tabs .v-tabs-slider-wrapper .v-tabs-slider {
+
+.brand-usage-detail-btn.v-btn:hover,
+.brand-usage-detail-btn.v-btn:focus-visible {
+  background: #ddd6fe !important;
+  color: #3b0764 !important;
+}
+
+.brand-usage-detail-btn.v-btn .v-icon {
+  color: #6436df !important;
+}
+
+.brand-usage-detail-btn.v-btn .v-btn__overlay {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.brand-usage-pattern-cell-btn {
+  display: inline-flex;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.brand-usage-pattern-cell-btn:focus-visible {
+  outline: 2px solid #6436df;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Per-user usage dialog — solid panel over the table */
+.user-usage-detail-dialog {
+  z-index: 2400 !important;
+}
+
+.user-usage-detail-dialog > .v-card.user-usage-detail {
   background: #ffffff !important;
+  border: 1px solid #e4e4ec;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.2) !important;
 }
 
-/* ── Global tooltip card style ── */
-  .metric-tooltip {
-    background-color: #1a237e !important;
-    max-width: 380px;
-    border-radius: 8px !important;
-  }
-  .metric-tooltip .tooltip-text {
-    color: #ffffff !important;
-    font-size: 13px !important;
-    line-height: 1.45;
-  }
-/* ── Vuetify theme CSS variable definitions ──────────────────────────────
-   The vuetify-nuxt-module extracts SCSS at build time without runtime
-   variable injection. We define them here so theme switching works.        */
-
-.v-theme--light {
-  --v-theme-background: 255,255,255;
-  --v-theme-on-background: 0,0,0;
-  --v-theme-surface: 255,255,255;
-  --v-theme-on-surface: 0,0,0;
-  --v-theme-surface-variant: 245,245,245;
-  --v-theme-on-surface-variant: 66,66,66;
-  --v-theme-primary: 25,118,210;
-  --v-theme-on-primary: 255,255,255;
-  --v-theme-secondary: 66,66,66;
-  --v-theme-on-secondary: 255,255,255;
-  --v-theme-error: 255,82,82;
-  --v-theme-info: 33,150,243;
-  --v-theme-success: 76,175,80;
-  --v-theme-warning: 255,193,7;
-  --v-border-color: 0,0,0;
-  --v-border-opacity: 0.12;
-  --v-high-emphasis-opacity: 0.87;
-  --v-medium-emphasis-opacity: 0.6;
-  --v-disabled-opacity: 0.38;
-  --v-hover-opacity: 0.04;
-  --v-focus-opacity: 0.12;
-  --v-activated-opacity: 0.12;
-  --v-theme-overlay-multiplier: 1;
+/* Billing SKU detail dialog — solid white panel */
+.billing-sku-detail-dialog {
+  z-index: 2400 !important;
 }
 
-.v-theme--dark {
-  --v-theme-background: 18,18,18;
-  --v-theme-on-background: 255,255,255;
-  --v-theme-surface: 30,30,30;
-  --v-theme-on-surface: 255,255,255;
-  --v-theme-surface-variant: 45,45,45;
-  --v-theme-on-surface-variant: 200,200,200;
-  --v-theme-primary: 144,202,249;
-  --v-theme-on-primary: 0,0,0;
-  --v-theme-secondary: 176,190,197;
-  --v-theme-on-secondary: 0,0,0;
-  --v-theme-error: 239,154,154;
-  --v-theme-info: 100,181,246;
-  --v-theme-success: 165,214,167;
-  --v-theme-warning: 255,224,130;
-  --v-border-color: 255,255,255;
-  --v-border-opacity: 0.12;
-  --v-high-emphasis-opacity: 1;
-  --v-medium-emphasis-opacity: 0.7;
-  --v-disabled-opacity: 0.5;
-  --v-hover-opacity: 0.08;
-  --v-focus-opacity: 0.12;
-  --v-activated-opacity: 0.12;
-  --v-theme-overlay-multiplier: 2;
+.billing-sku-detail-dialog > .v-card.billing-sku-detail {
+  background: #ffffff !important;
+  border: 1px solid #e4e4ec;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.2) !important;
+}
+
+.brand-user-avatar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  user-select: none;
+}
+
+.brand-table-user-cell__avatar {
+  flex-shrink: 0;
+  font-size: 0.75rem !important;
+  font-weight: 600;
+}
+
+.brand-table-user-cell__name {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--brand-text);
+  line-height: 1.25;
+}
+
+.brand-table-user-cell__sub {
+  font-size: 0.72rem;
+  color: #9494a1;
+  line-height: 1.3;
+}
+
+.brand-table-metric {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.brand-status-chip.v-chip {
+  font-size: 0.7rem !important;
+  font-weight: 600;
+  height: 24px !important;
+  border-radius: 999px !important;
+}
+
+.brand-status-chip--yes {
+  background: #e8f5e9 !important;
+  color: #2e7d32 !important;
+}
+
+.brand-status-chip--no {
+  background: #f3f3f6 !important;
+  color: #9494a1 !important;
+}
+
+/* Invite members — solid chips with white labels (readable on dark fills) */
+.brand-status-chip--invite-ok {
+  background: #2e7d32 !important;
+  color: #fff !important;
+}
+
+.brand-status-chip--invite-ok .v-chip__content,
+.brand-status-chip--invite-ok .v-icon {
+  color: #fff !important;
+}
+
+.brand-status-chip--invite-fail {
+  background: #c62828 !important;
+  color: #fff !important;
+}
+
+.brand-status-chip--invite-fail .v-chip__content,
+.brand-status-chip--invite-fail .v-icon {
+  color: #fff !important;
+}
+
+.brand-status-chip--invite-ok .v-chip__overlay,
+.brand-status-chip--invite-ok .v-chip__underlay,
+.brand-status-chip--invite-fail .v-chip__overlay,
+.brand-status-chip--invite-fail .v-chip__underlay {
+  opacity: 0 !important;
+  background: transparent !important;
+}
+
+.brand-credits-cell {
+  min-width: 140px;
+  max-width: 200px;
+}
+
+.brand-credits-cell__bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-credits-cell__bar {
+  flex: 1;
+  min-width: 72px;
+}
+
+.brand-credits-cell__pct {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--brand-text);
+  font-variant-numeric: tabular-nums;
+  min-width: 2.5rem;
+  text-align: end;
+}
+
+.brand-credits-cell__meta {
+  margin-top: 4px;
+  font-size: 0.68rem;
+  color: #9494a1;
+  line-height: 1.3;
+}
+
+.brand-credits-cell__estimated {
+  margin-inline-start: 8px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #a8a8b3;
+}
+
+.brand-credits-cell__sep {
+  margin: 0 2px;
+}
+
+.brand-credits-cell--na {
+  color: #b0b0b8;
+}
+
+.brand-credits-cell--disabled {
+  max-width: 220px;
+}
+
+.brand-credits-cell__disabled-note {
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #6b6b78;
+}
+
+.brand-credits-cell--coming-soon {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+}
+
+.tiles-container {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  width: 100%;
+  padding: 0 4px 12px;
+  margin: 0 0 8px;
+  box-sizing: border-box;
+}
+
+.tiles-container > .brand-kpi-card {
+  flex: 1 1 240px;
+  max-width: 320px;
+  min-width: 220px;
+  margin: 0 !important;
+}
+
+.tiles-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  min-height: 108px;
+  justify-content: flex-start;
+}
+
+.tiles-container .brand-kpi-card .spacing-25,
+.tiles-container .brand-kpi-card .spacing-10 {
+  display: none;
+}
+
+.tiles-container .brand-kpi-card .text-h6 {
+  margin: 0 0 4px !important;
+}
+
+.tiles-container .brand-kpi-card .text-caption {
+  margin: 0 0 12px !important;
+}
+
+.tiles-container .brand-kpi-card .text-h4 {
+  margin: auto 0 0 !important;
+}
+
+.tiles-container .brand-kpi-card .text-caption.text-medium-emphasis {
+  margin-top: 8px !important;
+  margin-bottom: 0 !important;
+}
+
+.error-message {
+  color: #c62828;
+}
+
+.spacing-10 {
+  margin-bottom: 10px;
+}
+
+.spacing-25 {
+  margin-bottom: 25px;
+}
+
+.v-tab {
+  position: relative !important;
+}
+
+.v-tab:hover::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background-color: var(--app-accent-overlay) !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+
+.v-tab .v-tab__content {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+.v-expansion-panel-title:hover .v-expansion-panel-title__overlay {
+  display: block !important;
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  opacity: 1 !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none !important;
+}
+
+.v-btn:hover {
+  background-color: var(--app-accent-weak) !important;
+}
+
+.v-btn:hover .v-btn__overlay {
+  display: none !important;
+}
+
+.v-tab.v-btn--variant-text .v-tab__overlay {
+  background: transparent !important;
+}
+
+.v-tab .v-btn--variant-text .v-btn__overlay {
+  background: transparent !important;
+}
+
+/* Opaque dropdown panels (v-select, v-autocomplete, v-combobox, v-menu lists) */
+.v-overlay__content.v-select__content,
+.v-overlay__content.v-autocomplete__content,
+.v-overlay__content.v-combobox__content,
+.v-overlay__content:has(.v-list-item[role='option']),
+.v-overlay__content.teams-select-menu,
+.v-overlay__content.brand-select-menu {
+  background-color: #ffffff !important;
+  border: 1px solid var(--brand-lavender);
+  box-shadow: var(--brand-shadow-lg);
+  border-radius: var(--brand-radius-md);
+  max-height: 360px;
+  overflow-y: auto;
+  min-width: 320px;
+  z-index: 2400 !important;
+  opacity: 1 !important;
+}
+
+.v-overlay__content.v-select__content,
+.v-overlay__content.v-autocomplete__content,
+.v-overlay__content.v-combobox__content {
+  min-width: 0;
+}
+
+.v-overlay__content.v-select__content .v-list,
+.v-overlay__content.v-autocomplete__content .v-list,
+.v-overlay__content.v-combobox__content .v-list,
+.v-overlay__content:has(.v-list-item[role='option']) .v-list {
+  background-color: #ffffff !important;
+}
+
+.v-overlay__content.brand-select-menu .v-list {
+  background-color: #ffffff !important;
+  padding: 6px 0;
+}
+
+.v-overlay__content.teams-select-menu .v-list-item,
+.v-overlay__content.teams-select-menu .v-list-item .v-list-item-title,
+.v-overlay__content.teams-select-menu .v-list-item .v-list-item-subtitle,
+.v-overlay__content.teams-select-menu .v-list-item .v-icon,
+.v-overlay__content.teams-select-menu .v-list-item .v-selection-control .v-icon,
+.v-overlay__content.brand-select-menu .v-list-item,
+.v-overlay__content.brand-select-menu .v-list-item .v-list-item-title,
+.v-overlay__content.brand-select-menu .v-autocomplete__mask {
+  color: var(--brand-text) !important;
+  background-color: transparent !important;
+}
+
+.v-overlay__content.teams-select-menu .v-list-item .v-list-item__overlay,
+.v-overlay__content.teams-select-menu .v-list-item--active .v-list-item__overlay,
+.v-overlay__content.brand-select-menu .v-list-item .v-list-item__overlay,
+.v-overlay__content.brand-select-menu .v-list-item--active .v-list-item__overlay,
+.v-overlay__content.brand-select-menu .v-list-item:hover .v-list-item__overlay {
+  opacity: 0 !important;
+  background: transparent !important;
+}
+
+.v-overlay__content.teams-select-menu .v-list-item:hover,
+.v-overlay__content.teams-select-menu .v-list-item--active,
+.v-overlay__content.brand-select-menu .v-list-item:hover,
+.v-overlay__content.brand-select-menu .v-list-item--active,
+.v-overlay__content.brand-select-menu .v-list-item[aria-selected='true'] {
+  background-color: color-mix(in srgb, var(--brand-lavender) 75%, white) !important;
+}
+
+.v-overlay__content.teams-select-menu .v-list-item:hover .v-list-item-title,
+.v-overlay__content.teams-select-menu .v-list-item--active .v-list-item-title,
+.v-overlay__content.brand-select-menu .v-list-item:hover .v-list-item-title,
+.v-overlay__content.brand-select-menu .v-list-item--active .v-list-item-title {
+  color: var(--brand-primary-dark) !important;
+  background-color: transparent !important;
+}
+
+.v-overlay__content.teams-select-menu .v-list {
+  padding: 8px 0;
+}
+
+.v-overlay__content.teams-select-menu .v-list-item,
+.v-overlay__content.brand-select-menu .v-list-item {
+  min-height: 44px;
+}
+
+.brand-chart-surface {
+  background-color: #ffffff;
+  border-radius: var(--brand-radius-md);
+  border: 1px solid color-mix(in srgb, var(--brand-lavender) 80%, white);
+  padding: 12px 8px 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.brand-chart-surface > canvas,
+.brand-chart-surface > div {
+  max-height: 100%;
+}
+
+.v-chip.select-chip,
+.v-chip.selected-team-chip {
+  background-color: var(--app-accent-weak) !important;
+  color: var(--brand-text) !important;
+  border-color: var(--app-accent-weak) !important;
+  background-image: none !important;
+}
+
+.v-chip.select-chip .v-chip__overlay,
+.v-chip.selected-team-chip .v-chip__overlay {
+  background: transparent !important;
+}
+
+.v-chip.select-chip .v-chip__underlay,
+.v-chip.selected-team-chip .v-chip__underlay {
+  background-color: var(--app-accent-weak) !important;
+}
+
+.v-chip.select-chip:hover .v-chip__overlay,
+.v-chip.selected-team-chip:hover .v-chip__overlay {
+  background: transparent !important;
+}
+
+.v-chip.select-chip .v-icon,
+.v-chip.selected-team-chip .v-icon,
+.v-chip.select-chip .v-chip__content,
+.v-chip.selected-team-chip .v-chip__content {
+  color: var(--brand-text) !important;
+}
+
+.v-data-table .v-data-table-footer {
+  background-color: var(--v-theme-surface, #fff) !important;
+}
+
+.v-data-table .v-data-table-footer .v-field {
+  min-width: 90px;
+}
+
+.v-overlay__content .v-list-item[role='option'] {
+  background-color: #ffffff !important;
+  color: var(--brand-text) !important;
+  opacity: 1 !important;
+}
+
+.v-overlay__content .v-list-item[role="option"] .v-list-item-title {
+  color: var(--brand-text) !important;
+}
+
+.v-overlay__content .v-list-item[role="option"]:hover {
+  background: var(--app-accent-weak) !important;
+}
+
+.v-overlay__content .v-list-item[role="option"].v-list-item--active {
+  background: var(--app-accent-weak) !important;
+}
+
+.v-overlay__content .v-list-item[role="option"] .v-list-item__overlay {
+  background: transparent !important;
+}
+
+.v-data-table .v-data-table-footer .v-btn:hover {
+  background-color: var(--app-accent-weak) !important;
+}
+
+/* Skeleton loaders — match KPI / chart / table layout */
+.brand-page-skeleton {
+  width: 100%;
+}
+
+.brand-skeleton-kpi .v-skeleton-loader,
+.brand-skeleton-chart-block .v-skeleton-loader,
+.brand-skeleton-table .v-skeleton-loader,
+.brand-skeleton-filters .v-skeleton-loader,
+.brand-skeleton-banner .v-skeleton-loader,
+.brand-skeleton-teams-card .v-skeleton-loader,
+.brand-skeleton-code-block .v-skeleton-loader {
+  background: linear-gradient(
+    90deg,
+    rgba(100, 54, 223, 0.06) 0%,
+    rgba(100, 54, 223, 0.12) 50%,
+    rgba(100, 54, 223, 0.06) 100%
+  ) !important;
+}
+
+.brand-skeleton-kpi__line {
+  margin-bottom: 8px;
+}
+
+.brand-skeleton-kpi__line--sm {
+  max-width: 120px;
+}
+
+.brand-skeleton-kpi__value {
+  margin-top: 8px;
+}
+
+.brand-skeleton-chart-block {
+  margin-bottom: 28px;
+}
+
+.brand-skeleton-chart-block__title {
+  margin-bottom: 12px;
+}
+
+.brand-skeleton-chart-block__chart {
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(100, 54, 223, 0.04);
+}
+
+.brand-skeleton-chart-block__fill {
+  height: 100% !important;
+}
+
+.brand-skeleton-pie-card__chart {
+  width: 200px !important;
+  height: 200px !important;
+  margin: 0 auto;
+  border-radius: 50% !important;
+}
+
+.brand-skeleton-table__head,
+.brand-skeleton-table__row {
+  display: grid;
+  grid-template-columns: repeat(var(--skeleton-cols, 6), 1fr);
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(100, 54, 223, 0.08);
+}
+
+.brand-skeleton-table__head {
+  background: rgba(100, 54, 223, 0.04);
+}
+
+.brand-skeleton-table__title {
+  margin-bottom: 6px;
+}
+
+.brand-skeleton-table__subtitle {
+  margin-bottom: 12px;
+}
+
+.brand-skeleton-table__toolbar {
+  flex-shrink: 0;
+}
+
+.brand-skeleton-filters__input {
+  border-radius: 8px !important;
+}
+
+.brand-skeleton-expansion {
+  border: 1px solid rgba(100, 54, 223, 0.1);
+  border-radius: 12px;
+  padding: 8px 12px;
+  background: #fff;
+}
+
+.brand-skeleton-banner {
+  border-radius: 12px;
+  background: rgba(100, 54, 223, 0.04) !important;
+}
+
+.brand-skeleton-api-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.brand-skeleton-code-block {
+  padding: 16px;
+  min-height: 200px;
+  border-radius: 12px;
+  background: rgba(100, 54, 223, 0.03);
+}
+
+.brand-skeleton-teams-card {
+  border-radius: 12px;
 }

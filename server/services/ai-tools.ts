@@ -171,6 +171,7 @@ export function buildSystemPrompt(context: {
   currentTab?: string;
   scope?: string;
   identifier?: string;
+  locale?: string;
   dateRange?: { since?: string; until?: string };
 }): string {
   const parts = [
@@ -214,6 +215,21 @@ export function buildSystemPrompt(context: {
 
   if (context.currentTab) {
     parts.push(`The user is currently viewing the "${context.currentTab}" tab in the dashboard.`);
+  }
+
+  if (context.locale === 'he') {
+    parts.push(
+      '',
+      '## Response language',
+      'Write all answers in Hebrew (עברית). Use clear, professional language suitable for engineering and leadership audiences.',
+      'Keep numbers, metric names, and product names (e.g. Copilot, VS Code) as commonly used in Hebrew tech contexts.',
+    );
+  } else {
+    parts.push(
+      '',
+      '## Response language',
+      'Write answers in English unless the user clearly writes in another language.',
+    );
   }
 
   return parts.join('\n');

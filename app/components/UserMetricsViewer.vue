@@ -1,1117 +1,1011 @@
 <template>
   <div>
-    <!-- Info panel — same style as Organization tab -->
-    <v-card variant="outlined" class="mx-4 mt-3 mb-2 pa-3" density="compact">
-      <div class="d-flex flex-wrap align-start gap-2 text-body-2">
-        <div class="mr-3" style="flex: 1; min-width: 250px;">
-          <div class="d-flex align-center gap-2">
-            <div class="font-weight-bold text-body-1 mb-1">👤 User Metrics</div>
-          </div>
-          <div class="text-medium-emphasis">
-            Per-user Copilot activity breakdown for the reporting period. Shows interactions, code
-            completions, acceptance rates, and AI-generated lines of code per developer.
-          </div>
-        </div>
-        <v-divider vertical class="mx-2 hidden-sm-and-down" />
-        <div class="d-flex flex-column gap-1">
-          <div class="text-caption text-medium-emphasis font-weight-medium mb-1">LEARN MORE</div>
-          <a href="https://docs.github.com/en/copilot/reference/interpret-copilot-metrics" target="_blank" rel="noopener"
-             class="text-decoration-none d-flex align-center gap-1 text-body-2" style="color: inherit;">
-            <v-icon size="x-small" color="primary">mdi-open-in-new</v-icon>
-            <span class="text-primary">Interpreting Copilot metrics</span>
-          </a>
-          <a href="https://docs.github.com/en/copilot/tutorials/roll-out-at-scale" target="_blank" rel="noopener"
-             class="text-decoration-none d-flex align-center gap-1 text-body-2" style="color: inherit;">
-            <v-icon size="x-small" color="primary">mdi-open-in-new</v-icon>
-            <span class="text-primary">Rolling out at scale</span>
-          </a>
-        </div>
-      </div>
-    </v-card>
+    <section class="brand-page-panel">
+        <BrandPageSkeleton
+          v-if="loading"
+          layout="users"
+          :aria-label="t('users.loading')"
+        />
 
-    <!-- Understanding metrics — collapsible, at the top -->
-    <v-expansion-panels variant="accordion" class="mx-4 mb-3">
-      <v-expansion-panel>
-        <v-expansion-panel-title>
-          <v-icon size="small" class="mr-2">mdi-information-outline</v-icon>
-          Understanding your metrics
-        </v-expansion-panel-title>
-        <v-expansion-panel-text>
-          <div class="text-body-2">
-            <h4 class="mb-2">📊 What the numbers mean</h4>
-            <ul class="ml-4 mb-3">
-              <li><strong>Copilot LOC</strong> — total lines of code added via all Copilot features (completions, Chat apply/insert, Agent edits). Not limited to code completions.</li>
-              <li><strong>Acceptance Rate</strong> — measures <em>inline code completions only</em> (ghost-text). Does not include Chat, Agent, CLI, or GitHub.com interactions.</li>
-              <li><strong>Interactions</strong> — all user-initiated events across features (completions, chat messages, agent requests).</li>
-              <li><strong>Chat</strong> — activity across Copilot Chat modes (ask, agent, edit, inline).</li>
-              <li><strong>Agent</strong> — activity specifically in agent mode and agent edit. Low acceptance rates are expected for agent-heavy users.</li>
-              <li><strong>Agent LOC</strong> — lines added specifically by agent features. Compare with Copilot LOC to see agent share of a user's output.</li>
-            </ul>
-            <h4 class="mb-2">🔍 What's not captured per user</h4>
-            <ul class="ml-4 mb-3">
-              <li><strong>Copilot CLI</strong> — tracked only as an org-level aggregate; no per-user breakdown.</li>
-              <li><strong>GitHub.com Copilot</strong> (PR summaries, issue chat) — partially appears under Chat features but detailed stats are aggregate-only.</li>
-            </ul>
-            <h4 class="mb-2">💡 Tips</h4>
-            <ul class="ml-4 mb-2">
-              <li>A low acceptance rate doesn't mean low value — Chat/Agent users get significant value without inline completions.</li>
-              <li>Look at <strong>Active Days</strong> and <strong>Interactions</strong> for a fuller picture of engagement.</li>
-              <li>If Copilot LOC ≈ Agent LOC, the user is primarily agent-driven.</li>
-            </ul>
-          </div>
-        </v-expansion-panel-text>
-      </v-expansion-panel>
-    </v-expansion-panels>
-
-    <!-- Summary tiles -->
-    <div class="tiles-container">
-      <v-card elevation="4" color="surface" variant="elevated" class="my-2">
-        <v-card-item>
-          <v-tooltip location="bottom" open-on-hover open-delay="200" close-delay="200">
-            <template #activator="{ props }">
-              <div v-bind="props" class="tiles-text">
-                <div class="text-h6 mb-1">Total Users</div>
-                <div class="text-caption text-medium-emphasis">Users with Copilot activity</div>
-                <p class="kpi-value text-primary mt-1">{{ totalUsers }}</p>
-              </div>
-            </template>
-            <v-card class="pa-3 metric-tooltip">
-              <span class="tooltip-text">Total number of users who had any Copilot activity (code completions, chat, or agent) during the reporting period.</span>
-            </v-card>
-          </v-tooltip>
-        </v-card-item>
-      </v-card>
-
-      <v-card elevation="4" color="surface" variant="elevated" class="my-2">
-        <v-card-item>
-          <v-tooltip location="bottom" open-on-hover open-delay="200" close-delay="200">
-            <template #activator="{ props }">
-              <div v-bind="props" class="tiles-text">
-                <div class="text-h6 mb-1">Active Users</div>
-                <div class="text-caption text-medium-emphasis">Active ≥ 7 days</div>
-                <p class="kpi-value text-success mt-1">{{ activeUsers }}</p>
-                <v-progress-linear :model-value="totalUsers > 0 ? (activeUsers / totalUsers) * 100 : 0" color="success" bg-color="#C8E6C9" rounded height="6" class="mt-2 mx-2" />
-              </div>
-            </template>
-            <v-card class="pa-3 metric-tooltip">
-              <span class="tooltip-text">Users who were active in the last 7 days of the reporting window.</span>
-            </v-card>
-          </v-tooltip>
-        </v-card-item>
-      </v-card>
-
-      <v-card elevation="4" color="surface" variant="elevated" class="my-2">
-        <v-card-item>
-          <v-tooltip location="bottom" open-on-hover open-delay="200" close-delay="200">
-            <template #activator="{ props }">
-              <div v-bind="props" class="tiles-text">
-                <div class="text-h6 mb-1">Avg Acceptance Rate</div>
-                <div class="text-caption text-medium-emphasis">Inline completions only</div>
-                <p class="kpi-value text-info mt-1">{{ avgAcceptanceRate }}%</p>
-              </div>
-            </template>
-            <v-card class="pa-3 metric-tooltip">
-              <span class="tooltip-text">Average ratio of accepted inline code completions across all users. Does not include Chat, Agent, or CLI interactions.</span>
-            </v-card>
-          </v-tooltip>
-        </v-card-item>
-      </v-card>
-    </div>
-
-    <!-- Charts -->
-    <v-container v-if="userMetrics.length > 0" :fluid="chartColumns === 'full'" :class="['elevation-2 mt-2 mb-2', chartColumns === 'full' ? 'px-0' : 'px-4']">
-      <div class="d-flex justify-end mb-2">
-        <v-btn-toggle v-model="chartColumns" density="compact" variant="outlined" mandatory>
-          <v-btn value="1" size="small" title="Single column"><v-icon size="18">mdi-view-agenda</v-icon></v-btn>
-          <v-btn value="2" size="small" title="Two columns"><v-icon size="18">mdi-view-grid</v-icon></v-btn>
-          <v-btn value="full" size="small" title="Full width"><v-icon size="18">mdi-fullscreen</v-icon></v-btn>
-        </v-btn-toggle>
-      </div>
-      <v-row class="mt-0 mb-2">
-        <!-- Top users by interactions -->
-        <v-col cols="12" :md="chartColumns === '2' ? 7 : 12">
-          <v-card variant="outlined" class="pa-4">
-            <div class="text-subtitle-1 font-weight-medium mb-1">Top Users by Interactions</div>
-            <div class="text-caption text-medium-emphasis mb-3">Total Copilot interactions per developer (chat + completions + agent)</div>
-            <div style="height:280px">
-              <Bar :data="topUsersChartData" :options="topUsersOptions" />
-            </div>
-          </v-card>
-        </v-col>
-
-        <!-- User engagement distribution -->
-        <v-col cols="12" :md="chartColumns === '2' ? 5 : 12">
-          <v-card variant="outlined" class="pa-4">
-            <div class="text-subtitle-1 font-weight-medium mb-1">Engagement Distribution</div>
-            <div class="text-caption text-medium-emphasis mb-3">
-              High ≥ 14 active days · Medium 7–13 · Low 1–6 · Inactive 0
-            </div>
-            <div style="height:280px">
-              <Doughnut :data="distributionChartData" :options="distributionOptions" />
-            </div>
-          </v-card>
-        </v-col>
-      </v-row>
-    </v-container>
-
-    <!-- Search and filter controls -->
-    <v-main class="p-1" style="min-height: 300px;">
-      <v-container :fluid="chartColumns === 'full'" :class="['elevation-2', chartColumns === 'full' ? 'px-0' : 'px-4']">
-        <br>
-        <h2>Per-User Copilot Usage Metrics</h2>
-        <div class="text-caption mb-4">{{ dateRangeDescription }}</div>
-
-        <!-- Understanding your metrics moved to top of page -->
-        <v-row class="mb-4" align="center">
-          <v-col cols="12" md="4">
-            <v-text-field
-              v-model="search"
-              prepend-inner-icon="mdi-magnify"
-              label="Search users…"
-              placeholder="Search users…"
-              single-line
-              hide-details
-              density="compact"
-              variant="outlined"
-              clearable
-            />
-          </v-col>
-          <v-col cols="12" md="3">
-            <v-select
-              v-model="activityFilter"
-              :items="activityFilterOptions"
-              :menu-props="{ zIndex: 2400 }"
-              label="Activity filter"
-              density="compact"
-              variant="outlined"
-              hide-details
-            />
-          </v-col>
-        </v-row>
-
-        <v-data-table
-          :headers="tableHeaders"
-          :items="filteredUsers"
-          :items-per-page="25"
-          :items-per-page-options="[10, 25, 50, 100]"
-          :search="search"
-          class="elevation-1"
-          density="comfortable"
-        >
-          <template #item="{ item }">
-            <tr>
-              <td>
-                <v-chip
-                  :color="selectedUserLogin === item.login ? 'indigo' : getActivityColor(item.total_active_days)"
-                  :variant="selectedUserLogin === item.login ? 'elevated' : 'flat'"
-                  size="small"
-                  style="cursor: pointer;"
-                  :title="selectedUserLogin === item.login ? 'Click to clear filter' : 'Click to filter charts'"
-                  @click="toggleUserSelection(item.login)"
-                >
-                  {{ item.login }}
-                </v-chip>
-              </td>
-              <td class="text-center">{{ item.total_active_days }}</td>
-              <td class="text-center">{{ item.user_initiated_interaction_count.toLocaleString() }}</td>
-              <td class="text-center">{{ item.code_generation_activity_count.toLocaleString() }}</td>
-              <td class="text-center">{{ item.code_acceptance_activity_count.toLocaleString() }}</td>
-              <td class="text-center">{{ getAcceptanceRate(item) }}%</td>
-              <td class="text-center">
-                <v-tooltip v-if="item.loc_added_sum > 0" location="top" :z-index="2147483647">
-                  <template #activator="{ props: tip }">
-                    <span v-bind="tip" class="font-weight-medium" style="cursor: help;">{{ item.loc_added_sum.toLocaleString() }}</span>
-                  </template>
-                  <v-card class="pa-3 metric-tooltip">
-                    <span class="tooltip-text" style="white-space: pre-line">{{ getLocBreakdown(item) }}</span>
-                  </v-card>
-                </v-tooltip>
-                <span v-else class="text-disabled">0</span>
-              </td>
-              <td class="text-center">{{ getTopIde(item) }}</td>
-              <td class="text-center">{{ getTopLanguage(item) }}</td>
-              <td class="text-center">
-                <v-tooltip v-if="getChatInteractions(item) > 0" location="top" :z-index="2147483647">
-                  <template #activator="{ props: tip }">
-                    <span v-bind="tip" class="text-indigo font-weight-medium" style="cursor: help;">{{ getChatInteractions(item).toLocaleString() }}</span>
-                  </template>
-                  <v-card class="pa-3 metric-tooltip">
-                    <span class="tooltip-text" style="white-space: pre-line">{{ getFeatureTooltip(item, CHAT_FEATURES) }}</span>
-                  </v-card>
-                </v-tooltip>
-                <span v-else class="text-disabled">0</span>
-              </td>
-              <td class="text-center">
-                <v-tooltip v-if="getAgentActivity(item) > 0" location="top" :z-index="2147483647">
-                  <template #activator="{ props: tip }">
-                    <span v-bind="tip" class="text-deep-purple font-weight-medium" style="cursor: help;">{{ getAgentActivity(item).toLocaleString() }}</span>
-                  </template>
-                  <v-card class="pa-3 metric-tooltip">
-                    <span class="tooltip-text" style="white-space: pre-line">{{ getFeatureTooltip(item, AGENT_FEATURES) }}</span>
-                  </v-card>
-                </v-tooltip>
-                <span v-else class="text-disabled">0</span>
-              </td>
-              <td class="text-center">
-                <span v-if="getAgentLoc(item) > 0" class="font-weight-medium">{{ getAgentLoc(item).toLocaleString() }}</span>
-                <span v-else class="text-disabled">0</span>
-              </td>
-              <td class="text-center">
-                <v-btn
-                  v-if="showTrendButtons"
-                  icon
-                  size="x-small"
-                  variant="text"
-                  :title="`View trend for ${item.login}`"
-                  @click="openUserTrend(item.login)"
-                >
-                  <v-icon>mdi-chart-line</v-icon>
-                </v-btn>
-              </td>
-            </tr>
-          </template>
-        </v-data-table>
-      </v-container>
-    </v-main>
-
-    <!-- User Drill-Down Charts -->
-    <v-main class="p-1">
-      <v-container :fluid="chartColumns === 'full'" :class="['elevation-2 mt-2 mb-2', chartColumns === 'full' ? 'px-0' : 'px-4']">
-        <!-- Header row -->
-        <div class="d-flex align-center justify-space-between flex-wrap gap-2 mb-3 pt-2">
-          <div>
-            <div class="text-subtitle-1 font-weight-medium">
-              <v-icon size="small" class="mr-1">mdi-chart-bar</v-icon>
-              {{ selectedUser ? selectedUser.login + ' — User Insights' : 'User Insights' }}
-            </div>
-            <div class="text-caption text-medium-emphasis">
-              {{ selectedUser
-                ? 'Filtered to selected user. Click the badge again to clear.'
-                : 'Click a user badge in the table to drill down into their usage.' }}
-            </div>
-          </div>
-          <div class="d-flex align-center gap-2">
-            <v-chip
-              v-if="isUserHiddenByFilter"
-              color="warning"
-              size="small"
-              closable
-              @click:close="selectedUserLogin = null"
-            >
-              {{ selectedUserLogin }} (hidden by filter)
-            </v-chip>
-            <v-chip
-              v-if="selectedUser"
-              color="indigo"
-              size="small"
-              closable
-              @click:close="selectedUserLogin = null"
-            >
-              {{ selectedUser.login }}
-            </v-chip>
-          </div>
-        </div>
-
-        <v-row>
-          <!-- Empty state when no user selected -->
-          <v-col v-if="!selectedUser" cols="12">
-            <v-alert
-              type="info"
-              variant="tonal"
-              density="compact"
-              icon="mdi-cursor-pointer"
-              class="mb-2"
-            >
-              <strong>Select a user</strong> from the table above to see their individual usage details, language breakdown, model preferences, and activity history.
-            </v-alert>
-          </v-col>
-
-          <!-- 1. Language Distribution -->
-          <v-col cols="12" :md="chartColumns === '2' ? 6 : 12">
-            <v-card variant="outlined" class="pa-4">
-              <div class="text-subtitle-2 font-weight-medium mb-1">Language Distribution</div>
-              <div class="text-caption text-medium-emphasis mb-3">Code completions by language (top 10)</div>
-              <div style="height: 240px;">
-                <Doughnut v-if="langDistChartData.labels.length" :data="langDistChartData" :options="langDistOptions" />
-                <div v-else class="d-flex align-center justify-center fill-height text-disabled text-caption">No language data available</div>
-              </div>
-            </v-card>
-          </v-col>
-
-          <!-- 2. Feature Usage by Category -->
-          <v-col cols="12" :md="chartColumns === '2' ? 6 : 12">
-            <v-card variant="outlined" class="pa-4">
-              <div class="text-subtitle-2 font-weight-medium mb-1">Feature Usage</div>
-              <div class="text-caption text-medium-emphasis mb-3">Interactions by feature category</div>
-              <div style="height: 240px;">
-                <Bar :data="featureUsageChartData" :options="featureUsageOptions" />
-              </div>
-            </v-card>
-          </v-col>
-
-          <!-- 3. Top Models by Interactions -->
-          <v-col cols="12" :md="chartColumns === '2' ? 6 : 12">
-            <v-card variant="outlined" class="pa-4">
-              <div class="text-subtitle-2 font-weight-medium mb-1">Top Models by Interactions</div>
-              <div class="text-caption text-medium-emphasis mb-3">Most used AI models</div>
-              <div style="height: 240px;">
-                <Bar v-if="topModelsChartData.labels.length" :data="topModelsChartData" :options="topModelsOptions" />
-                <div v-else class="d-flex align-center justify-center fill-height text-disabled text-caption">No model data available</div>
-              </div>
-            </v-card>
-          </v-col>
-
-          <!-- 4. Activity Over Time -->
-          <v-col cols="12" :md="chartColumns === '2' ? 6 : 12">
-            <v-card variant="outlined" class="pa-4">
-              <div class="text-subtitle-2 font-weight-medium mb-1">Activity Over Time</div>
-              <div class="text-caption text-medium-emphasis mb-3">
-                {{ selectedUser ? selectedUser.login + '\'s stored snapshots' : 'Select a user to see their history' }}
-              </div>
-              <div style="height: 240px;" class="d-flex align-center justify-center">
-                <v-progress-circular v-if="chartTrendLoading" indeterminate color="indigo" size="36" />
-                <div v-else-if="!selectedUser" class="text-center text-disabled text-caption">
-                  <v-icon size="40" class="mb-2 d-block" style="opacity:0.3;">mdi-cursor-pointer</v-icon>
-                  Click a user badge to view their activity history
-                </div>
-                <div v-else-if="chartTrendData.length === 0" class="text-disabled text-caption">
-                  No historical snapshots for {{ selectedUser.login }}
-                </div>
-                <Line v-else style="width:100%;height:100%;" :data="chartTrendChartData" :options="chartTrendOptions" />
-              </div>
-            </v-card>
-          </v-col>
-        </v-row>
-      </v-container>
-    </v-main>
-
-    <!-- Per-user trend dialog -->
-    <v-dialog v-model="trendDialog" max-width="760">
-      <v-card>
-        <v-card-title class="d-flex justify-space-between align-center">
-          <span>Activity Trend — {{ trendLogin }}</span>
-          <v-btn icon variant="text" @click="trendDialog = false"><v-icon>mdi-close</v-icon></v-btn>
-        </v-card-title>
-        <v-card-text>
-          <div v-if="trendLoading" class="d-flex justify-center py-8">
-            <v-progress-circular indeterminate color="indigo" />
-          </div>
-          <v-alert v-else-if="trendError" type="error" density="compact" class="my-4">{{ trendError }}</v-alert>
-          <div v-else-if="trendData.length === 0" class="text-center py-8 text-disabled">
-            No historical data available for this user yet.
-          </div>
-          <div v-else>
-            <div class="text-caption mb-4">28-day rolling window snapshots stored by the sync job</div>
-            <Line :data="trendChartData" :options="trendChartOptions" />
-          </div>
-        </v-card-text>
-      </v-card>
-    </v-dialog>
-
-    <!-- User metrics history chart (historical / DB mode only) -->
-    <div v-if="userMetricsHistory.length > 0">
-      <v-main class="p-1">
-        <v-container :fluid="chartColumns === 'full'" :class="['elevation-2', chartColumns === 'full' ? 'px-0' : 'px-4']">
-          <br>
-          <h2>User Metrics History</h2>
-          <div class="text-caption mb-4">Trends across stored 28-day snapshots</div>
-          <div style="height: 320px; position: relative;">
-            <Line :data="historyChartData" :options="historyChartOptions" />
-          </div>
-          <br>
-          <v-data-table
-            :headers="historyHeaders"
-            :items="userMetricsHistory"
-            :items-per-page="10"
-            class="elevation-1 mt-4"
-            density="comfortable"
+        <div v-else-if="error" class="d-flex justify-center align-center" style="min-height: 300px;">
+          <BrandDismissibleAlert
+            type="error"
+            alert-class="brand-alert brand-alert--error mb-4"
+            :close-label="t('common.close')"
+            :title="t('users.errorTitle')"
           >
-            <template #item="{ item }">
-              <tr>
-                <td>{{ item.report_end_day }}</td>
-                <td class="text-center">{{ item.total_users }}</td>
-                <td class="text-center">{{ item.active_users }}</td>
-                <td class="text-center">{{ item.avg_acceptance_rate }}%</td>
-              </tr>
+            {{ error }}
+          </BrandDismissibleAlert>
+        </div>
+
+        <div v-else>
+          <h2 class="mb-2">{{ t('users.title') }}</h2>
+          <BrandDismissibleAlert
+            v-if="!premiumCreditsFetchEnabled"
+            storage-key="users-premium-credits-coming-soon"
+            :close-label="t('common.close')"
+            :title="t('users.premiumCreditsComingSoonTitle')"
+            density="comfortable"
+            wrapper-class="mb-3"
+          >
+            <p class="mb-2">{{ t('users.premiumCreditsComingSoonBody') }}</p>
+            <p class="mb-0 text-caption">{{ t('users.premiumCreditsComingSoonHint') }}</p>
+          </BrandDismissibleAlert>
+          <v-card
+            v-else
+            flat
+            class="pa-3 mb-3 brand-info-banner"
+          >
+            <div class="d-flex justify-space-between align-center flex-wrap ga-2">
+              <div>
+                <div class="text-h6">{{ t('users.billingStatus') }}</div>
+                <div class="text-caption">
+                  {{ t('users.billingStatusHintColumn') }}
+                </div>
+              </div>
+              <v-btn
+                color="primary"
+                variant="outlined"
+                size="small"
+                :loading="checkingBillingStatus"
+                @click="checkBillingStatus"
+              >
+                {{ t('users.checkNow') }}
+              </v-btn>
+            </div>
+          </v-card>
+          <BrandCollapsibleBillingAlert
+            v-if="premiumCreditsFetchEnabled && premiumCreditsMeta && !premiumCreditsMeta.available && !premiumCreditsMeta.fetchDisabled"
+            storage-key="users-premium-needs-billing"
+            :close-label="t('common.close')"
+            :title="t('users.premiumNeedsBillingTitle')"
+            :summary="premiumCreditsAlertSummary"
+            variant="warning"
+          >
+            <p class="mb-2">
+              {{ t('users.billingUnavailablePeriod', { since: premiumCreditsMeta.since, until: premiumCreditsMeta.until }) }}
+              <span v-if="premiumCreditsMeta.httpStatus">
+                {{ t('users.billingHttpStatus', { status: premiumCreditsMeta.httpStatus }) }}
+              </span>
+              {{ premiumCreditsMeta.reason || t('users.billingReasonFallback') }}
+            </p>
+            <p v-if="premiumCreditsMeta.tokenScopes" class="mb-2">
+              {{ t('users.tokenScopes', { scopes: premiumCreditsMeta.tokenScopes }) }}
+            </p>
+            <p class="mb-0">
+              {{ t('users.addScopePat') }}
+            </p>
+          </BrandCollapsibleBillingAlert>
+          <BrandDismissibleAlert
+            v-else-if="premiumCreditsFetchEnabled && premiumCreditsMeta?.available && premiumLoading"
+            type="info"
+            density="compact"
+            alert-class="mb-3 brand-alert brand-alert--info"
+            :close-label="t('common.close')"
+          >
+            {{ t('users.premiumLoadingProgress', {
+              loaded: premiumLoadProgress.loaded,
+              total: premiumLoadProgress.total
+            }) }}
+          </BrandDismissibleAlert>
+          <BrandDismissibleAlert
+            v-else-if="premiumCreditsFetchEnabled && premiumCreditsMeta?.available && premiumCreditsMeta.perUserDataAvailable"
+            storage-key="users-premium-billing-range"
+            type="info"
+            density="compact"
+            alert-class="mb-3 brand-alert brand-alert--info"
+            :close-label="t('common.close')"
+          >
+            {{ t('users.subtitleBillingRange', { range: `${premiumCreditsMeta.since} → ${premiumCreditsMeta.until}` }) }}
+            ({{ t('users.usersWithPruInWindow', { count: premiumCreditsMeta.usersWithBillingData }) }})
+          </BrandDismissibleAlert>
+          <BrandDismissibleAlert
+            v-else-if="premiumCreditsFetchEnabled && premiumLoadError"
+            type="error"
+            density="compact"
+            alert-class="mb-3 brand-alert brand-alert--error"
+            :close-label="t('common.close')"
+          >
+            {{ premiumLoadError }}
+          </BrandDismissibleAlert>
+          <BrandDismissibleAlert
+            v-else-if="premiumCreditsFetchEnabled && premiumCreditsMeta?.available && !premiumCreditsMeta.perUserDataAvailable"
+            storage-key="users-per-user-pru-unavailable"
+            type="warning"
+            density="compact"
+            alert-class="mb-3 brand-alert brand-alert--warning"
+            :close-label="t('common.close')"
+          >
+            {{ t('users.perUserPruUnavailable') }}
+          </BrandDismissibleAlert>
+          <BrandDismissibleAlert
+            v-if="aiCreditsFetchEnabled && aiCreditsMeta?.available && aiCreditsLoading"
+            type="info"
+            density="compact"
+            alert-class="mb-3 brand-alert brand-alert--info"
+            :close-label="t('common.close')"
+          >
+            {{ t('users.aiCreditsLoadingProgress', {
+              loaded: aiCreditsLoadProgress.loaded,
+              total: aiCreditsLoadProgress.total
+            }) }}
+          </BrandDismissibleAlert>
+          <BrandDismissibleAlert
+            v-else-if="aiCreditsFetchEnabled && aiCreditsMeta?.available && aiCreditsMeta.perUserDataAvailable"
+            storage-key="users-ai-credits-billing-range"
+            type="info"
+            density="compact"
+            alert-class="mb-3 brand-alert brand-alert--info"
+            :close-label="t('common.close')"
+          >
+            {{ t('users.subtitleBillingRange', { range: `${aiCreditsMeta.since} → ${aiCreditsMeta.until}` }) }}
+            ({{ t('users.usersWithAiCreditsInWindow', { count: aiCreditsMeta.usersWithBillingData }) }})
+          </BrandDismissibleAlert>
+          <BrandDismissibleAlert
+            v-else-if="aiCreditsFetchEnabled && aiCreditsLoadError"
+            type="error"
+            density="compact"
+            alert-class="mb-3 brand-alert brand-alert--error"
+            :close-label="t('common.close')"
+          >
+            {{ aiCreditsLoadError }}
+          </BrandDismissibleAlert>
+
+          <BrandAiAdoptionPanel
+            v-if="showAiAdoptionCohorts && filteredAdoptionByPhase.length"
+            :phases="filteredAdoptionByPhase"
+          />
+
+          <BrandUsersTopKpiRow
+            :entries="topUserKpiEntries"
+            :get-insight="getInsight"
+            @select="openUserDetail"
+          />
+
+          <div class="brand-users-filters mb-2">
+            <v-text-field
+              v-model="selectedDay"
+              class="brand-date-field brand-users-filters__date"
+              :label="t('users.filterByDay')"
+              type="date"
+              variant="outlined"
+              density="compact"
+              clearable
+              hide-details
+            />
+            <v-autocomplete
+              v-model="selectedUser"
+              class="brand-users-filters__user"
+              :items="userFilterOptions"
+              :menu-props="brandSelectMenuProps"
+              item-title="label"
+              item-value="login"
+              :label="t('users.filterUser')"
+              :placeholder="t('common.allUsers')"
+              variant="outlined"
+              density="compact"
+              clearable
+              hide-details
+              prepend-inner-icon="mdi-account-filter"
+            />
+            <v-btn
+              class="brand-users-filters__apply"
+              color="primary"
+              height="40"
+              :loading="loading"
+              @click="loadUsers"
+            >
+              {{ t('users.applyFilters') }}
+            </v-btn>
+            <p class="brand-users-filters__day-hint text-caption">
+              {{ t('users.filterDayHint') }}
+            </p>
+          </div>
+
+          <BrandTableShell
+            :title="t('users.tableTitle')"
+            :subtitle="tableSubtitle"
+          >
+            <BrandDismissibleAlert
+              v-if="showAiAdoptionCohorts"
+              storage-key="users-leaderboard-info"
+              :close-label="t('common.close')"
+            >
+              <p class="text-body-2 mb-0">
+                {{ adoptionLeaderboardNote }}
+              </p>
+            </BrandDismissibleAlert>
+            <template #toolbar>
+              <v-btn
+                variant="outlined"
+                size="small"
+                height="40"
+                prepend-icon="mdi-microsoft-excel"
+                :disabled="!displayedUsers.length || exportingExcel"
+                :loading="exportingExcel"
+                @click="exportUsersExcel"
+              >
+                {{ t('users.exportExcel') }}
+              </v-btn>
+              <v-text-field
+                v-model="tableSearch"
+                density="compact"
+                variant="outlined"
+                hide-details
+                clearable
+                prepend-inner-icon="mdi-magnify"
+                :placeholder="t('users.searchUsers')"
+                class="brand-table-search"
+                style="min-width: 220px;"
+              />
             </template>
-          </v-data-table>
-        </v-container>
-      </v-main>
-    </div>
+
+            <v-data-table
+              :headers="headers"
+              :items="displayedUsers"
+              :search="tableSearch"
+              :items-per-page="15"
+              density="comfortable"
+              class="brand-data-table"
+            >
+              <template #item.user_login="{ item }">
+                <div class="brand-table-user-cell">
+                  <BrandUserAvatar
+                    :seed="item.user_login"
+                    :display-name="item.name ?? undefined"
+                    :size="36"
+                  />
+                  <div>
+                    <div class="brand-table-user-cell__name">{{ item.user_login }}</div>
+                    <div v-if="item.name" class="brand-table-user-cell__sub">
+                      {{ item.name }}
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <template #item.email="{ item }">
+                <span v-if="item.email" class="brand-table-email">{{ item.email }}</span>
+                <span v-else class="brand-credits-cell--na">{{ t('common.emDash') }}</span>
+              </template>
+
+              <template #item.usage_pattern="{ item }">
+                <button
+                  type="button"
+                  class="brand-usage-pattern-cell-btn"
+                  @click.stop="openUserDetail(item)"
+                >
+                  <BrandUsagePatternChip :insight="getInsight(item.user_login)" />
+                </button>
+              </template>
+
+              <template #header.user_login="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colUser')"
+                  :tooltip="t('billing.colUserHint')"
+                />
+              </template>
+              <template #header.email="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('users.colEmail')"
+                  :tooltip="t('users.colEmailHint')"
+                />
+              </template>
+              <template #header.usage_pattern="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('usagePattern.colPattern')"
+                  :tooltip="t('usagePattern.colPatternHint')"
+                />
+              </template>
+              <template #header.ai_credits="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colAiCredits')"
+                  :tooltip="t('billing.colAiCreditsHint')"
+                />
+              </template>
+              <template #header.usageDetail="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colUsage')"
+                  :tooltip="t('billing.colUsageHint')"
+                />
+              </template>
+              <template #header.user_initiated_interaction_count="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colInteractions')"
+                  :tooltip="t('billing.colInteractionsHint')"
+                />
+              </template>
+              <template #header.code_generation_activity_count="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colGenerations')"
+                  :tooltip="t('billing.colGenerationsHint')"
+                />
+              </template>
+              <template #header.code_acceptance_activity_count="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colAcceptances')"
+                  :tooltip="t('billing.colAcceptancesHint')"
+                />
+              </template>
+              <template #header.loc_added_sum="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colLocAdded')"
+                  :tooltip="t('billing.colLocAddedHint')"
+                />
+              </template>
+              <template #header.used_agent="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colAgent')"
+                  :tooltip="t('billing.colAgentHint')"
+                />
+              </template>
+              <template #header.used_chat="{ column, getSortIcon, toggleSort }">
+                <BrandTableHeaderHint
+                  :column="column"
+                  :get-sort-icon="getSortIcon"
+                  :toggle-sort="toggleSort"
+                  :label="t('billing.colChat')"
+                  :tooltip="t('billing.colChatHint')"
+                />
+              </template>
+
+              <template #item.ai_credits="{ item }">
+                <BrandAiCreditsCell
+                  :credits="item.ai_credits"
+                  :loading="
+                    aiCreditsFetchEnabled &&
+                    aiCreditsMeta?.available &&
+                    isAiCreditsLoginLoading(item.user_login)
+                  "
+                />
+              </template>
+
+              <template #item.usageDetail="{ item }">
+                <v-btn
+                  type="button"
+                  size="small"
+                  variant="flat"
+                  class="brand-usage-detail-btn"
+                  prepend-icon="mdi-chart-box-outline"
+                  @click.stop="openUserDetail(item)"
+                >
+                  {{ t('billing.colUsage') }}
+                </v-btn>
+              </template>
+
+              <template #item.user_initiated_interaction_count="{ item }">
+                <span class="brand-table-metric">{{ formatNum(item.user_initiated_interaction_count) }}</span>
+              </template>
+
+              <template #item.code_generation_activity_count="{ item }">
+                <span class="brand-table-metric">{{ formatNum(item.code_generation_activity_count) }}</span>
+              </template>
+
+              <template #item.code_acceptance_activity_count="{ item }">
+                <span class="brand-table-metric">{{ formatNum(item.code_acceptance_activity_count) }}</span>
+              </template>
+
+              <template #item.loc_added_sum="{ item }">
+                <span class="brand-table-metric">{{ formatNum(item.loc_added_sum) }}</span>
+              </template>
+
+              <template #item.used_agent="{ item }">
+                <v-chip
+                  size="small"
+                  variant="flat"
+                  class="brand-status-chip"
+                  :class="item.used_agent ? 'brand-status-chip--yes' : 'brand-status-chip--no'"
+                >
+                  {{ item.used_agent ? t('common.yes') : t('common.no') }}
+                </v-chip>
+              </template>
+
+              <template #item.used_chat="{ item }">
+                <v-chip
+                  size="small"
+                  variant="flat"
+                  class="brand-status-chip"
+                  :class="item.used_chat ? 'brand-status-chip--yes' : 'brand-status-chip--no'"
+                >
+                  {{ item.used_chat ? t('common.yes') : t('common.no') }}
+                </v-chip>
+              </template>
+
+              <template #item.used_copilot_coding_agent="{ item }">
+                <v-chip
+                  size="small"
+                  variant="flat"
+                  class="brand-status-chip"
+                  :class="item.used_copilot_coding_agent ? 'brand-status-chip--yes' : 'brand-status-chip--no'"
+                >
+                  {{ item.used_copilot_coding_agent ? t('common.yes') : t('common.no') }}
+                </v-chip>
+              </template>
+            </v-data-table>
+          </BrandTableShell>
+
+        </div>
+    </section>
+
+    <UserUsageDetailDialog
+      v-model="detailDialogOpen"
+      :user="detailUser"
+      :usage-insight="detailUsageInsight"
+      :report-range="detailReportRange"
+      :billing-available="Boolean(aiCreditsMeta?.available)"
+      :premium-credits-fetch-enabled="premiumCreditsFetchEnabled"
+      :ai-credits-fetch-enabled="aiCreditsFetchEnabled"
+      :team-slugs="[]"
+    />
   </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, computed, watch, type PropType } from 'vue';
-import type { UserTotals } from '../../server/services/github-copilot-usage-api';
-import type { UserMetricsHistoryEntry, UserTimeSeriesEntry } from '../../server/storage/user-metrics-storage';
-import { CHAT_FEATURES, AGENT_FEATURES, COMPLETION_FEATURES, FEATURE_LABELS } from '../../shared/utils/feature-classification';
-import { Line, Bar, Doughnut } from 'vue-chartjs';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend
-} from 'chart.js';
+import { computed, defineComponent, onMounted, onUnmounted, ref, watch } from 'vue';
+import { brandSelectMenuProps } from '@/utils/chart-theme';
+import { useTabReportRange } from '@/composables/useTabReportRange';
+import type { UserUsageRecord } from '../../shared/types/copilot-usage';
+import type { BillingFetchResult } from '../../shared/types/billing-usage';
+import BrandCollapsibleBillingAlert from '@/components/BrandCollapsibleBillingAlert.vue';
+import BrandTableShell from '@/components/BrandTableShell.vue';
+import BrandUserAvatar from '@/components/BrandUserAvatar.vue';
+import UserUsageDetailDialog from '@/components/UserUsageDetailDialog.vue';
+import type { UserUsageLeaderboardRow } from '../../shared/types/usage-insights';
+import { billingAlertSummary } from '../../shared/utils/billing-alert';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend);
+interface UserMetricsApiResponse {
+  reportStartDay?: string;
+  reportEndDay?: string;
+  reportDay?: string;
+  users: UserUsageRecord[];
+  adoptionByPhase?: import('../../shared/types/copilot-usage').AiAdoptionPhaseAggregate[];
+  premiumCredits?: {
+    available: boolean;
+    periodLabel?: string;
+    since?: string;
+    until?: string;
+    defaultQuota: number;
+    reason?: string;
+    usersWithBillingData?: number;
+    perUserDataAvailable?: boolean;
+    httpStatus?: number;
+    tokenScopes?: string;
+    fetchDisabled?: boolean;
+  };
+  aiCredits?: {
+    available: boolean;
+    since?: string;
+    until?: string;
+    reason?: string;
+    usersWithBillingData?: number;
+    perUserDataAvailable?: boolean;
+    httpStatus?: number;
+    tokenScopes?: string;
+    fetchDisabled?: boolean;
+  };
+}
+
+import BrandDismissibleAlert from '@/components/BrandDismissibleAlert.vue'
+import BrandPageSkeleton from '@/components/BrandPageSkeleton.vue'
+import BrandAiAdoptionPanel from '@/components/BrandAiAdoptionPanel.vue'
+import type { AiAdoptionPhaseAggregate } from '../../shared/types/copilot-usage'
+import { usePremiumCreditsBatchLoader } from '@/composables/usePremiumCreditsBatchLoader'
+import { usePremiumCreditsFeature } from '@/composables/usePremiumCreditsFeature'
+import { useAiCreditsBatchLoader } from '@/composables/useAiCreditsBatchLoader'
+import { useAiCreditsFeature } from '@/composables/useAiCreditsFeature'
+import BrandAiCreditsCell from '@/components/BrandAiCreditsCell.vue'
+import { PREMIUM_CREDITS_TABLE_DISABLED } from '../../shared/utils/premium-credits-feature'
+import BrandUsagePatternChip from '@/components/BrandUsagePatternChip.vue'
+import BrandUsersTopKpiRow from '@/components/BrandUsersTopKpiRow.vue'
+import { useUsagePatternInsights } from '@/composables/useUsagePatternInsights'
+import { activityInputFromUsageRecord } from '../../shared/utils/usage-pattern-insights'
+import { pickTopUsersByCopilotQuality } from '../../shared/utils/users-top-kpi'
+import {
+  downloadUserAnalyticsExcel,
+  filterUsersForAnalyticsExport,
+} from '../../shared/utils/user-analytics-excel'
 
 export default defineComponent({
   name: 'UserMetricsViewer',
-  components: { Line, Bar, Doughnut },
+  components: {
+    BrandDismissibleAlert,
+    BrandCollapsibleBillingAlert,
+    BrandTableShell,
+    BrandUserAvatar,
+    UserUsageDetailDialog,
+    BrandAiAdoptionPanel,
+    BrandPageSkeleton,
+    BrandUsagePatternChip,
+    BrandUsersTopKpiRow,
+    BrandAiCreditsCell,
+  },
   props: {
-    userMetrics: {
-      type: Array as PropType<UserTotals[]>,
-      required: true,
-      default: () => []
-    },
-    dateRangeDescription: {
-      type: String,
-      default: 'Over the last 28 days'
-    },
-    /** Time-series snapshots from DB (historical mode). Empty array hides the chart. */
-    userMetricsHistory: {
-      type: Array as PropType<UserMetricsHistoryEntry[]>,
-      default: () => []
-    },
-    /** Query params forwarded to /api/user-metrics-history?login= (scope, org/ent). */
-    queryParams: {
-      type: Object as PropType<Record<string, string>>,
+    dateRange: {
+      type: Object as () => ({ since?: string; until?: string }),
       default: () => ({})
     },
-    /** Email of the logged-in user (unused here; kept for compat). */
-    sessionEmail: {
+    dateRangeDescription: {
       type: String,
       default: ''
     }
   },
   setup(props) {
-    const search = ref('');
-    const activityFilter = ref('all');
+    const { t } = useAppI18n();
+    const { fetchEnabled: premiumCreditsFetchEnabled } = usePremiumCreditsFeature();
+    const { fetchEnabled: aiCreditsFetchEnabled } = useAiCreditsFeature();
+    const { visible: showAiAdoptionCohorts } = useAiAdoptionCohortsFeature();
+    const { ideOnly, filterPhases } = useAdoptionIdeOnly();
+    const tabReportRange = useTabReportRange();
+    const loading = ref(true);
+    const error = ref<string | null>(null);
+    const allUsers = ref<UserUsageRecord[]>([]);
+    const adoptionByPhase = ref<AiAdoptionPhaseAggregate[]>([]);
+    const filteredAdoptionByPhase = computed(() => filterPhases(adoptionByPhase.value));
+    const adoptionLeaderboardNote = computed(() =>
+      t.value(ideOnly.value ? 'adoption.leaderboardColumnNoteIdeOnly' : 'adoption.leaderboardColumnNote')
+    );
+    const reportRange = ref<string | null>(null);
+    const selectedDay = ref<string | undefined>(undefined);
+    const selectedUser = ref<string | null>(null);
+    const tableSearch = ref('');
+    const exportingExcel = ref(false);
 
-    // ── User selection for drill-down charts ───────────────────────────────
-    const selectedUserLogin = ref<string | null>(null);
-
-    const selectedUser = computed(() =>
-      props.userMetrics.find(u => u.login === selectedUserLogin.value) ?? null
+    const userFilterOptions = computed(() =>
+      allUsers.value
+        .map((u) => ({
+          login: u.user_login,
+          label: [u.user_login, u.name, u.email].filter(Boolean).join(' · ')
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label))
     );
 
-    function toggleUserSelection(login: string) {
-      selectedUserLogin.value = selectedUserLogin.value === login ? null : login;
+    const displayedUsers = computed(() => {
+      if (!selectedUser.value) {
+        return allUsers.value;
+      }
+      const login = selectedUser.value.toLowerCase();
+      return allUsers.value.filter((u) => u.user_login.toLowerCase() === login);
+    });
+
+    const usageCohortInputs = computed(() =>
+      allUsers.value.map((u) => activityInputFromUsageRecord(u))
+    );
+    const { getInsight } = useUsagePatternInsights(usageCohortInputs);
+
+    const topUserKpiEntries = computed(() =>
+      pickTopUsersByCopilotQuality(allUsers.value, (row) => ({
+        login: row.user_login,
+        insight: getInsight(row.user_login),
+        interactions: row.user_initiated_interaction_count ?? 0,
+        generations: row.code_generation_activity_count ?? 0,
+        acceptances: row.code_acceptance_activity_count ?? 0,
+        locAdded: row.loc_added_sum ?? 0
+      }))
+    )
+
+    const premiumCreditsMeta = ref<UserMetricsApiResponse['premiumCredits']>();
+    const aiCreditsMeta = ref<UserMetricsApiResponse['aiCredits']>();
+    const checkingBillingStatus = ref(false);
+
+    const {
+      premiumLoading,
+      premiumLoadProgress,
+      premiumLoadError,
+      loadPremiumCreditsInBackground,
+      cancelPremiumCreditsLoad,
+      isPremiumLoginLoading
+    } = usePremiumCreditsBatchLoader(allUsers);
+
+    const {
+      aiCreditsLoading,
+      aiCreditsLoadProgress,
+      aiCreditsLoadError,
+      loadAiCreditsInBackground,
+      cancelAiCreditsLoad,
+      isAiCreditsLoginLoading
+    } = useAiCreditsBatchLoader(allUsers);
+
+    const tableSubtitle = computed(() => {
+      const parts: string[] = [];
+      if (reportRange.value) {
+        parts.push(reportRange.value);
+      }
+      if (premiumCreditsMeta.value?.available) {
+        parts.push(
+          t.value('users.subtitleBillingRangeDetailed', {
+            since: premiumCreditsMeta.value.since,
+            until: premiumCreditsMeta.value.until,
+            count: premiumCreditsMeta.value.usersWithBillingData
+          })
+        );
+      } else if (premiumCreditsMeta.value && !premiumCreditsMeta.value.available) {
+        parts.push(t.value('users.subtitleBillingUnavailable'));
+      }
+      return parts.join(' · ');
+    });
+
+    const detailDialogOpen = ref(false);
+    const detailUser = ref<UserUsageLeaderboardRow | null>(null);
+
+    const detailReportRange = computed(() => reportRange.value || props.dateRangeDescription || '');
+
+    const detailUsageInsight = computed(() =>
+      detailUser.value ? getInsight(detailUser.value.user_login) : undefined
+    );
+
+    const toDetailUser = (row: UserUsageRecord): UserUsageLeaderboardRow => ({
+      user_login: row.user_login,
+      user_id: row.user_id,
+      name: row.name,
+      email: row.email,
+      interactions: row.user_initiated_interaction_count ?? 0,
+      generations: row.code_generation_activity_count ?? 0,
+      acceptances: row.code_acceptance_activity_count ?? 0,
+      locAdded: row.loc_added_sum ?? 0,
+      modelCount: row.totals_by_model_feature?.length ?? 0,
+      used_agent: !!row.used_agent,
+      used_chat: !!row.used_chat,
+      used_cli: !!row.used_cli,
+      used_code_review: !!(row.used_copilot_code_review_active || row.used_copilot_code_review_passive),
+      used_coding_agent: !!row.used_copilot_coding_agent,
+      ai_adoption_phase: row.ai_adoption_phase,
+      totals_by_model_feature: row.totals_by_model_feature,
+      totals_by_feature: row.totals_by_feature,
+      premium_credits: row.premium_credits,
+      ai_credits: row.ai_credits
+    });
+
+    const openUserDetail = (row: UserUsageRecord) => {
+      const login = row?.user_login;
+      if (!login) return;
+      detailUser.value = toDetailUser(row);
+      detailDialogOpen.value = true;
+    };
+
+    const headers = computed(() => {
+      const patternSortRaw = (a: UserUsageRecord, b: UserUsageRecord) => {
+        const pa = getInsight(a.user_login)?.patternId ?? '';
+        const pb = getInsight(b.user_login)?.patternId ?? '';
+        return pa.localeCompare(pb);
+      };
+      return [
+        { title: t.value('billing.colUser'), key: 'user_login', minWidth: '200px' },
+        {
+          title: t.value('users.colEmail'),
+          key: 'email',
+          sortable: true,
+          minWidth: '220px',
+          sortRaw: (a: UserUsageRecord, b: UserUsageRecord) =>
+            (a.email || '').localeCompare(b.email || '', undefined, { sensitivity: 'base' })
+        },
+        { title: t.value('billing.colUsage'), key: 'usageDetail', sortable: false, align: 'end' as const, width: '120px' },
+        {
+          title: t.value('usagePattern.colPattern'),
+          key: 'usage_pattern',
+          sortable: true,
+          sortRaw: patternSortRaw,
+          minWidth: '160px'
+        },
+        {
+          title: t.value('billing.colAiCredits'),
+          key: 'ai_credits',
+          align: 'end' as const,
+          sortable: true,
+          sortRaw: (a: UserUsageRecord, b: UserUsageRecord) =>
+            (a.ai_credits?.used ?? -1) - (b.ai_credits?.used ?? -1)
+        },
+        {
+          title: t.value('billing.colInteractions'),
+          key: 'user_initiated_interaction_count',
+          align: 'end' as const
+        },
+        {
+          title: t.value('billing.colGenerations'),
+          key: 'code_generation_activity_count',
+          align: 'end' as const
+        },
+        {
+          title: t.value('billing.colAcceptances'),
+          key: 'code_acceptance_activity_count',
+          align: 'end' as const
+        },
+        { title: t.value('billing.colLocAdded'), key: 'loc_added_sum', align: 'end' as const },
+        { title: t.value('billing.colAgent'), key: 'used_agent', align: 'center' as const },
+        { title: t.value('billing.colChat'), key: 'used_chat', align: 'center' as const },
+        { title: t.value('billing.colCodingAgent'), key: 'used_copilot_coding_agent', align: 'center' as const }
+      ];
+    });
+
+    const formatNum = (n?: number) => (n ?? 0).toLocaleString();
+
+    const exportUsersExcel = async () => {
+      if (!displayedUsers.value.length || exportingExcel.value) return
+      exportingExcel.value = true
+      try {
+        const users = filterUsersForAnalyticsExport(
+          displayedUsers.value,
+          tableSearch.value,
+          getInsight
+        )
+        if (!users.length) return
+
+        await downloadUserAnalyticsExcel(users, {
+          // Metrics report always includes ai_credits_used; show it in Excel too.
+          includeAiCredits: true,
+          getInsight,
+          reportRange: reportRange.value || props.dateRangeDescription || null,
+          sheetName: t.value('users.tableTitle'),
+          labels: {
+            login: t.value('billing.colUser'),
+            name: t.value('users.colName'),
+            email: t.value('users.colEmail'),
+            usagePattern: t.value('usagePattern.colPattern'),
+            aiCreditsUsed: t.value('billing.colAiCredits'),
+            interactions: t.value('billing.colInteractions'),
+            generations: t.value('billing.colGenerations'),
+            acceptances: t.value('billing.colAcceptances'),
+            locAdded: t.value('billing.colLocAdded'),
+            usedAgent: t.value('billing.colAgent'),
+            usedChat: t.value('billing.colChat'),
+            usedCodingAgent: t.value('billing.colCodingAgent'),
+            adoptionPhase: t.value('adoption.colAdoptionPhase'),
+            yes: t.value('common.yes'),
+            no: t.value('common.no'),
+          },
+        })
+      } catch (err) {
+        console.error('Failed to export user analytics Excel', err)
+      } finally {
+        exportingExcel.value = false
+      }
     }
 
-    // ── Per-user trend dialog ──────────────────────────────────────────────
-    const trendDialog  = ref(false);
-    const trendLogin   = ref('');
-    const trendLoading = ref(false);
-    const trendError   = ref('');
-    const trendData    = ref<UserTimeSeriesEntry[]>([]);
-
-    const showTrendButtons = computed(() => props.userMetricsHistory.length > 0);
-
-    async function openUserTrend(login: string) {
-      trendLogin.value   = login;
-      trendData.value    = [];
-      trendError.value   = '';
-      trendLoading.value = true;
-      trendDialog.value  = true;
+    const loadUsers = async () => {
+      loading.value = true;
+      error.value = null;
+      premiumCreditsMeta.value = undefined;
+      aiCreditsMeta.value = undefined;
+      cancelPremiumCreditsLoad();
+      cancelAiCreditsLoad();
 
       try {
-        const params = new URLSearchParams({ ...props.queryParams, login });
-        const data = await $fetch<UserTimeSeriesEntry[]>(`/api/user-metrics-history?${params}`);
-        trendData.value = data;
-      } catch (err) {
-        console.error('Failed to load user trend:', err);
-        trendError.value = 'Could not load trend data. Please try again later.';
+        const params: Record<string, string> = {};
+        if (selectedDay.value) {
+          params.day = selectedDay.value;
+        } else if (props.dateRange.since && props.dateRange.until) {
+          params.since = props.dateRange.since;
+          params.until = props.dateRange.until;
+        }
+        const response = await $fetch<UserMetricsApiResponse>('/api/user-metrics', { params });
+        allUsers.value = response.users || [];
+        adoptionByPhase.value = response.adoptionByPhase || [];
+        premiumCreditsMeta.value = response.premiumCredits;
+        aiCreditsMeta.value = response.aiCredits;
+        selectedUser.value = null;
+
+        if (response.reportDay) {
+          reportRange.value = t.value('users.reportDay', { day: response.reportDay });
+        } else if (response.reportStartDay && response.reportEndDay) {
+          reportRange.value = `${response.reportStartDay} → ${response.reportEndDay}`;
+        } else {
+          reportRange.value = null;
+        }
+
+        const logins = (response.users || []).map((u) => u.user_login);
+
+        if (
+          !PREMIUM_CREDITS_TABLE_DISABLED &&
+          premiumCreditsFetchEnabled.value &&
+          response.premiumCredits?.available &&
+          !response.premiumCredits.fetchDisabled
+        ) {
+          void loadPremiumCreditsInBackground({
+            logins,
+            since: response.premiumCredits.since,
+            until: response.premiumCredits.until,
+            day: selectedDay.value,
+            billingAvailable: true
+          }).then(() => {
+            if (premiumCreditsMeta.value) {
+              const withPru = allUsers.value.filter(
+                (u) => u.premium_credits?.source === 'billing'
+              ).length;
+              premiumCreditsMeta.value = {
+                ...premiumCreditsMeta.value,
+                perUserDataAvailable: withPru > 0,
+                usersWithBillingData: withPru
+              };
+            }
+          });
+        }
+
+        if (
+          aiCreditsFetchEnabled.value &&
+          response.aiCredits?.available &&
+          !response.aiCredits.fetchDisabled
+        ) {
+          void loadAiCreditsInBackground({
+            logins,
+            since: response.aiCredits.since,
+            until: response.aiCredits.until,
+            day: selectedDay.value,
+            billingAvailable: true
+          }).then(() => {
+            if (aiCreditsMeta.value) {
+              const withAi = allUsers.value.filter(
+                (u) => (u.ai_credits?.used ?? 0) > 0
+                  && (u.ai_credits?.source === 'billing' || u.ai_credits?.source === 'metrics')
+              ).length;
+              aiCreditsMeta.value = {
+                ...aiCreditsMeta.value,
+                perUserDataAvailable: withAi > 0,
+                usersWithBillingData: withAi
+              };
+            }
+          });
+        }
+      } catch (err: unknown) {
+        error.value = err instanceof Error ? err.message : t.value('users.errorLoad');
       } finally {
-        trendLoading.value = false;
+        loading.value = false;
       }
-    }
-
-    const trendChartData = computed(() => {
-      const datasets = [
-        {
-          label: 'Active Days',
-          data: trendData.value.map(e => e.total_active_days),
-          borderColor: 'rgba(63, 81, 181, 1)',
-          backgroundColor: 'rgba(63, 81, 181, 0.15)',
-          fill: true,
-          tension: 0.3,
-          yAxisID: 'yDays',
-        },
-        {
-          label: 'Acceptance Rate %',
-          data: trendData.value.map(e => e.acceptance_rate),
-          borderColor: 'rgba(76, 175, 80, 1)',
-          backgroundColor: 'rgba(76, 175, 80, 0.1)',
-          fill: false,
-          tension: 0.3,
-          yAxisID: 'yRate',
-        },
-        {
-          label: 'Completions',
-          data: trendData.value.map(e => e.code_generation_activity_count),
-          borderColor: 'rgba(255, 152, 0, 0.9)',
-          backgroundColor: 'rgba(255, 152, 0, 0.1)',
-          fill: false,
-          tension: 0.3,
-          yAxisID: 'yCount',
-        },
-      ];
-      return { labels: trendData.value.map(e => e.report_end_day), datasets };
-    });
-
-    const trendChartOptions = {
-      responsive: true,
-      maintainAspectRatio: true,
-      layout: { padding: { top: 10, bottom: 20 } },
-      scales: {
-        yDays: { type: 'linear' as const, position: 'left'  as const, beginAtZero: true, title: { display: true, text: 'Days / Count' } },
-        yRate: { type: 'linear' as const, position: 'right' as const, beginAtZero: true, max: 120, title: { display: true, text: 'Rate %' }, grid: { drawOnChartArea: false } },
-        yCount: { display: false },
-      },
     };
 
-    const activityFilterOptions = [
-      { title: 'All users', value: 'all' },
-      { title: 'Active (≥ 7 days)', value: 'active' },
-      { title: 'Occasional (1–6 days)', value: 'occasional' },
-      { title: 'Inactive (0 days)', value: 'inactive' }
-    ];
-
-    const totalUsers = computed(() => props.userMetrics.length);
-
-    const activeUsers = computed(() =>
-      props.userMetrics.filter(u => u.total_active_days >= 7).length
-    );
-
-    const avgAcceptanceRate = computed(() => {
-      const totalGenerated = props.userMetrics.reduce((sum, u) => sum + u.code_generation_activity_count, 0);
-      const totalAccepted = props.userMetrics.reduce((sum, u) => sum + u.code_acceptance_activity_count, 0);
-      if (totalGenerated === 0) return '0.0';
-      return ((totalAccepted / totalGenerated) * 100).toFixed(1);
-    });
-
-    const orgFilteredUsers = computed(() => props.userMetrics);
-
-    const filteredUsers = computed(() => {
-      let result = [...orgFilteredUsers.value];
-
-      if (activityFilter.value === 'active') {
-        result = result.filter(u => u.total_active_days >= 7);
-      } else if (activityFilter.value === 'occasional') {
-        result = result.filter(u => u.total_active_days >= 1 && u.total_active_days < 7);
-      } else if (activityFilter.value === 'inactive') {
-        result = result.filter(u => u.total_active_days === 0);
-      }
-
-      return result;
-    });
-
-    // Source for drill-down charts: selected user or all filtered users
-    const chartSource = computed(() =>
-      selectedUser.value ? [selectedUser.value] : filteredUsers.value
-    );
-
-    const isUserHiddenByFilter = computed(() =>
-      selectedUserLogin.value !== null &&
-      !filteredUsers.value.some(u => u.login === selectedUserLogin.value)
-    );
-
-    // ── Drill-down Chart: Language Distribution ────────────────────────────
-    const CHART_PALETTE = [
-      '#4C8BF5', '#34A853', '#FBBC04', '#EA4335', '#AB47BC',
-      '#00ACC1', '#FF7043', '#43A047', '#7E57C2', '#EC407A',
-    ];
-
-    const langDistChartData = computed(() => {
-      const langMap = new Map<string, number>();
-      for (const user of chartSource.value) {
-        for (const entry of user.totals_by_language_feature || []) {
-          langMap.set(entry.language, (langMap.get(entry.language) ?? 0) + entry.code_generation_activity_count);
-        }
-      }
-      const sorted = [...langMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
-      return {
-        labels: sorted.map(([lang]) => lang),
-        datasets: [{ data: sorted.map(([, v]) => v), backgroundColor: CHART_PALETTE, borderWidth: 1 }],
-      };
-    });
-
-    const langDistOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { position: 'right' as const, labels: { boxWidth: 12, padding: 8, font: { size: 11 } } } },
-    };
-
-    // ── Drill-down Chart: Feature Usage ────────────────────────────────────
-    const featureUsageChartData = computed(() => {
-      const featureMap = new Map<string, number>();
-      for (const user of chartSource.value) {
-        for (const entry of user.totals_by_feature || []) {
-          featureMap.set(entry.feature, (featureMap.get(entry.feature) ?? 0) +
-            entry.user_initiated_interaction_count + entry.code_generation_activity_count);
-        }
-      }
-      const chatOnly = CHAT_FEATURES.filter(f => !AGENT_FEATURES.includes(f));
-      const categories = [
-        { label: 'Completions', features: COMPLETION_FEATURES, color: 'rgba(54, 162, 235, 0.8)' },
-        { label: 'Chat',        features: chatOnly,            color: 'rgba(63,  81, 181, 0.8)' },
-        { label: 'Agent',       features: AGENT_FEATURES,      color: 'rgba(156, 39, 176, 0.8)' },
-      ];
-      const values = categories.map(cat => cat.features.reduce((sum, f) => sum + (featureMap.get(f) ?? 0), 0));
-      return {
-        labels: categories.map(c => c.label),
-        datasets: [{ label: 'Interactions', data: values, backgroundColor: categories.map(c => c.color), borderRadius: 4 }],
-      };
-    });
-
-    const featureUsageOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
-      indexAxis: 'y' as const,
-      scales: { x: { beginAtZero: true }, y: { ticks: { font: { size: 12 } } } },
-      plugins: { legend: { display: false } },
-    };
-
-    // ── Drill-down Chart: Top Models ───────────────────────────────────────
-    const topModelsChartData = computed(() => {
-      const modelMap = new Map<string, number>();
-      for (const user of chartSource.value) {
-        for (const entry of user.totals_by_model_feature || []) {
-          modelMap.set(entry.model, (modelMap.get(entry.model) ?? 0) + entry.user_initiated_interaction_count);
-        }
-      }
-      const sorted = [...modelMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
-      // Shorten long model names for readability
-      const shortName = (m: string) => m.length > 30 ? m.slice(0, 28) + '…' : m;
-      return {
-        labels: sorted.map(([m]) => shortName(m)),
-        datasets: [{ label: 'Interactions', data: sorted.map(([, v]) => v), backgroundColor: 'rgba(255, 152, 0, 0.8)', borderRadius: 4 }],
-      };
-    });
-
-    const topModelsOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
-      indexAxis: 'y' as const,
-      scales: { x: { beginAtZero: true }, y: { ticks: { font: { size: 11 } } } },
-      plugins: { legend: { display: false } },
-    };
-
-    // ── Drill-down Chart: Activity Over Time (selected user, historical) ───
-    const chartTrendData = ref<UserTimeSeriesEntry[]>([]);
-    const chartTrendLoading = ref(false);
-    let chartTrendVersion = 0;
-
-    watch(selectedUser, async (user) => {
-      if (!user || !showTrendButtons.value) {
-        chartTrendData.value = [];
+    const checkBillingStatus = async () => {
+      if (!premiumCreditsFetchEnabled.value) {
         return;
       }
-      const version = ++chartTrendVersion;
-      chartTrendLoading.value = true;
+      checkingBillingStatus.value = true;
       try {
-        const params = new URLSearchParams({ ...props.queryParams, login: user.login });
-        const data = await $fetch<UserTimeSeriesEntry[]>(`/api/user-metrics-history?${params}`);
-        if (version === chartTrendVersion) chartTrendData.value = data;
-      } catch {
-        if (version === chartTrendVersion) chartTrendData.value = [];
+        const params: Record<string, string> = {};
+        if (selectedDay.value) {
+          params.day = selectedDay.value;
+        } else if (props.dateRange.since && props.dateRange.until) {
+          params.since = props.dateRange.since;
+          params.until = props.dateRange.until;
+        }
+
+        const res = await $fetch<{
+          since: string;
+          until: string;
+          billing: BillingFetchResult;
+        }>('/api/billing-status', { params });
+
+        const billing = res.billing;
+        premiumCreditsMeta.value = {
+          available: billing.available,
+          since: res.since,
+          until: res.until,
+          defaultQuota: premiumCreditsMeta.value?.defaultQuota ?? 1000,
+          reason: billing.reason,
+          httpStatus: billing.httpStatus,
+          tokenScopes: billing.tokenScopes,
+          usersWithBillingData: 0
+        };
+
+        // If billing is available, reload so each user row gets real numbers.
+        if (billing.available) {
+          await loadUsers();
+        }
+      } catch (err: unknown) {
+        premiumCreditsMeta.value = {
+          available: false,
+          since: props.dateRange.since,
+          until: props.dateRange.until,
+          defaultQuota: premiumCreditsMeta.value?.defaultQuota ?? 1000,
+          reason: err instanceof Error ? err.message : t.value('users.errorBilling'),
+          httpStatus: undefined,
+          tokenScopes: undefined,
+          usersWithBillingData: 0
+        };
       } finally {
-        if (version === chartTrendVersion) chartTrendLoading.value = false;
+        checkingBillingStatus.value = false;
       }
-    });
-
-    const chartTrendChartData = computed(() => ({
-      labels: chartTrendData.value.map(e => e.report_end_day),
-      datasets: [
-        {
-          label: 'Interactions',
-          data: chartTrendData.value.map(e => e.user_initiated_interaction_count),
-          borderColor: 'rgba(63, 81, 181, 1)',
-          backgroundColor: 'rgba(63, 81, 181, 0.1)',
-          fill: true, tension: 0.3, yAxisID: 'yCount',
-        },
-        {
-          label: 'Acceptance Rate %',
-          data: chartTrendData.value.map(e => e.acceptance_rate),
-          borderColor: 'rgba(76, 175, 80, 1)',
-          backgroundColor: 'rgba(76, 175, 80, 0.05)',
-          fill: false, tension: 0.3, yAxisID: 'yRate',
-        },
-      ],
-    }));
-
-    const chartTrendOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        yCount: { type: 'linear' as const, position: 'left'  as const, beginAtZero: true, title: { display: true, text: 'Interactions' } },
-        yRate:  { type: 'linear' as const, position: 'right' as const, beginAtZero: true, max: 120, title: { display: true, text: 'Rate %' }, grid: { drawOnChartArea: false } },
-      },
-      plugins: { legend: { position: 'bottom' as const } },
     };
 
-    function getAcceptanceRate(user: UserTotals): string {
-      if (user.code_generation_activity_count === 0) return '0.0';
-      return ((user.code_acceptance_activity_count / user.code_generation_activity_count) * 100).toFixed(1);
-    }
+    watch(reportRange, (value) => {
+      tabReportRange.value = value;
+    });
 
-    function getActivityColor(activeDays: number): string {
-      if (activeDays >= 14) return 'success';
-      if (activeDays >= 7) return 'info';
-      if (activeDays >= 1) return 'warning';
-      return 'error';
-    }
-
-    function getTopIde(user: UserTotals): string {
-      if (!user.totals_by_ide || user.totals_by_ide.length === 0) return '—';
-      const top = user.totals_by_ide.reduce((a, b) =>
-        (a.user_initiated_interaction_count + a.code_generation_activity_count) >=
-        (b.user_initiated_interaction_count + b.code_generation_activity_count) ? a : b
-      );
-      return top.ide;
-    }
-
-    function getTopLanguage(user: UserTotals): string {
-      if (!user.totals_by_language_feature || user.totals_by_language_feature.length === 0) return '—';
-      const langMap = new Map<string, number>();
-      for (const entry of user.totals_by_language_feature) {
-        langMap.set(entry.language, (langMap.get(entry.language) ?? 0) + entry.code_generation_activity_count);
-      }
-      let topLang = '—';
-      let topCount = 0;
-      for (const [lang, count] of langMap) {
-        if (count > topCount) {
-          topCount = count;
-          topLang = lang;
+    watch(
+      () => [props.dateRange.since, props.dateRange.until, selectedDay.value],
+      () => {
+        if (props.dateRange.since && props.dateRange.until && !selectedDay.value) {
+          loadUsers();
         }
       }
-      return topLang;
-    }
+    );
 
-    function hasFeatureActivity(user: UserTotals, features: string[]): boolean {
-      if (!user.totals_by_feature) return false;
-      return user.totals_by_feature.some(
-        f => features.includes(f.feature) &&
-          (f.user_initiated_interaction_count > 0 || f.code_generation_activity_count > 0),
-      );
-    }
+    onMounted(loadUsers);
 
-    function getFeatureActivityCount(user: UserTotals, features: string[]): number {
-      if (!user.totals_by_feature) return 0;
-      return user.totals_by_feature
-        .filter(f => features.includes(f.feature))
-        .reduce((sum, f) => sum + f.user_initiated_interaction_count + f.code_generation_activity_count, 0);
-    }
-
-    function getChatInteractions(user: UserTotals): number {
-      return getFeatureActivityCount(user, CHAT_FEATURES);
-    }
-
-    function getAgentActivity(user: UserTotals): number {
-      return getFeatureActivityCount(user, AGENT_FEATURES);
-    }
-
-    function getFeatureLoc(user: UserTotals, features: string[]): number {
-      if (!user.totals_by_feature) return 0;
-      return user.totals_by_feature
-        .filter(f => features.includes(f.feature))
-        .reduce((sum, f) => sum + (f.loc_added_sum || 0), 0);
-    }
-
-    function getAgentLoc(user: UserTotals): number {
-      return getFeatureLoc(user, AGENT_FEATURES);
-    }
-
-    function getLocBreakdown(user: UserTotals): string {
-      const total = user.loc_added_sum || 0;
-      const completionLoc = getFeatureLoc(user, COMPLETION_FEATURES);
-      const chatLoc = getFeatureLoc(user, CHAT_FEATURES.filter(f => !AGENT_FEATURES.includes(f)));
-      const agentLoc = getFeatureLoc(user, AGENT_FEATURES);
-      const lines: string[] = [`Total Copilot LOC: ${total.toLocaleString()}`];
-      if (completionLoc > 0) lines.push(`  Inline completions: ${completionLoc.toLocaleString()}`);
-      if (chatLoc > 0) lines.push(`  Chat (ask/edit/inline): ${chatLoc.toLocaleString()}`);
-      if (agentLoc > 0) lines.push(`  Agent: ${agentLoc.toLocaleString()}`);
-      if (agentLoc > 0 && total > 0) {
-        const pct = Math.round((agentLoc / total) * 100);
-        lines.push(`${pct}% of LOC from agents`);
-      }
-      return lines.join('\n');
-    }
-
-    function usesChat(user: UserTotals): boolean {
-      return hasFeatureActivity(user, CHAT_FEATURES);
-    }
-
-    function usesAgent(user: UserTotals): boolean {
-      return hasFeatureActivity(user, AGENT_FEATURES);
-    }
-
-    function getFeatureTooltip(user: UserTotals, features: string[]): string {
-      if (!user.totals_by_feature) return 'No feature data';
-      const active = user.totals_by_feature.filter(
-        f => features.includes(f.feature) &&
-          (f.user_initiated_interaction_count > 0 || f.code_generation_activity_count > 0),
-      );
-      if (active.length === 0) return 'No activity';
-      return active.map(f => {
-        const label = FEATURE_LABELS[f.feature] || f.feature;
-        const parts: string[] = [];
-        if (f.user_initiated_interaction_count > 0)
-          parts.push(`${f.user_initiated_interaction_count} interactions`);
-        if (f.code_generation_activity_count > 0)
-          parts.push(`${f.code_generation_activity_count} code gen`);
-        if (f.loc_added_sum > 0)
-          parts.push(`${f.loc_added_sum} LOC`);
-        return `${label}: ${parts.join(', ')}`;
-      }).join('\n');
-    }
-
-    const tableHeaders = computed(() => {
-      const cols: { title: string; key: string; sortable?: boolean }[] = [
-        { title: 'User',           key: 'login',                            sortable: true  },
-        { title: 'Active Days',    key: 'total_active_days',                sortable: true  },
-        { title: 'Interactions',   key: 'user_initiated_interaction_count', sortable: true  },
-        { title: 'Completions',    key: 'code_generation_activity_count',   sortable: true  },
-        { title: 'Accepted',       key: 'code_acceptance_activity_count',   sortable: true  },
-        { title: 'Accept Rate',    key: 'acceptance_rate',                  sortable: false },
-        { title: 'Copilot LOC',  key: 'loc_added_sum',                    sortable: true  },
-      ];
-      cols.push(
-        { title: 'Top IDE',        key: 'top_ide',                          sortable: false },
-        { title: 'Top Language',   key: 'top_language',                     sortable: false },
-        { title: 'Chat',           key: 'uses_chat',                        sortable: true  },
-        { title: 'Agent',          key: 'uses_agent',                       sortable: true  },
-        { title: 'Agent LOC',      key: 'agent_loc',                        sortable: true  },
-      );
-      if (showTrendButtons.value) {
-        cols.push({ title: 'Trend', key: 'trend', sortable: false });
-      }
-      return cols;
+    onUnmounted(() => {
+      cancelPremiumCreditsLoad();
+      cancelAiCreditsLoad();
+      tabReportRange.value = null;
     });
 
-    // ── Analytics charts ────────────────────────────────────────────────────
-    const DIST_COLORS = ['#4CAF50', '#2196F3', '#FF9800', '#F44336'];
-
-    const topUsersChartData = computed(() => {
-      const top10 = [...props.userMetrics]
-        .sort((a, b) => b.user_initiated_interaction_count - a.user_initiated_interaction_count)
-        .slice(0, 10);
-      return {
-        labels: top10.map(u => u.login),
-        datasets: [
-          {
-            label: 'Interactions',
-            data: top10.map(u => u.user_initiated_interaction_count),
-            backgroundColor: 'rgba(54, 162, 235, 0.75)',
-            borderColor: 'rgb(54, 162, 235)',
-            borderRadius: 4,
-          },
-          {
-            label: 'Copilot LOC',
-            data: top10.map(u => u.loc_added_sum || 0),
-            backgroundColor: 'rgba(75, 192, 192, 0.75)',
-            borderColor: 'rgb(75, 192, 192)',
-            borderRadius: 4,
-          },
-        ],
-      };
-    });
-
-    const topUsersOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
-      indexAxis: 'y' as const,
-      scales: {
-        x: { beginAtZero: true },
-        y: { ticks: { font: { size: 11 } } },
-      },
-      plugins: { legend: { position: 'bottom' as const } },
-    };
-
-    const distributionChartData = computed(() => {
-      const high     = props.userMetrics.filter(u => u.total_active_days >= 14).length;
-      const medium   = props.userMetrics.filter(u => u.total_active_days >= 7 && u.total_active_days < 14).length;
-      const low      = props.userMetrics.filter(u => u.total_active_days >= 1 && u.total_active_days < 7).length;
-      const inactive = props.userMetrics.filter(u => u.total_active_days === 0).length;
-      return {
-        labels: [
-          `High (≥14 days) — ${high}`,
-          `Medium (7–13) — ${medium}`,
-          `Low (1–6) — ${low}`,
-          `Inactive (0) — ${inactive}`,
-        ],
-        datasets: [{ data: [high, medium, low, inactive], backgroundColor: DIST_COLORS, borderWidth: 1 }],
-      };
-    });
-
-    const distributionOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'bottom' as const, labels: { padding: 12 } },
-        tooltip: {
-          callbacks: {
-            label: (ctx: any) => {
-              const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0);
-              const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(0) : '0';
-              return ` ${ctx.label} (${pct}%)`;
-            },
-          },
-        },
-      },
-    };
-
-    // ── History chart ───────────────────────────────────────────────────────
-    const historyChartData = computed(() => {
-      const datasets = [
-        {
-          label: 'Total Users',
-          data: props.userMetricsHistory.map(e => e.total_users),
-          borderColor: 'rgba(63, 81, 181, 1)',
-          backgroundColor: 'rgba(63, 81, 181, 0.08)',
-          fill: true,
-          tension: 0.3,
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          yAxisID: 'yUsers',
-        },
-        {
-          label: 'Active Users (≥7 days)',
-          data: props.userMetricsHistory.map(e => e.active_users),
-          borderColor: 'rgba(76, 175, 80, 1)',
-          backgroundColor: 'rgba(76, 175, 80, 0)',
-          fill: false,
-          tension: 0.3,
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          borderDash: [5, 3],
-          yAxisID: 'yUsers',
-        },
-        {
-          label: 'Avg Acceptance Rate %',
-          data: props.userMetricsHistory.map(e => e.avg_acceptance_rate),
-          borderColor: 'rgba(255, 167, 38, 1)',
-          backgroundColor: 'rgba(255, 167, 38, 0)',
-          fill: false,
-          tension: 0.3,
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          yAxisID: 'yRate',
-        },
-      ];
-      return { labels: props.userMetricsHistory.map(e => e.report_end_day), datasets };
-    });
-
-    const historyChartOptions = computed(() => {
-      const allUsers = props.userMetricsHistory.flatMap(e => [e.total_users, e.active_users]).filter(v => v > 0);
-      const minUsers = allUsers.length ? Math.max(0, Math.floor(Math.min(...allUsers) * 0.85)) : 0;
-      return {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'top' as const },
-          tooltip: { mode: 'index' as const, intersect: false },
-        },
-        scales: {
-          yUsers: {
-            type: 'linear' as const,
-            position: 'left' as const,
-            min: minUsers,
-            title: { display: true, text: 'Users' },
-            grid: { color: 'rgba(128,128,128,0.15)' },
-          },
-          yRate: {
-            type: 'linear' as const,
-            position: 'right' as const,
-            min: 0,
-            max: 110,
-            title: { display: true, text: 'Acceptance %' },
-            grid: { drawOnChartArea: false },
-          },
-        },
-      };
-    });
-
-    const historyHeaders = computed(() => {
-      const cols = [
-        { title: 'Snapshot (end day)', key: 'report_end_day' },
-        { title: 'Total Users',        key: 'total_users' },
-        { title: 'Active Users',       key: 'active_users' },
-        { title: 'Avg Acceptance',     key: 'avg_acceptance_rate' },
-      ];
-      return cols;
+    const premiumCreditsAlertSummary = computed(() => {
+      const meta = premiumCreditsMeta.value;
+      if (!meta) return '';
+      return billingAlertSummary(meta);
     });
 
     return {
-      search,
-      activityFilter,
-      activityFilterOptions,
-      totalUsers,
-      activeUsers,
-      avgAcceptanceRate,
-      filteredUsers,
-      tableHeaders,
-      getAcceptanceRate,
-      getActivityColor,
-      getTopIde,
-      getTopLanguage,
-      usesChat,
-      usesAgent,
-      getChatInteractions,
-      getAgentActivity,
-      getAgentLoc,
-      getLocBreakdown,
-      getFeatureTooltip,
-      CHAT_FEATURES,
-      AGENT_FEATURES,
-      historyChartData,
-      historyChartOptions,
-      historyHeaders,
-      topUsersChartData,
-      topUsersOptions,
-      distributionChartData,
-      distributionOptions,
-      // trend dialog
-      showTrendButtons,
-      trendDialog,
-      trendLogin,
-      trendLoading,
-      trendError,
-      trendData,
-      trendChartData,
-      trendChartOptions,
-      openUserTrend,
-      // user drill-down selection
-      selectedUserLogin,
+      loading,
+      error,
+      allUsers,
+      adoptionByPhase,
+      filteredAdoptionByPhase,
+      adoptionLeaderboardNote,
+      showAiAdoptionCohorts,
+      displayedUsers,
+      userFilterOptions,
+      headers,
+      premiumCreditsFetchEnabled,
+      aiCreditsFetchEnabled,
+      PREMIUM_CREDITS_TABLE_DISABLED,
+      premiumCreditsMeta,
+      aiCreditsMeta,
+      aiCreditsLoading,
+      aiCreditsLoadProgress,
+      aiCreditsLoadError,
+      isAiCreditsLoginLoading,
+      premiumCreditsAlertSummary,
+      premiumLoading,
+      premiumLoadProgress,
+      premiumLoadError,
+      isPremiumLoginLoading,
+      checkingBillingStatus,
+      reportRange,
+      tableSubtitle,
+      selectedDay,
       selectedUser,
-      toggleUserSelection,
-      isUserHiddenByFilter,
-      // drill-down charts
-      langDistChartData,
-      langDistOptions,
-      featureUsageChartData,
-      featureUsageOptions,
-      topModelsChartData,
-      topModelsOptions,
-      chartTrendData,
-      chartTrendLoading,
-      chartTrendChartData,
-      chartTrendOptions,
-      // org filter
-      orgFilteredUsers,
+      tableSearch,
+      exportingExcel,
+      brandSelectMenuProps,
+      formatNum,
+      exportUsersExcel,
+      loadUsers,
+      checkBillingStatus,
+      detailDialogOpen,
+      detailUser,
+      detailUsageInsight,
+      detailReportRange,
+      getInsight,
+      topUserKpiEntries,
+      openUserDetail,
+      t
     };
-  },
-  data() {
-    return { chartColumns: '2' };
-  },
+  }
 });
 </script>
-

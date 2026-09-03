@@ -1,0 +1,146 @@
+/**
+ * Menora Mivtachim — aligned with app/assets/brand-tokens.css & design-system/paleta.pdf
+ */
+@import url('https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700&display=swap');
+
+:root {
+  --brand-primary: #6436df;
+  --brand-primary-dark: #320f5b;
+  --brand-primary-light: #9766fd;
+  --brand-lavender: #dad9eb;
+  --brand-surface: #f0f1f6;
+  --brand-text: #343546;
+  --brand-accent: #ffc700;
+  --brand-turquoise: #06c5d7;
+
+  --ifm-color-primary: var(--brand-primary);
+  --ifm-color-primary-dark: #5229c4;
+  --ifm-color-primary-darker: #4d26b9;
+  --ifm-color-primary-darkest: #3f1f98;
+  --ifm-color-primary-light: var(--brand-primary-light);
+  --ifm-color-primary-lighter: #a57dfe;
+  --ifm-color-primary-lightest: #c4a6ff;
+
+  --ifm-font-family-base: 'Assistant', Arial, sans-serif;
+  --ifm-heading-font-family: 'Assistant', Arial, sans-serif;
+  --ifm-background-color: var(--brand-surface);
+  --ifm-font-color-base: var(--brand-text);
+  --ifm-navbar-background-color: #fff;
+  --ifm-footer-background-color: var(--brand-primary-dark);
+  --ifm-code-border-radius: 6px;
+  --ifm-global-radius: 8px;
+  --docusaurus-highlighted-code-line-bg: rgba(100, 54, 223, 0.08);
+}
+
+html[data-theme='dark'] {
+  --ifm-background-color: #141620;
+  --ifm-background-surface-color: #1c2030;
+  --ifm-font-color-base: #f2f4ff;
+  --ifm-font-color-secondary: #c8cde2;
+  --ifm-navbar-background-color: #1a1f2d;
+  --ifm-navbar-link-color: #eef1ff;
+  --ifm-heading-color: #ffffff;
+  --ifm-color-primary: #bda4ff;
+  --ifm-color-primary-dark: #a98cff;
+  --ifm-color-primary-darker: #9f7bff;
+  --ifm-color-primary-darkest: #8558ff;
+  --ifm-color-primary-light: #cebaff;
+  --ifm-color-primary-lighter: #d7c7ff;
+  --ifm-color-primary-lightest: #e5dcff;
+  --ifm-link-color: #cdb7ff;
+  --ifm-link-hover-color: #e4d8ff;
+  --ifm-menu-color: #e8ecff;
+  --ifm-menu-color-active: #ffffff;
+  --ifm-menu-color-background-active: rgba(189, 164, 255, 0.2);
+  --ifm-card-background-color: #1f2435;
+  --ifm-code-background: #2a3146;
+  --ifm-code-color: #f7f9ff;
+  --ifm-blockquote-color: #e6ebff;
+  --docusaurus-highlighted-code-line-bg: rgba(189, 164, 255, 0.22);
+}
+
+.hero--primary {
+  --ifm-hero-background-color: color-mix(in srgb, var(--brand-lavender) 40%, white);
+  --ifm-hero-text-color: var(--brand-primary-dark);
+}
+
+.navbar__title {
+  font-weight: 600;
+  color: var(--brand-primary-dark);
+}
+
+html[data-theme='dark'] .navbar__title,
+html[data-theme='dark'] .navbar__link,
+html[data-theme='dark'] .menu__link {
+  color: var(--ifm-font-color-base);
+}
+
+html[data-theme='dark'] .menu__link:hover {
+  color: var(--ifm-link-hover-color);
+  background: rgba(189, 164, 255, 0.14);
+}
+
+html[data-theme='dark'] .theme-doc-sidebar-container {
+  border-inline-start: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+html[data-theme='dark'] .theme-code-block,
+html[data-theme='dark'] pre,
+html[data-theme='dark'] code {
+  color: var(--ifm-code-color);
+}
+
+html[data-theme='dark'] .theme-code-block,
+html[data-theme='dark'] pre {
+  background: #252d42 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+html[data-theme='dark'] .alert {
+  --ifm-alert-background-color-highlight: rgba(189, 164, 255, 0.1);
+}
+
+.menu__link--active {
+  font-weight: 600;
+}
+
+/* Keep code, env vars, and URLs LTR inside Hebrew (RTL) pages */
+html[dir='rtl'] pre,
+html[dir='rtl'] .theme-code-block,
+html[dir='rtl'] .theme-code-block pre,
+html[dir='rtl'] .prism-code,
+html[dir='rtl'] :not(table) > code {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: embed;
+}
+
+html[dir='rtl'] table th,
+html[dir='rtl'] table td {
+  text-align: start;
+}
+
+.alert {
+  border-radius: var(--ifm-global-radius);
+}
+
+/* Mermaid diagrams — centered, scroll on small screens, brand-aligned surfaces */
+.theme-doc-markdown .docusaurus-mermaid-container {
+  margin: 1.25rem 0;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  padding: 0.5rem;
+  border-radius: var(--ifm-global-radius);
+  background: color-mix(in srgb, var(--brand-lavender) 18%, white);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 22%, white);
+}
+
+html[data-theme='dark'] .theme-doc-markdown .docusaurus-mermaid-container {
+  background: #1f2435;
+  border-color: rgba(189, 164, 255, 0.28);
+}
+
+html[dir='rtl'] .theme-doc-markdown .docusaurus-mermaid-container svg {
+  direction: ltr;
+}

@@ -79,7 +79,18 @@ export default defineEventHandler(async (event) => {
         return;
     }
 
-    // get github headers - this also authenticates the user 
-    // and throws exception when authentication is required but not provided
-    event.context.headers = await authenticateAndGetGitHubHeaders(event);
+    // get github headers - this also authenticates the user
+    try {
+        event.context.headers = await authenticateAndGetGitHubHeaders(event);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes('Authentication required but not provided')) {
+            throw createError({
+                statusCode: 401,
+                statusMessage: 'Authentication required',
+                message
+            });
+        }
+        throw error;
+    }
 })

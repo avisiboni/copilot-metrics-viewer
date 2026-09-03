@@ -6,6 +6,8 @@ import { resolve } from 'path';
 import { getLocale } from "./getLocale";
 import { filterHolidaysFromMetrics, isHoliday, parseUtcDate } from '@/utils/dateUtils';
 import { createHash } from 'crypto';
+import { fetchUsageMetricsAsLegacy } from './usage-metrics-report';
+import { shouldUseMockData } from './mock-mode';
 
 const cache = new Map<string, CacheData>();
 
@@ -71,15 +73,17 @@ export function buildMetricsCacheKey(path: string, query: QueryParams, authHeade
 
 export async function getMetricsData(event: H3Event<EventHandlerRequest>): Promise<CopilotMetrics[]> {
   const logger = console;
+  const config = useRuntimeConfig(event);
   const query = getQuery(event);
-  const options = Options.fromQuery(query);
+  const options = Options.fromQuery(query, config.public);
+
+  options.isDataMocked = shouldUseMockData(config.public, query);
 
   // Extract locale from headers if not provided in query
   if (!options.locale) {
     options.locale = getLocale(event);
   }
 
-  const apiUrl = options.getApiUrl();
   const mockedDataPath = options.getMockDataPath();
 
   if (options.isDataMocked && mockedDataPath) {
@@ -120,21 +124,19 @@ export async function getMetricsData(event: H3Event<EventHandlerRequest>): Promi
     }
   }
 
-  logger.info(`Fetching metrics data from ${apiUrl}`);
+  logger.info(`Fetching usage metrics report data for scope "${options.scope}"`);
 
   try {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const response = await ($fetch as any)(apiUrl, {
-      headers: event.context.headers
-    }) as unknown[];
+    if (options.scope?.includes('team')) {
+      throw new MetricsError('Team scope is not supported by the Copilot usage metrics reports API.', 422);
+    }
 
-    // usage is the new API format
-    const usageData = ensureCopilotMetrics(response as CopilotMetrics[]);
+    const usageData = ensureCopilotMetrics(await fetchUsageMetricsAsLegacy(options, event.context.headers, logger));
     // Filter holidays if requested
     const filteredUsageData = filterHolidaysFromMetrics(usageData, options.excludeHolidays || false, options.locale);
     // metrics is the old API format
     const validUntil = Math.floor(Date.now() / 1000) + 5 * 60; // Cache for 5 minutes
-  cache.set(cacheKey, { data: filteredUsageData, valid_until: validUntil });
+    cache.set(cacheKey, { data: filteredUsageData, valid_until: validUntil });
     return filteredUsageData;
   } catch (error: unknown) {
     logger.error('Error fetching metrics data:', error);

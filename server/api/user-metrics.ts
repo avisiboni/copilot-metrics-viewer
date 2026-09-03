@@ -1,206 +1,325 @@
-/**
- * Per-user Copilot usage metrics API endpoint
- * GET /api/user-metrics
- *
- * Returns aggregated per-user Copilot metrics for the organisation or enterprise.
- * Uses the same download-link based pattern as the aggregated metrics endpoint.
- *
- * Large-enterprise support: the download files may be split across multiple
- * signed URLs. All files are fetched in parallel and the user_totals arrays
- * are merged before returning to the client.
- */
-
+import type { H3Event, EventHandlerRequest } from 'h3';
 import { Options } from '@/model/Options';
+import type { UserUsageRecord } from '../../shared/types/copilot-usage';
+import { fetchUsersForDateRange } from '../../shared/utils/fetch-users-date-range';
 import {
-  aggregateUserDayRecords,
-  fetchLatestUserReport,
-  fetchRawUserDayRecords,
-  type UserDayRecord,
-  type UserTotals
-} from '../services/github-copilot-usage-api';
-import { getUserMetricsByDateRange } from '../storage/user-metrics-storage';
-import { fetchAllTeamMembers } from './seats';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-import mockUsersOrg28Day from '../../public/mock-data/new-api/organization-users-28-day-report.json';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-import mockUsersEnt28Day from '../../public/mock-data/new-api/enterprise-users-28-day-report.json';
+  buildUsersOneDayReportUrl,
+  fetch28DayAdoptionPhases,
+  fetchNdjsonReport
+} from '../../shared/utils/usage-metrics-report';
+import { consolidateUserRecords } from '../../shared/utils/usage-insights-aggregate';
+import { enrichWithOrgDirectory, fetchOrgMemberDirectory } from '../../shared/utils/org-member-directory';
+import { fetchOrganizationBilling } from '../../shared/utils/billing-api';
+import { currentUtcMonthRange } from '../../shared/utils/premium-credits';
+import { isPremiumCreditsFetchEnabled } from '../../shared/utils/premium-credits-feature';
+import { isAiCreditsFetchEnabled } from '../../shared/utils/ai-credits-feature';
+import { buildAdoptionPhaseView } from '../../shared/utils/ai-adoption-phase';
+import type { AiAdoptionPhaseAggregate } from '../../shared/types/copilot-usage';
+import { parseAiAdoptionPhase } from '../../shared/utils/ai-adoption-phase';
+import { parseMetricsAiCredits } from '../../shared/utils/ai-credits';
 
-/**
- * If the request is for a team scope, resolve team members and filter
- * the user totals to only include team members.
- *
- * Team members who have never used Copilot will not appear in the usage
- * API response. To support accurate adoption calculations (e.g. "6 of 10
- * members active"), we append zero-filled stubs for those inactive members
- * so the caller sees the complete team roster.
- *
- * Returns the original array unchanged for non-team scopes.
- */
-async function filterByTeamIfNeeded(
-  userTotals: UserTotals[],
+interface UserMetricsApiResponse {
+  reportStartDay?: string;
+  reportEndDay?: string;
+  reportDay?: string;
+  users: UserUsageRecord[];
+  adoptionByPhase?: AiAdoptionPhaseAggregate[];
+  premiumCredits?: {
+    available: boolean;
+    periodLabel?: string;
+    since?: string;
+    until?: string;
+    defaultQuota: number;
+    reason?: string;
+    usersWithBillingData: number;
+    perUserDataAvailable?: boolean;
+    httpStatus?: number;
+    tokenScopes?: string;
+    fetchDisabled?: boolean;
+  };
+  aiCredits?: {
+    available: boolean;
+    since?: string;
+    until?: string;
+    reason?: string;
+    usersWithBillingData: number;
+    perUserDataAvailable?: boolean;
+    httpStatus?: number;
+    tokenScopes?: string;
+    fetchDisabled?: boolean;
+  };
+}
+
+function billingWindowFromQuery(query: Record<string, unknown>): { since: string; until: string } {
+  const day = typeof query.day === 'string' ? query.day.trim() : undefined
+  if (day) {
+    const d = new Date(`${day}T00:00:00.000Z`)
+    const year = d.getUTCFullYear()
+    const month = d.getUTCMonth()
+    const start = new Date(Date.UTC(year, month, 1))
+    const end = new Date(Date.UTC(year, month + 1, 0))
+    const fmt = (x: Date) => x.toISOString().slice(0, 10)
+    return { since: fmt(start), until: fmt(end) }
+  }
+
+  const since = typeof query.since === 'string' ? query.since.trim() : '';
+  const until = typeof query.until === 'string' ? query.until.trim() : '';
+  if (since && until) {
+    return { since, until };
+  }
+  return currentUtcMonthRange();
+}
+
+async function getPremiumCreditsMeta(
+  org: string,
+  headers: HeadersInit,
+  logger: Console,
+  defaultQuota: number,
+  since: string,
+  until: string,
+  fetchEnabled: boolean
+): Promise<NonNullable<UserMetricsApiResponse['premiumCredits']>> {
+  if (!fetchEnabled) {
+    return {
+      available: false,
+      since,
+      until,
+      defaultQuota,
+      usersWithBillingData: 0,
+      perUserDataAvailable: false,
+      fetchDisabled: true,
+    }
+  }
+
+  const billing = await fetchOrganizationBilling(org, headers, since, until, logger)
+  return {
+    available: billing.available,
+    since,
+    until,
+    defaultQuota,
+    usersWithBillingData: 0,
+    perUserDataAvailable: false,
+    reason: billing.available ? undefined : billing.reason,
+    httpStatus: billing.httpStatus,
+    tokenScopes: billing.tokenScopes
+  }
+}
+
+async function getAiCreditsMeta(
+  org: string,
+  headers: HeadersInit,
+  logger: Console,
+  since: string,
+  until: string,
+  fetchEnabled: boolean
+): Promise<NonNullable<UserMetricsApiResponse['aiCredits']>> {
+  if (!fetchEnabled) {
+    return {
+      available: false,
+      since,
+      until,
+      usersWithBillingData: 0,
+      perUserDataAvailable: false,
+      fetchDisabled: true,
+    }
+  }
+
+  const billing = await fetchOrganizationBilling(org, headers, since, until, logger)
+  return {
+    available: billing.available,
+    since,
+    until,
+    usersWithBillingData: 0,
+    perUserDataAvailable: false,
+    reason: billing.available ? undefined : billing.reason,
+    httpStatus: billing.httpStatus,
+    tokenScopes: billing.tokenScopes
+  }
+}
+
+function mapUserRecord(record: Record<string, unknown>): UserUsageRecord {
+  return {
+    day: typeof record.day === 'string' ? record.day : undefined,
+    user_login: String(record.user_login || ''),
+    user_id: typeof record.user_id === 'number' ? record.user_id : Number(record.user_id) || 0,
+    user_initiated_interaction_count: Number(record.user_initiated_interaction_count) || 0,
+    code_generation_activity_count: Number(record.code_generation_activity_count) || 0,
+    code_acceptance_activity_count: Number(record.code_acceptance_activity_count) || 0,
+    loc_suggested_to_add_sum: Number(record.loc_suggested_to_add_sum) || 0,
+    loc_added_sum: Number(record.loc_added_sum) || 0,
+    loc_deleted_sum: Number(record.loc_deleted_sum) || 0,
+    last_known_ide_version: (record.last_known_ide_version as string) ?? null,
+    last_known_plugin_version: (record.last_known_plugin_version as string) ?? null,
+    used_agent: Boolean(record.used_agent),
+    used_chat: Boolean(record.used_chat),
+    used_cli: Boolean(record.used_cli),
+    used_copilot_code_review_active: Boolean(record.used_copilot_code_review_active),
+    used_copilot_code_review_passive: Boolean(record.used_copilot_code_review_passive),
+    used_copilot_coding_agent: Boolean(record.used_copilot_coding_agent),
+    ai_credits_used: Number(record.ai_credits_used) || undefined,
+    ai_credits: parseMetricsAiCredits(record.ai_credits_used),
+    totals_by_feature: Array.isArray(record.totals_by_feature)
+      ? record.totals_by_feature as UserUsageRecord['totals_by_feature']
+      : undefined,
+    totals_by_ide: Array.isArray(record.totals_by_ide)
+      ? record.totals_by_ide as UserUsageRecord['totals_by_ide']
+      : undefined,
+    totals_by_model_feature: Array.isArray(record.totals_by_model_feature)
+      ? record.totals_by_model_feature as UserUsageRecord['totals_by_model_feature']
+      : undefined,
+    totals_by_language_model: Array.isArray(record.totals_by_language_model)
+      ? record.totals_by_language_model as UserUsageRecord['totals_by_language_model']
+      : undefined,
+    ai_adoption_phase: parseAiAdoptionPhase(record.ai_adoption_phase)
+  };
+}
+
+async function loadAdoptionPhases(
   options: Options,
-  headers: Headers
-): Promise<UserTotals[]> {
-  if (!options.githubTeam) return userTotals;
-
-  const teamMembers = await fetchAllTeamMembers(options, headers);
-  if (teamMembers.length === 0) return [];
-
-  const memberIds = new Set(teamMembers.map(m => m.id));
-  const memberLogins = new Set(teamMembers.map(m => m.login.toLowerCase()));
-
-  // Active users who are in this team
-  const activeInTeam = userTotals.filter(u =>
-    (u.user_id && memberIds.has(u.user_id)) ||
-    (u.login && memberLogins.has(u.login.toLowerCase()))
-  );
-
-  // Zero-filled stubs for team members who have no usage data at all
-  const activeIds = new Set(activeInTeam.map(u => u.user_id).filter(Boolean));
-  const activeLogins = new Set(activeInTeam.map(u => u.login.toLowerCase()));
-
-  const inactiveStubs: UserTotals[] = teamMembers
-    .filter(m => !activeIds.has(m.id) && !activeLogins.has(m.login.toLowerCase()))
-    .map(m => ({
-      login: m.login,
-      user_id: m.id,
-      total_active_days: 0,
-      user_initiated_interaction_count: 0,
-      code_generation_activity_count: 0,
-      code_acceptance_activity_count: 0,
-      loc_suggested_to_add_sum: 0,
-      loc_suggested_to_delete_sum: 0,
-      loc_added_sum: 0,
-      loc_deleted_sum: 0,
-    }));
-
-  return [...activeInTeam, ...inactiveStubs];
-}
-
-/** Filter per-day user records to those falling within the optional date range.
- * Dates must be ISO 8601 YYYY-MM-DD strings; lexicographic comparison is
- * equivalent to chronological order for this format.
- */
-function filterDaysByDateRange(records: UserDayRecord[], since?: string, until?: string): UserDayRecord[] {
-  if (!since && !until) return records;
-  return records.filter(r => {
-    if (since && r.day < since) return false;
-    if (until && r.day > until) return false;
-    return true;
-  });
-}
-
-export default defineEventHandler(async (event) => {
-  const logger = console;
-  const query = getQuery(event);
-  const options = Options.fromQuery(query);
-
-  // ── Mock mode ──────────────────────────────────────────────────────────────
-  if (options.isDataMocked) {
-    const isOrg = (options.scope || 'organization') === 'organization';
-    const raw = isOrg ? mockUsersOrg28Day : mockUsersEnt28Day;
-    // Org mock uses UserDayRecord[] in day_totals → aggregate on the fly.
-    // Enterprise mock uses pre-aggregated UserTotals[] in user_totals → return directly.
-    const rawDayRecords = (raw as { day_totals?: UserDayRecord[] }).day_totals;
-    const dayRecords = rawDayRecords
-      ? filterDaysByDateRange(rawDayRecords, options.since, options.until)
-      : undefined;
-    let userTotals: UserTotals[] = dayRecords
-      ? aggregateUserDayRecords(dayRecords)
-      : ((raw as { user_totals: UserTotals[] }).user_totals ?? []);
-
-    // Apply team filter in mock mode using the same mock membership table as seats
-    if (options.githubTeam) {
-      const members = await filterByTeamIfNeeded(userTotals, options, new Headers());
-      userTotals = members;
-    }
-    return userTotals;
-  }
-
-  // ── Storage / historical mode ───────────────────────────────────────────────
-  if (process.env.ENABLE_HISTORICAL_MODE === 'true') {
-    const isTeamScope = !!options.githubTeam;
-
-    // Team-scoped queries require auth to resolve current team membership
-    if (isTeamScope && !event.context.headers?.has('Authorization')) {
-      throw createError({
-        statusCode: 503,
-        statusMessage: 'Team-scoped user metrics require a GitHub token to resolve team membership.',
-      });
-    }
-
-    try {
-      const scope = options.scope || 'organization';
-      const identifier = options.githubOrg || options.githubEnt || '';
-      const stored = await getUserMetricsByDateRange(scope, identifier, options.since, options.until);
-      if (stored) {
-        const filtered = await filterByTeamIfNeeded(stored.userTotals, options, event.context.headers);
-        logger.info(`Returning ${filtered.length} user metrics entries from storage (${stored.reportStartDay}–${stored.reportEndDay})`);
-        return filtered;
-      }
-      logger.info('No user metrics in storage yet, attempting live fetch');
-    } catch (err) {
-      // Re-throw H3 errors (like 503 above)
-      if (err && typeof err === 'object' && 'statusCode' in err) throw err;
-      logger.warn('Storage lookup failed, falling back to live fetch:', err);
-      if (!event.context.headers?.has('Authorization')) {
-        throw createError({
-          statusCode: 503,
-          statusMessage: 'Historical mode: storage unavailable and no GitHub token configured for live fallback.',
-        });
-      }
-    }
-  }
-
-  // ── Auth check ─────────────────────────────────────────────────────────────
-  if (!event.context.headers?.has('Authorization')) {
-    logger.error('No Authentication provided for user-metrics endpoint');
-    throw createError({ statusCode: 401, statusMessage: 'No Authentication provided' });
-  }
-
-  // ── Live API fetch ─────────────────────────────────────────────────────────
+  headers: HeadersInit,
+  logger: Console,
+  users: UserUsageRecord[]
+): Promise<AiAdoptionPhaseAggregate[]> {
   try {
-    const scope = options.scope || 'organization';
-    const identifier = options.githubOrg || options.githubEnt || '';
+    const orgTotals = await fetch28DayAdoptionPhases(options, headers, logger);
+    return buildAdoptionPhaseView(orgTotals, users);
+  } catch (error) {
+    logger.warn('Adoption phase rollup unavailable:', error);
+    return buildAdoptionPhaseView([], users);
+  }
+}
 
-    if (!identifier) {
-      throw createError({ statusCode: 400, statusMessage: 'GitHub organization or enterprise must be configured' });
+export default defineEventHandler(async (event: H3Event<EventHandlerRequest>) => {
+  const logger = console;
+  const config = useRuntimeConfig(event);
+  const query = getQuery(event);
+
+  const org = config.public.githubOrg;
+  const ent = config.public.githubEnt;
+  const scope = config.public.scope;
+  const day = typeof query.day === 'string' ? query.day : undefined;
+  const billingWindow = billingWindowFromQuery(query as Record<string, unknown>);
+
+  if (scope?.includes('team')) {
+    return new Response('Team scope is not supported for user metrics.', { status: 422 });
+  }
+
+  if (scope === 'organization' && !org) {
+    return new Response('GitHub organization is not configured for user metrics.', { status: 422 });
+  }
+
+  if (scope === 'enterprise' && !ent) {
+    return new Response('GitHub enterprise is not configured for user metrics.', { status: 422 });
+  }
+
+  if (!event.context.headers || !event.context.headers.has('Authorization')) {
+    return new Response('No Authentication provided', { status: 401 });
+  }
+
+  const options = Options.fromQuery(query, config.public);
+
+  const defaultQuota = Number(config.public.enterprisePremiumQuota) || 1000;
+  const premiumCreditsFetchEnabled = isPremiumCreditsFetchEnabled(config.public);
+  const aiCreditsFetchEnabled = isAiCreditsFetchEnabled(config.public);
+
+  try {
+    if (day) {
+      const metaUrl = buildUsersOneDayReportUrl(options, day);
+      const lines = await fetchNdjsonReport(metaUrl, event.context.headers, logger);
+      let users = lines.map(mapUserRecord);
+
+      if (org) {
+        const directory = await fetchOrgMemberDirectory(org, event.context.headers, logger);
+        users = enrichWithOrgDirectory(users, directory);
+      }
+
+      const premiumCredits = org
+        ? await getPremiumCreditsMeta(
+            org,
+            event.context.headers,
+            logger,
+            defaultQuota,
+            billingWindow.since,
+            billingWindow.until,
+            premiumCreditsFetchEnabled
+          )
+        : undefined;
+
+      const aiCredits = org
+        ? await getAiCreditsMeta(
+            org,
+            event.context.headers,
+            logger,
+            billingWindow.since,
+            billingWindow.until,
+            aiCreditsFetchEnabled
+          )
+        : undefined;
+
+      const adoptionByPhase = await loadAdoptionPhases(options, event.context.headers, logger, users);
+
+      return {
+        reportDay: day,
+        users,
+        adoptionByPhase,
+        premiumCredits,
+        aiCredits
+      } satisfies UserMetricsApiResponse;
     }
 
-    logger.info(`Fetching user metrics for ${scope}:${identifier}`);
+    const { users: rangeUsers, reportStartDay, reportEndDay } = await fetchUsersForDateRange(
+      options,
+      event.context.headers,
+      logger
+    );
 
-    let userTotals: UserTotals[];
+    let users = rangeUsers;
 
-    if (options.since || options.until) {
-      // Date range specified: fetch per-day records so we can filter accurately
-      const dayRecords = await fetchRawUserDayRecords(
-        { scope, identifier, teamSlug: options.githubTeam },
-        event.context.headers
-      );
-      userTotals = aggregateUserDayRecords(
-        filterDaysByDateRange(dayRecords, options.since, options.until)
-      );
-    } else {
-      // No date range: use pre-aggregated report
-      const report = await fetchLatestUserReport(
-        { scope, identifier, teamSlug: options.githubTeam },
-        event.context.headers
-      );
-      userTotals = report.user_totals ?? [];
+    if (org) {
+      const directory = await fetchOrgMemberDirectory(org, event.context.headers, logger);
+      users = enrichWithOrgDirectory(users, directory);
     }
 
-    const filtered = await filterByTeamIfNeeded(userTotals, options, event.context.headers);
-    logger.info(`Returned ${filtered.length} user records for ${scope}:${identifier} (${userTotals.length} before team filter)`);
-    return filtered;
+    const premiumCredits = org
+      ? await getPremiumCreditsMeta(
+          org,
+          event.context.headers,
+          logger,
+          defaultQuota,
+          billingWindow.since,
+          billingWindow.until,
+          premiumCreditsFetchEnabled
+        )
+      : undefined;
 
+    const aiCredits = org
+      ? await getAiCreditsMeta(
+          org,
+          event.context.headers,
+          logger,
+          billingWindow.since,
+          billingWindow.until,
+          aiCreditsFetchEnabled
+        )
+      : undefined;
+
+    const adoptionByPhase = await loadAdoptionPhases(options, event.context.headers, logger, users);
+
+    return {
+      reportStartDay,
+      reportEndDay,
+      users,
+      adoptionByPhase,
+      premiumCredits,
+      aiCredits
+    } satisfies UserMetricsApiResponse;
   } catch (error: unknown) {
-    logger.error('Error fetching user metrics:', error);
-    const status = typeof error === 'object' && error && 'statusCode' in error
-      ? (error as { statusCode?: number }).statusCode
-      : 500;
-    throw createError({
-      statusCode: status || 500,
-      statusMessage: 'Error fetching user metrics. Error: ' + String(error)
-    });
+    logger.error('Error fetching user metrics data:', error);
+    const statusCode =
+      error && typeof error === 'object' && 'statusCode' in error
+        ? (error as { statusCode: number }).statusCode
+        : 500;
+    const message = error instanceof Error ? error.message : String(error);
+    return new Response('Error fetching user metrics data: ' + message, { status: statusCode });
   }
 });

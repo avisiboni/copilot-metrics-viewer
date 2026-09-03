@@ -1,0 +1,29 @@
+/* Menora Mivtachim design tokens (design-system/paleta.pdf, book25.pdf) */
+:root {
+  --brand-primary: #6436df;
+  --brand-primary-dark: #320f5b;
+  --brand-primary-light: #9766fd;
+  --brand-lavender: #dad9eb;
+  --brand-surface: #f0f1f6;
+  --brand-text: #343546;
+  --brand-accent: #ffc700;
+  --brand-turquoise: #06c5d7;
+  --brand-focus: #b5b4c5;
+
+  --brand-radius-sm: 8px;
+  --brand-radius-md: 12px;
+  --brand-radius-lg: 27px;
+  --brand-radius-kpi: 20px;
+  --brand-shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.06);
+  --brand-shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.2);
+  --brand-kpi-shadow: 0 4px 22px rgba(50, 15, 91, 0.07);
+
+  --kpi-tint-mint-bg: #e5f7f4;
+  --kpi-tint-mint-accent: #06c5d7;
+  --kpi-tint-lavender-bg: #ede8fc;
+  --kpi-tint-lavender-accent: #6436df;
+  --kpi-tint-blue-bg: #e8f1ff;
+  --kpi-tint-blue-accent: #5b7fd6;
+  --kpi-tint-peach-bg: #fff2e8;
+  --kpi-tint-peach-accent: #e89b4a;
+}

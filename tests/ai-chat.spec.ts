@@ -206,6 +206,12 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('2024-01-01');
     expect(prompt).toContain('2024-03-01');
   });
+
+  it('should request Hebrew answers when locale is he', () => {
+    const prompt = buildSystemPrompt({ locale: 'he' });
+    expect(prompt).toContain('Hebrew');
+    expect(prompt).toContain('עברית');
+  });
 });
 
 // -------------------------------------------------------------------

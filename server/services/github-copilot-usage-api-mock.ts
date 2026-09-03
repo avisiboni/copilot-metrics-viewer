@@ -111,7 +111,9 @@ export function isMockMode(): boolean {
   if (typeof useRuntimeConfig === 'function') {
     try {
       const config = useRuntimeConfig();
-      return config.public.isDataMocked === true;
+      if (config.public.isDataMocked === true) {
+        return true;
+      }
     } catch { /* fall through to env var check */ }
   }
   return process.env.NUXT_PUBLIC_IS_DATA_MOCKED === 'true';

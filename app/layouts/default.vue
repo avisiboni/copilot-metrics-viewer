@@ -1,48 +1,47 @@
 <template>
-  <v-app :theme="themeState">
-    <v-main>
+  <v-app>
+    <v-locale-provider :rtl="isRtl">
       <slot />
-    </v-main>
-    <v-footer class="bg-primary text-center d-flex flex-column fixed-footer">
-      <div class="px-4 py-2 text-center w-100">
-        {{ new Date().getFullYear() }} — <strong><a href="https://github.com/github-copilot-resources/copilot-metrics-viewer" target="_blank" rel="noopener noreferrer" style="color: inherit;">Copilot Metrics Viewer</a></strong> — <a :href="`https://github.com/github-copilot-resources/copilot-metrics-viewer/releases/tag/v${version}`" target="_blank" rel="noopener noreferrer" style="color: inherit;">{{ version }}</a><span v-if="deployInfo"> — {{ deployInfo }}</span>
-      </div>
-    </v-footer>
+      <v-footer class="brand-footer text-center d-flex flex-column fixed-footer">
+        <div class="px-4 py-2 text-center w-100">
+          {{ new Date().getFullYear() }} —
+          <strong><a :href="branding.footerProjectUrl" target="_blank" rel="noopener noreferrer">{{ branding.appName }}</a></strong>
+          —
+          {{ version }}
+          <template v-if="docsUrl">
+            —
+            <a
+              :href="docsUrl"
+              :target="docsLinkExternal ? '_blank' : undefined"
+              :rel="docsLinkExternal ? 'noopener noreferrer' : undefined"
+            >{{ t('footer.docs') }}</a>
+          </template>
+        </div>
+      </v-footer>
+    </v-locale-provider>
   </v-app>
 </template>
 
 <script lang="ts" setup>
-import { routeParamStr } from '@/utils/routeUtils';
-import { resolveDisplayName } from '#shared/utils/resolveDisplayName';
+import { buildPageTitle } from '../../shared/i18n/buildPageTitle'
 
+const { t, isRtl } = useAppI18n()
 const config = useRuntimeConfig();
+const branding = useAppBranding()
 const version = computed(() => config.public.version);
-const deployInfo = computed(() => config.public.deployInfo);
-const route = useRoute();
-const isMockMode = computed(() =>
-  !!config.public.isDataMocked ||
-  route.query.mock === 'true' || route.query.mock === '1'
-);
-const pageTitle = computed(() => resolveDisplayName({
-  urlOrg: routeParamStr(route.params, 'org'),
-  urlEnt: routeParamStr(route.params, 'ent'),
-  isMockMode: isMockMode.value,
-  configOrg: config.public.githubOrg as string,
-  configEnt: config.public.githubEnt as string,
-  configScope: config.public.scope as string,
-  teamName: routeParamStr(route.params, 'team'),
-}));
+const docsUrl = computed(() => config.public.docsUrl || '/docs');
+const docsLinkExternal = computed(() => /^https?:\/\//i.test(docsUrl.value));
+const pageTitle = computed(() =>
+  buildPageTitle(t.value, config.public, branding.value.appName),
+)
 useHead({
   title: pageTitle,
   meta: [
-    { name: 'description', content: 'Copilot Metrics Dashboard' }
-  ]
-});
-
-const themeState = useState('app-theme', () => 'light');
-onMounted(() => {
-  const saved = localStorage.getItem('copilot-metrics-theme');
-  if (saved === 'light' || saved === 'dark') themeState.value = saved;
+    { name: 'description', content: () => branding.value.metaDescription },
+  ],
+  link: [
+    { rel: 'icon', href: () => branding.value.faviconHref },
+  ],
 });
 </script>
 

@@ -1,28 +1,34 @@
 <script lang="ts" setup>
-import { useRoute } from 'vue-router';
-import './assets/global.css';
+import { watchEffect } from 'vue'
+import { useRoute } from 'vue-router'
+import { isEnvTruthy } from '../../shared/utils/env-boolean'
+import { shouldUseMockData } from '../../shared/utils/mock-mode'
 
-const route = useRoute();
+const route = useRoute()
 
 // TODO: there might be a better way than overriding the config with route
-const config = useRuntimeConfig();
+const config = useRuntimeConfig()
+/** Env default only — do not read config.public.isDataMocked here (it is updated below). */
+const mockEnabledInEnv = isEnvTruthy(config.public.isDataMocked)
 
-if(route.query.mock) {
-  config.public.isDataMocked = true;
-  config.public.usingGithubAuth = false;
-}
+watchEffect(() => {
+  const useMock = shouldUseMockData(config.public, route.query)
+  config.public.isDataMocked = useMock
+  if (useMock && !mockEnabledInEnv) {
+    config.public.usingGithubAuth = false
+  }
+})
 
 if (route.params.ent || route.params.org) {
   config.public.githubEnt = route.params.ent as string
   config.public.githubOrg = route.params.org as string
 
-  
   // update scope
   if (route.params.org) {
     config.public.scope = 'organization'
   } else if (route.params.ent) {
     config.public.scope = 'enterprise'
-  } 
+  }
 }
 
 // No org in URL or config — redirect to org picker, but only if the user is already
@@ -32,7 +38,7 @@ if (route.params.ent || route.params.org) {
 const { loggedIn } = useUserSession()
 const authRequired = config.public.usingGithubAuth || config.public.requireAuth || config.public.isPublicApp || !!config.public.authProviders
 const hasOrg = route.params.org || route.params.ent || config.public.githubOrg || config.public.githubEnt
-if (!hasOrg && !config.public.isDataMocked && (!authRequired || loggedIn.value)) {
+if (!hasOrg && !mockEnabledInEnv && !shouldUseMockData(config.public, route.query) && (!authRequired || loggedIn.value)) {
   await navigateTo('/select-org')
 }
 

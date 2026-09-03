@@ -2,12 +2,20 @@
 .output
 .data
 .nuxt
+.nuxt-user
+.vite-cache
+# Accidental dir if someone runs `npm run dev --port 3000` (passes 3000 as rootDir)
+/3000/
 .nitro
 .cache
 dist
 
 # Node dependencies
 node_modules
+website/node_modules
+website/build
+website/.docusaurus
+public/docs
 
 # Logs
 logs
@@ -17,6 +25,7 @@ logs
 .DS_Store
 .fleet
 .idea
+design-system/
 
 # Local env files
 .env
@@ -38,3 +47,7 @@ AgentPlan.md
 # Temporary output files
 typecheck-output.txt
 errors-grouped.txt
+
+.tmp/
+.vite-cache/
+.vite-cache-user/

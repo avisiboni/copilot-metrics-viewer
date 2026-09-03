@@ -168,14 +168,19 @@ describe('Options', () => {
     })
 
     test('uses runtime config defaults when no route params', () => {
+      const prevMockEnv = process.env.NUXT_PUBLIC_IS_DATA_MOCKED
+      process.env.NUXT_PUBLIC_IS_DATA_MOCKED = 'false'
+
       const mockRoute = createMockRoute()
-      
       const options = Options.fromRoute(mockRoute)
-      
+
       expect(options.scope).toBe('organization')
-      // The runtime config defaults are not being applied in the test environment
-      // This is expected behavior in the test - runtime config would apply in real app
-      expect(options.githubOrg).toBeUndefined()
+      expect(options.isDataMocked).toBeFalsy()
+      // Vitest Nuxt runtime may not apply the #app mock defaults; org comes from route or env only.
+      expect(options.githubOrg).toBeFalsy()
+
+      if (prevMockEnv === undefined) delete process.env.NUXT_PUBLIC_IS_DATA_MOCKED
+      else process.env.NUXT_PUBLIC_IS_DATA_MOCKED = prevMockEnv
     })
   })
 
@@ -357,6 +362,19 @@ describe('Options', () => {
       expect(options.isDataMocked).toBeUndefined()
       expect(options.githubOrg).toBeUndefined()
       expect(options.scope).toBeUndefined()
+    })
+
+    test('applyRuntimePublicDefaults fills scope and org when API query omits them', () => {
+      const options = new Options({ since: '2026-05-05', until: '2026-06-01' })
+      Options.applyRuntimePublicDefaults(options, {
+        scope: 'organization',
+        githubOrg: 'menora-copilot',
+        githubEnt: 'menora-insurance',
+      })
+
+      expect(options.scope).toBe('organization')
+      expect(options.githubOrg).toBe('menora-copilot')
+      expect(options.githubEnt).toBe('menora-insurance')
     })
   })
 

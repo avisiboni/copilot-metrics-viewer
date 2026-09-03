@@ -21,15 +21,16 @@
 #     → Open http://localhost:3000/orgs/your-org
 #
 #   Run the app with historical mode (DB-backed, sync-on-miss):
-#     export NUXT_GITHUB_TOKEN=github_pat_...
-#     export NUXT_PUBLIC_GITHUB_ORG=your-org
-#     export NUXT_PUBLIC_IS_DATA_MOCKED=false
-#     export ENABLE_HISTORICAL_MODE=true
-#     docker compose up db web
-#     → First request auto-syncs from API to DB; subsequent requests read from DB
+#     # Prefer loading from .env (ENABLE_HISTORICAL_MODE + NUXT_PUBLIC_ENABLE_HISTORICAL_MODE)
+#     docker compose up -d db web
+#     → Open http://localhost:3000/orgs/your-org
 #
-#   Run a one-time sync to populate the database:
+#   Populate last 28 days (bulk, fast):
 #     docker compose run --rm sync
+#
+#   Backfill a long range (unlocks date picker + Usage & billing costs):
+#     SYNC_SINCE=2025-07-19 SYNC_UNTIL=2026-07-18 docker compose run --rm sync
+#     → Older days use the 1-day API (can take a while for ~1 year)
 #
 # ─── Testing ─────────────────────────────────────────────────────────────────
 #
@@ -54,10 +55,12 @@
 #   NUXT_PUBLIC_GITHUB_ORG      — Target GitHub organization
 #   NUXT_PUBLIC_IS_DATA_MOCKED  — "true" for mock data, "false" for real API
 #   NUXT_GITHUB_TOKEN           — GitHub PAT (fine-grained, "Copilot metrics" permission)
-#   ENABLE_HISTORICAL_MODE      — "true" to read from DB with sync-on-miss
-#   USE_LEGACY_API              — set to "true" to use deprecated /copilot/metrics endpoint
-#   NUXT_SESSION_PASSWORD       — Session secret (min 32 chars, auto-set below)
-#   DATABASE_URL                — PostgreSQL connection string (auto-set for docker-compose)
+#   ENABLE_HISTORICAL_MODE              — "true" to read from DB with sync-on-miss (server)
+#   NUXT_PUBLIC_ENABLE_HISTORICAL_MODE  — "true" to enable historical UI (Teams, long date range)
+#   SYNC_SINCE / SYNC_UNTIL             — optional YYYY-MM-DD backfill range for sync service
+#   USE_LEGACY_API                      — set to "true" to use deprecated /copilot/metrics endpoint
+#   NUXT_SESSION_PASSWORD               — Session secret (min 32 chars, auto-set below)
+#   DATABASE_URL                        — PostgreSQL connection string (auto-set for docker-compose)
 #
 # =============================================================================
 
@@ -73,7 +76,8 @@ services:
       POSTGRES_USER: metrics_user
       POSTGRES_PASSWORD: metrics_password
     ports:
-      - "5432:5432"
+      # Host 5433 avoids clashing with other local Postgres (e.g. ccs-dev on 5432).
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -93,41 +97,59 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Avoid OOM on multi-locale Docusaurus during image build; embed docs on host when needed.
+        SKIP_DOCS_EMBED: ${SKIP_DOCS_EMBED:-1}
     ports:
       - "3000:80"
     environment:
-      - NUXT_PUBLIC_SCOPE=organization
+      - NUXT_PUBLIC_SCOPE=${NUXT_PUBLIC_SCOPE:-organization}
       - NUXT_PUBLIC_GITHUB_ORG=${NUXT_PUBLIC_GITHUB_ORG:-your-org}
+      - NUXT_PUBLIC_GITHUB_ENT=${NUXT_PUBLIC_GITHUB_ENT:-}
       - NUXT_PUBLIC_IS_DATA_MOCKED=${NUXT_PUBLIC_IS_DATA_MOCKED:-true}
       - NUXT_SESSION_PASSWORD=${NUXT_SESSION_PASSWORD:-at_least_32_characters_long_password_here}
       # API mode: "new" (download-based, default) or "legacy" (deprecated April 2026)
       - USE_LEGACY_API=${USE_LEGACY_API:-false}
       - ENABLE_HISTORICAL_MODE=${ENABLE_HISTORICAL_MODE:-false}
+      - NUXT_PUBLIC_ENABLE_HISTORICAL_MODE=${NUXT_PUBLIC_ENABLE_HISTORICAL_MODE:-false}
       # GitHub token — required unless using mock data
       - NUXT_GITHUB_TOKEN=${NUXT_GITHUB_TOKEN:-}
       # PostgreSQL — used when ENABLE_HISTORICAL_MODE=true
       - DATABASE_URL=postgresql://metrics_user:metrics_password@db:5432/copilot_metrics
       # Disable built-in scheduled sync (run separately via sync service)
       - SYNC_ENABLED=false
-    # Note: DB is only needed when ENABLE_HISTORICAL_MODE=true.
-    # For direct API or mock mode, just run: docker compose up web
+      - NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED=${NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED:-false}
+      - NUXT_PUBLIC_AI_CREDITS_FETCH_ENABLED=${NUXT_PUBLIC_AI_CREDITS_FETCH_ENABLED:-true}
+      - NUXT_PUBLIC_ENTERPRISE_PREMIUM_QUOTA=${NUXT_PUBLIC_ENTERPRISE_PREMIUM_QUOTA:-1000}
+      - NUXT_PUBLIC_COPILOT_SEAT_UNIT_PRICE=${NUXT_PUBLIC_COPILOT_SEAT_UNIT_PRICE:-0}
+      - BILLING_LOOKBACK_MONTHS=${BILLING_LOOKBACK_MONTHS:-12}
+    depends_on:
+      db:
+        condition: service_healthy
+    # Note: For mock/direct API without DB you can still run web alone if you
+    # temporarily remove depends_on; historical mode needs db.
 
   # ─── Sync Service ───────────────────────────────────────────────────────
   # Standalone container that downloads metrics from GitHub API and stores
   # them to PostgreSQL. Run on-demand or via cron.
   # Usage: docker compose run --rm sync
+  # Year backfill: SYNC_SINCE=2025-07-19 SYNC_UNTIL=2026-07-18 docker compose run --rm sync
   sync:
     build:
       context: .
       dockerfile: Dockerfile.sync
     environment:
-      - NUXT_PUBLIC_SCOPE=organization
+      - NUXT_PUBLIC_SCOPE=${NUXT_PUBLIC_SCOPE:-organization}
       - NUXT_PUBLIC_GITHUB_ORG=${NUXT_PUBLIC_GITHUB_ORG:-your-org}
+      - NUXT_PUBLIC_GITHUB_ENT=${NUXT_PUBLIC_GITHUB_ENT:-}
       - NUXT_GITHUB_TOKEN=${NUXT_GITHUB_TOKEN:-}
       - NUXT_PUBLIC_IS_DATA_MOCKED=${NUXT_PUBLIC_IS_DATA_MOCKED:-false}
       - USE_LEGACY_API=${USE_LEGACY_API:-false}
       - DATABASE_URL=postgresql://metrics_user:metrics_password@db:5432/copilot_metrics
       - SYNC_ENABLED=true
+      - SYNC_DAYS_BACK=${SYNC_DAYS_BACK:-28}
+      - SYNC_SINCE=${SYNC_SINCE:-}
+      - SYNC_UNTIL=${SYNC_UNTIL:-}
     depends_on:
       db:
         condition: service_healthy

@@ -112,7 +112,8 @@ async function fetchFromNewApi(
 export async function getMetricsDataV2(event: H3Event<EventHandlerRequest>): Promise<MetricsDataResult> {
   const logger = console;
   const query = getQuery(event);
-  const options = Options.fromQuery(query);
+  const config = useRuntimeConfig(event);
+  const options = Options.fromQuery(query, config.public);
 
   if (!options.locale) {
     options.locale = getLocale(event);

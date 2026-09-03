@@ -1,0 +1,30 @@
+{
+  "version.label": {
+    "message": "Next",
+    "description": "The label for version current"
+  },
+  "sidebar.docsSidebar.category.מדריך למשתמש": {
+    "message": "User guide",
+    "description": "The label for category 'מדריך למשתמש' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.התקנה והגדרה": {
+    "message": "Setup",
+    "description": "The label for category 'התקנה והגדרה' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.פריסה": {
+    "message": "Deployment",
+    "description": "The label for category 'פריסה' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.עזרה ופתרון תקלות": {
+    "message": "Troubleshooting",
+    "description": "The label for category 'עזרה ופתרון תקלות' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.התייחסות": {
+    "message": "Reference",
+    "description": "The label for category 'התייחסות' in sidebar 'docsSidebar'"
+  },
+  "sidebar.docsSidebar.category.תרומה לפרויקט": {
+    "message": "Contributing",
+    "description": "The label for category 'תרומה לפרויקט' in sidebar 'docsSidebar'"
+  }
+}

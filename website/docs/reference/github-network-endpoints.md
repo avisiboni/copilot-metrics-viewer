@@ -1,0 +1,57 @@
+---
+title: נקודות קצה GitHub
+---
+
+# נקודות קצה יוצאות של GitHub / Copilot
+
+בעמוד זה מפורטים כל כתובות ה-URL של GitHub שהאפליקציה משתמשת בהן לשליפת נתונים, ומה כל נקודת קצה משמשת.
+
+## רשימת allowlist מומלצת לפרוקסי
+
+- `https://api.github.com`
+
+## נקודות קצה REST בשימוש האפליקציה
+
+| דפוס נקודת קצה | שימוש |
+|---|---|
+| `GET https://api.github.com/user/installations` | רשימת התקנות GitHub App במהלך זרימת האימות לאימות גישה. |
+| `GET https://api.github.com/orgs/{org}/copilot/metrics/reports/organization-1-day?day={yyyy-mm-dd}` | מדדי שימוש Copilot יומיים ברמת ארגון ליום מסוים. |
+| `GET https://api.github.com/enterprises/{enterprise}/copilot/metrics/reports/enterprise-1-day?day={yyyy-mm-dd}` | מדדי שימוש Copilot יומיים ברמת enterprise ליום מסוים. |
+| `GET https://api.github.com/orgs/{org}/copilot/metrics/reports/organization-28-day/latest` | סיכום שימוש Copilot ל-28 יום אחרונים ברמת ארגון. |
+| `GET https://api.github.com/enterprises/{enterprise}/copilot/metrics/reports/enterprise-28-day/latest` | סיכום שימוש Copilot ל-28 יום אחרונים ברמת enterprise. |
+| `GET https://api.github.com/orgs/{org}/copilot/metrics/reports/user-teams-1-day?day={yyyy-mm-dd}` | מדדי שימוש יומיים לפי צוות בארגון. |
+| `GET https://api.github.com/enterprises/{enterprise}/copilot/metrics/reports/user-teams-1-day?day={yyyy-mm-dd}` | מדדי שימוש יומיים לפי צוות ב-enterprise. |
+| `GET https://api.github.com/orgs/{org}/copilot/metrics/reports/users-1-day?day={yyyy-mm-dd}` | מדדי שימוש יומיים לפי משתמש בארגון. |
+| `GET https://api.github.com/enterprises/{enterprise}/copilot/metrics/reports/users-1-day?day={yyyy-mm-dd}` | מדדי שימוש יומיים לפי משתמש ב-enterprise. |
+| `GET https://api.github.com/orgs/{org}/copilot/metrics/reports/users-28-day/latest` | מדדי משתמש ל-28 יום אחרונים בארגון. |
+| `GET https://api.github.com/enterprises/{enterprise}/copilot/metrics/reports/users-28-day/latest` | מדדי משתמש ל-28 יום אחרונים ב-enterprise. |
+| `GET https://api.github.com/orgs/{org}/copilot/billing` | הגדרות חיוב ארגון (לשונית Usage & billing). |
+| `GET https://api.github.com/orgs/{org}/copilot/billing/seats` | הקצאות מושבי Copilot בארגון (ניתוח מושבים). |
+| `GET https://api.github.com/enterprises/{enterprise}/copilot/billing/seats` | הקצאות מושבי Copilot ב-enterprise (ניתוח מושבים). |
+| `GET https://api.github.com/orgs/{org}/teams` | רשימת צוותים בארגון. |
+| `GET https://api.github.com/enterprises/{enterprise}/teams` | רשימת צוותים ב-enterprise. |
+| `GET https://api.github.com/orgs/{org}/teams/{team}/members` | חברי צוות ספציפי בארגון. |
+| `GET https://api.github.com/enterprises/{enterprise}/teams/{team}/members` | חברי צוות ספציפי ב-enterprise. |
+| `GET https://api.github.com/orgs/{org}/members` | חברי ארגון (העשרת מדריך משתמשים). |
+| `POST https://api.github.com/orgs/{org}/invitations` | הזמנת חבר לארגון לפי אימייל (לשונית Invite members). |
+| `GET https://api.github.com/organizations/{org}/settings/billing` | מטא-דאטה של הגדרות חיוב ברמת ארגון. |
+| `GET https://api.github.com/organizations/{org}/settings/billing/usage?year=&month=` | שורות חיוב מפורטות (Usage & billing — SKU, הוצאה נטו). |
+| `GET https://api.github.com/organizations/{org}/settings/billing/usage/summary?year=&month=` | סיכום שימוש חיוב לפי SKU. |
+| `GET https://api.github.com/organizations/{org}/settings/billing/premium_request/usage?year=&month=&user=` | PRU לפי משתמש (Premium credits). |
+| `GET https://api.github.com/organizations/{org}/settings/billing/ai_credit/usage?year=&month=&user=` | קרדיטי AI לפי משתמש. |
+| `GET https://api.github.com/enterprises/{enterprise}/settings/billing/premium_request/usage?organization=&user=` | PRU לפי משתמש (ארגון בבעלות enterprise). |
+| `GET https://api.github.com/enterprises/{enterprise}/settings/billing/ai_credit/usage?organization=&user=` | קרדיטי AI לפי משתמש (ארגון בבעלות enterprise). |
+| `GET https://api.github.com/enterprises/{enterprise}/settings/billing` | מטא-דאטה של הגדרות חיוב ברמת enterprise. |
+
+## נקודת קצה GraphQL בשימוש האפליקציה
+
+| נקודת קצה | שימוש |
+|---|---|
+| `POST https://api.github.com/graphql` | העשרת פרופילי חברי ארגון (`membersWithRole`) ושדות SAML (`externalIdentities`). |
+
+## הערות
+
+- כל ה-placeholders (`{org}`, `{enterprise}`, `{team}`) הם ערכים בזמן ריצה מההגדרות או מפרמטרי הנתיב.
+- אם הפרוקסי מבוסס דומיין, הרשאת `api.github.com` מספיקה לשליפת הנתונים באפליקציה זו.
+- **כותרות Copilot usage metrics:** כל קריאות `/copilot/metrics/reports/*` שולחות `X-GitHub-Api-Version: 2026-03-10` (דרישת GitHub).
+- **שדות חדשים בדוחות users** (מרץ–יוני 2026): `used_copilot_coding_agent`, `ai_credits_used` — ראו [תכונות אחרונות](./recent-features).

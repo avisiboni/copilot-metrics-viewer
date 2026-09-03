@@ -1,3 +1,5 @@
 export default defineEventHandler((event) => {
-  console.log('Request: ' + event.method + ' ' + getRequestURL(event))
+  const url = getRequestURL(event)
+  // Log path only — query strings may contain sensitive params (mock, dates, etc.)
+  console.log(`Request: ${event.method} ${url.pathname}`)
 })

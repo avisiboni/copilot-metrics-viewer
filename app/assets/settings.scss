@@ -1,10 +1,12 @@
 /**
- * src/styles/settings.scss
- *
- * Configures SASS variables and Vuetify overwrites
+ * Vuetify theme overrides — Menora Mivtachim brand (design-system/)
  */
-
-// https://vuetifyjs.com/features/sass-variables/`
-// @use 'vuetify/settings' with (
-//   $color-pack: false
-// );
+@use 'vuetify/settings' with (
+  $body-font-family: ('Assistant', 'Arial', sans-serif),
+  $heading-font-family: ('Assistant', 'Arial', sans-serif),
+  $rounded: (
+    'sm': 8px,
+    'md': 12px,
+    'lg': 27px,
+  )
+);

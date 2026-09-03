@@ -1,339 +1,340 @@
 <template>
   <div>
-    <!-- Info panel -->
-    <v-card variant="outlined" class="mx-4 mt-3 mb-4 pa-3" density="compact">
-      <div class="d-flex flex-wrap align-start gap-2 text-body-2">
-        <div class="mr-3" style="flex: 1; min-width: 250px;">
-          <div class="font-weight-bold text-body-1 mb-1">💺 Seat Analysis</div>
-          <div class="text-medium-emphasis">
-            Shows all Copilot seats assigned in your organization — who has a seat, when it was created,
-            and when each developer last used Copilot. Identify inactive seats to right-size your Copilot
-            subscription. "No show" seats were assigned but never activated.
-          </div>
-        </div>
-        <v-divider vertical class="mx-2 hidden-sm-and-down" />
-        <div class="d-flex flex-column gap-1 flex-shrink-0">
-          <div class="text-caption text-medium-emphasis font-weight-medium mb-1">LEARN MORE</div>
-          <a href="https://docs.github.com/en/copilot/managing-copilot/managing-copilot-for-your-enterprise/managing-copilot-licenses-for-your-enterprise" target="_blank" rel="noopener"
-             class="text-decoration-none d-flex align-center gap-1 text-body-2" style="color: inherit;">
-            <v-icon size="x-small" color="primary">mdi-open-in-new</v-icon>
-            <span class="text-primary">Managing Copilot licenses</span>
-          </a>
-          <a href="https://docs.github.com/en/copilot/managing-copilot/managing-copilot-for-your-organization/reviewing-activity-related-to-github-copilot-in-your-organization" target="_blank" rel="noopener"
-             class="text-decoration-none d-flex align-center gap-1 text-body-2" style="color: inherit;">
-            <v-icon size="x-small" color="primary">mdi-open-in-new</v-icon>
-            <span class="text-primary">Reviewing Copilot activity</span>
-          </a>
-        </div>
-      </div>
-    </v-card>
-
-    <!-- Summary tiles -->
-    <div class="tiles-container">
-      <v-card elevation="4" color="surface" variant="elevated" class="my-2">
-        <v-card-item>
+    <div class="tiles-container seat-filter-tiles">
+      <v-card
+        v-for="tile in seatFilterTiles"
+        :key="tile.filter"
+        variant="flat"
+        :ripple="false"
+        class="brand-kpi-card brand-kpi-card--interactive"
+        :class="{ 'brand-kpi-card--active': seatFilter === tile.filter }"
+        role="button"
+        tabindex="0"
+        :aria-pressed="seatFilter === tile.filter"
+        @click="toggleSeatFilter(tile.filter)"
+        @keydown.enter.prevent="toggleSeatFilter(tile.filter)"
+        @keydown.space.prevent="toggleSeatFilter(tile.filter)"
+      >
+        <BrandKpiTooltip :text="tile.tooltip" />
+        <v-card-item class="d-flex justify-center align-center">
           <div class="tiles-text">
-            <div class="spacing-10"/>
-            <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-              <template #activator="{ props }">
-                <div v-bind="props" class="text-h6 mb-1">Total Assigned</div>
-              </template>
-              <v-card class="pa-3 metric-tooltip">
-                <span class="tooltip-text">This metric represents the total number of Copilot seats assigned {{ isTeamView ? `to team "${currentTeam}"` : 'within the current organization/enterprise' }}.</span>
-              </v-card>
-            </v-tooltip>
-            <div class="text-caption text-medium-emphasis">{{ isTeamView ? `Seats in team "${currentTeam}"` : 'Currently assigned seats' }}</div>
-            <p class="kpi-value text-primary mt-1">{{ totalSeatsCount }}</p>
-          </div>
-        </v-card-item>
-      </v-card>
-
-      <v-card elevation="4" color="surface" variant="elevated" class="my-2">
-        <v-card-item>
-          <div class="tiles-text">
-            <div class="spacing-10"/>
-            <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-              <template #activator="{ props }">
-                <div v-bind="props" class="text-h6 mb-1">Never Used</div>
-              </template>
-              <v-card class="pa-3 metric-tooltip">
-                <span class="tooltip-text">Seats that were assigned but never used {{ isTeamView ? `within team "${currentTeam}"` : 'within the current organization/enterprise' }}.</span>
-              </v-card>
-            </v-tooltip>
-            <div class="text-caption text-medium-emphasis">No show seats{{ totalPages > 1 ? ' (this page)' : '' }}</div>
-            <p class="kpi-value text-warning mt-1">{{ noshowSeats }}</p>
-          </div>
-        </v-card-item>
-      </v-card>
-
-      <v-card elevation="4" color="surface" variant="elevated" class="my-2">
-        <v-card-item>
-          <div class="tiles-text">
-            <div class="spacing-10"/>
-            <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-              <template #activator="{ props }">
-                <div v-bind="props" class="text-h6 mb-1">Inactive 7 Days</div>
-              </template>
-              <v-card class="pa-3 metric-tooltip">
-                <span class="tooltip-text">Seats with no Copilot activity in the past 7 days.</span>
-              </v-card>
-            </v-tooltip>
-            <div class="text-caption text-medium-emphasis">No use in last 7 days{{ totalPages > 1 ? ' (this page)' : '' }}</div>
-            <p class="kpi-value text-error mt-1">{{ unusedSeatsInSevenDays }}</p>
-          </div>
-        </v-card-item>
-      </v-card>
-
-      <v-card elevation="4" color="surface" variant="elevated" class="my-2">
-        <v-card-item>
-          <div class="tiles-text">
-            <div class="spacing-10"/>
-            <v-tooltip location="bottom start" open-on-hover open-delay="200" close-delay="200">
-              <template #activator="{ props }">
-                <div v-bind="props" class="text-h6 mb-1">Inactive 30 Days</div>
-              </template>
-              <v-card class="pa-3 metric-tooltip">
-                <span class="tooltip-text">Seats with no Copilot activity in the last 30 days, including those never used.</span>
-              </v-card>
-            </v-tooltip>
-            <div class="text-caption text-medium-emphasis">No use in last 30 days{{ totalPages > 1 ? ' (this page)' : '' }}</div>
-            <p class="kpi-value text-error mt-1">{{ unusedSeatsInThirtyDays }}</p>
+            <div class="brand-kpi-card__label mb-1">{{ tile.title }}</div>
+            <div class="brand-kpi-card__hint mb-2">{{ tile.subtitle }}</div>
+            <p class="brand-kpi-card__value text-h4 mb-0">{{ tile.count }}</p>
+            <div v-if="seatFilter === tile.filter" class="brand-kpi-card__hint mt-1">
+              {{ t('seats.filterHint') }}
+            </div>
           </div>
         </v-card-item>
       </v-card>
     </div>
 
-    <!-- Seats history chart (historical / DB mode only) -->
-    <v-container :fluid="chartColumns === 'full'" :class="['elevation-2', chartColumns === 'full' ? 'px-0' : 'px-4']">
-      <div class="d-flex justify-end mb-2">
-        <v-btn-toggle v-model="chartColumns" density="compact" variant="outlined" mandatory>
-          <v-btn value="1" size="small" title="Single column"><v-icon size="18">mdi-view-agenda</v-icon></v-btn>
-          <v-btn value="2" size="small" title="Two columns"><v-icon size="18">mdi-view-grid</v-icon></v-btn>
-          <v-btn value="full" size="small" title="Full width"><v-icon size="18">mdi-fullscreen</v-icon></v-btn>
-        </v-btn-toggle>
-      </div>
-      <v-row v-if="seatsHistory.length > 0" class="mb-4">
-        <v-col cols="12">
-          <v-card variant="elevated" elevation="2">
-            <v-card-title class="text-subtitle-1 font-weight-medium pt-3 px-4">Seat Count History</v-card-title>
-            <v-card-subtitle class="px-4 pb-2">Daily snapshots collected by the sync job</v-card-subtitle>
-            <v-card-text>
-              <Line :data="historyChartData" :options="historyChartOptions" />
-            </v-card-text>
-          </v-card>
-        </v-col>
-      </v-row>
+    <BrandMonthlySeatInvoiceSection :seats="allSeats" show-chart />
 
-      <!-- Seats table with server-side pagination -->
-      <v-row class="mb-4">
-        <v-col cols="12">
-          <v-card variant="elevated" elevation="2">
-            <v-card-title class="text-subtitle-1 font-weight-medium pt-3 px-4">All Assigned Seats</v-card-title>
-            <v-card-subtitle v-if="totalPages > 1" class="px-4 pb-2">
-              Showing page {{ currentPage }} of {{ totalPages }} ({{ totalSeatsCount }} total seats, {{ seats.length }} on this page)
-            </v-card-subtitle>
-            <v-card-text class="pa-0">
-              <v-data-table :headers="headers" :items="sortedSeats" :items-per-page="-1" hide-default-footer class="elevation-0">
-                <template #item="{ item, index }">
-                  <tr>
-                    <td>{{ (currentPage - 1) * perPage + index + 1 }}</td>
-                    <td>{{ item.login }}</td>
-                    <td>{{ item.id }}</td>
-                    <td>{{ item.team }}</td>
-                    <td>{{ item.created_at }} {{ item.plan_type }}</td>
-                    <td>{{ item.last_activity_at }}</td>
-                    <td>{{ item.last_activity_editor }}</td>
-                  </tr>
-                </template>
-              </v-data-table>
+    <v-card v-if="billing" flat class="pa-3 mb-2 brand-info-banner">
+      <v-card-title class="text-h6">{{ t('seats.billingTitle') }}</v-card-title>
+      <v-card-text>
+        <v-row>
+          <v-col cols="12" md="3"><strong>{{ t('seats.plan') }}</strong> {{ billing.plan_type || t('common.emDash') }}</v-col>
+          <v-col cols="12" md="3"><strong>{{ t('seats.ideChat') }}</strong> {{ billing.ide_chat || t('common.emDash') }}</v-col>
+          <v-col cols="12" md="3"><strong>{{ t('seats.platformChat') }}</strong> {{ billing.platform_chat || t('common.emDash') }}</v-col>
+          <v-col cols="12" md="3"><strong>{{ t('seats.cli') }}</strong> {{ billing.cli || t('common.emDash') }}</v-col>
+          <v-col cols="12" md="3"><strong>{{ t('seats.publicSuggestions') }}</strong> {{ billing.public_code_suggestions || t('common.emDash') }}</v-col>
+          <v-col cols="12" md="3"><strong>{{ t('seats.seatManagement') }}</strong> {{ billing.seat_management_setting || t('common.emDash') }}</v-col>
+          <v-col cols="12" md="3"><strong>{{ t('seats.totalSeats') }}</strong> {{ billing.seat_breakdown?.total ?? t('common.emDash') }}</v-col>
+          <v-col cols="12" md="3"><strong>{{ t('seats.activeCycle') }}</strong> {{ billing.seat_breakdown?.active_this_cycle ?? t('common.emDash') }}</v-col>
+        </v-row>
+      </v-card-text>
+    </v-card>
 
-              <!-- Paginator -->
-              <div v-if="totalPages > 1" class="d-flex justify-center mt-4 pb-4">
-                <v-pagination
-                  :model-value="currentPage"
-                  :length="totalPages"
-                  :total-visible="7"
-                  @update:model-value="$emit('page-change', $event)"
-                />
-              </div>
-            </v-card-text>
-          </v-card>
-        </v-col>
-      </v-row>
-    </v-container>
+    <section class="brand-page-panel">
+        <BrandTableShell :title="tableTitle">
+          <template #toolbar>
+            <v-chip
+              v-if="seatFilter !== 'all'"
+              size="small"
+              closable
+              class="brand-filter-chip"
+              @click:close="seatFilter = 'all'"
+            >
+              {{ activeFilterLabel }}
+            </v-chip>
+            <v-btn
+              variant="outlined"
+              size="small"
+              height="40"
+              prepend-icon="mdi-microsoft-excel"
+              :disabled="!displayedSeats.length || exportingExcel"
+              :loading="exportingExcel"
+              @click="exportSeatsExcel"
+            >
+              {{ t('seats.exportExcel') }}
+            </v-btn>
+          </template>
+        <v-data-table
+          :headers="headers"
+          :items="displayedSeats"
+          :items-per-page="10"
+          density="comfortable"
+          class="brand-data-table"
+        >
+          <template #item="{ item, index }">
+            <tr>
+              <td>{{ index + 1 }}</td>
+              <td>{{ item.login }}</td>
+              <td>
+                <span v-if="item.email" class="brand-table-email">{{ item.email }}</span>
+                <span v-else class="brand-credits-cell--na">{{ t('common.emDash') }}</span>
+              </td>
+              <td>{{ item.id }}</td>
+              <td>{{ item.team }}</td>
+              <td>{{ item.created_at }} {{ item.plan_type }}</td>
+              <td>{{ item.last_activity_at || t('common.emDash') }}</td>
+              <td>{{ item.last_activity_editor || t('common.emDash') }}</td>
+            </tr>
+          </template>
+        </v-data-table>
+        </BrandTableShell>
+    </section>
   </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, watchEffect, computed, type PropType } from 'vue';
+import { defineComponent, ref, watch, computed, onMounted } from 'vue';
+import BrandTableShell from '@/components/BrandTableShell.vue';
+import BrandMonthlySeatInvoiceSection from '@/components/BrandMonthlySeatInvoiceSection.vue';
 import type { Seat } from '@/model/Seat';
-import type { SeatHistoryEntry } from '../../server/storage/seats-storage';
-import { Line } from 'vue-chartjs';
-import {
-  Chart as ChartJS,
-  ArcElement,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-} from 'chart.js';
+import type { CopilotBillingSettings } from '../../shared/types/copilot-usage';
+import { downloadSeatAnalyticsExcel } from '../../shared/utils/seat-analytics-excel';
 
-ChartJS.register(
-  ArcElement,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-);
+export type SeatStatusFilter = 'all' | 'noshow' | 'inactive7' | 'inactive30';
+
+function isNoshowSeat(seat: Seat): boolean {
+  return !seat.last_activity_at;
+}
+
+function isInactive7Seat(seat: Seat, oneWeekAgo: Date): boolean {
+  if (!seat.last_activity_at) return true;
+  return new Date(seat.last_activity_at) < oneWeekAgo;
+}
+
+function isInactive30Seat(seat: Seat, thirtyDaysAgo: Date): boolean {
+  if (!seat.last_activity_at) return true;
+  return new Date(seat.last_activity_at) < thirtyDaysAgo;
+}
+
+function matchesSeatFilter(seat: Seat, filter: SeatStatusFilter, oneWeekAgo: Date, thirtyDaysAgo: Date): boolean {
+  switch (filter) {
+    case 'all':
+      return true;
+    case 'noshow':
+      return isNoshowSeat(seat);
+    case 'inactive7':
+      return isInactive7Seat(seat, oneWeekAgo);
+    case 'inactive30':
+      return isInactive30Seat(seat, thirtyDaysAgo);
+  }
+}
+
+function sortSeatsByActivity(seats: Seat[]): Seat[] {
+  return [...seats].sort((a, b) => {
+    if (a.last_activity_at === null) return -1;
+    if (b.last_activity_at === null) return 1;
+    return new Date(a.last_activity_at) > new Date(b.last_activity_at) ? 1 : -1;
+  });
+}
 
 export default defineComponent({
   name: 'SeatsAnalysisViewer',
-  components: { Line },
+  components: { BrandTableShell, BrandMonthlySeatInvoiceSection },
   props: {
     seats: {
-      type: Array as PropType<Seat[]>,
+      type: Array as () => Seat[],
       required: true,
-      default: () => []
-    },
-    /** Total seats count from the API (may be larger than seats.length on paginated responses) */
-    totalSeatsCount: {
-      type: Number,
-      default: 0
-    },
-    currentPage: {
-      type: Number,
-      default: 1
-    },
-    totalPages: {
-      type: Number,
-      default: 1
-    },
-    perPage: {
-      type: Number,
-      default: 300
-    },
-    /** Time-series seat history (DB / historical mode only). Empty array hides the chart. */
-    seatsHistory: {
-      type: Array as PropType<SeatHistoryEntry[]>,
       default: () => []
     }
   },
-  emits: ['page-change'],
   setup(props) {
-    const noshowSeats            = ref<number>(0);
-    const unusedSeatsInSevenDays  = ref<number>(0);
-    const unusedSeatsInThirtyDays = ref<number>(0);
+    const { t } = useAppI18n();
+    const config = useRuntimeConfig();
 
-    watchEffect(() => {
-      if (!props.seats || !Array.isArray(props.seats)) return;
+    const billing = ref<CopilotBillingSettings | null>(null);
+    const allSeats = ref<Seat[]>([]);
+    const seatFilter = ref<SeatStatusFilter>('all');
+    const exportingExcel = ref(false);
 
-      const oneWeekAgo    = new Date();
+    const activityCutoffs = computed(() => {
+      const oneWeekAgo = new Date();
       const thirtyDaysAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      let noshowCount = 0;
-      let unusedIn7   = 0;
-      let unusedIn30  = 0;
-
-      for (const seat of props.seats) {
-        if (!seat.last_activity_at) {
-          noshowCount++;
-        } else {
-          const lastActivity = new Date(seat.last_activity_at);
-          if (lastActivity < oneWeekAgo)    unusedIn7++;
-          if (lastActivity < thirtyDaysAgo) unusedIn30++;
-        }
-      }
-
-      noshowSeats.value            = noshowCount;
-      unusedSeatsInSevenDays.value  = unusedIn7;
-      unusedSeatsInThirtyDays.value = unusedIn30;
+      return { oneWeekAgo, thirtyDaysAgo };
     });
 
-    // Sort seats: null activity first, then ascending by date
-    const sortedSeats = computed(() =>
-      [...props.seats].sort((a, b) => {
-        if (!a.last_activity_at) return -1;
-        if (!b.last_activity_at) return  1;
-        return new Date(a.last_activity_at) > new Date(b.last_activity_at) ? 1 : -1;
-      })
+    watch(
+      () => props.seats,
+      (seats) => {
+        if (seats && Array.isArray(seats)) {
+          allSeats.value = sortSeatsByActivity(seats);
+        } else {
+          allSeats.value = [];
+        }
+      },
+      { immediate: true }
     );
 
-    const config      = useRuntimeConfig();
-    const isTeamView  = computed(() => !!config.public.githubTeam);
+    onMounted(async () => {
+      try {
+        const response = await $fetch<{ billing: CopilotBillingSettings | null }>('/api/billing');
+        billing.value = response.billing;
+      } catch {
+        billing.value = null;
+      }
+    });
+
+    const noshowSeats = computed(() =>
+      allSeats.value.filter((seat) => isNoshowSeat(seat)).length
+    );
+
+    const unusedSeatsInSevenDays = computed(() => {
+      const { oneWeekAgo } = activityCutoffs.value;
+      return allSeats.value.filter((seat) => isInactive7Seat(seat, oneWeekAgo)).length;
+    });
+
+    const unusedSeatsInThirtyDays = computed(() => {
+      const { thirtyDaysAgo } = activityCutoffs.value;
+      return allSeats.value.filter((seat) => isInactive30Seat(seat, thirtyDaysAgo)).length;
+    });
+
+    const displayedSeats = computed(() => {
+      const { oneWeekAgo, thirtyDaysAgo } = activityCutoffs.value;
+      return allSeats.value.filter((seat) =>
+        matchesSeatFilter(seat, seatFilter.value, oneWeekAgo, thirtyDaysAgo)
+      );
+    });
+
+    const isTeamView = computed(() => config.public.scope?.includes('team') && config.public.githubTeam);
     const currentTeam = computed(() => config.public.githubTeam || '');
 
-    // Seats history chart datasets
-    const historyChartData = computed(() => ({
-      labels: props.seatsHistory.map(e => e.snapshot_date),
-      datasets: [
-        {
-          label: 'Total Seats',
-          data: props.seatsHistory.map(e => e.total_seats),
-          borderColor: 'rgba(63, 81, 181, 1)',
-          backgroundColor: 'rgba(63, 81, 181, 0.15)',
-          fill: true,
-          tension: 0.3,
-        },
-        {
-          label: 'Never Active',
-          data: props.seatsHistory.map(e => e.never_active),
-          borderColor: 'rgba(244, 67, 54, 0.9)',
-          backgroundColor: 'rgba(244, 67, 54, 0.1)',
-          fill: false,
-          tension: 0.3,
-        },
-        {
-          label: 'Inactive 7d',
-          data: props.seatsHistory.map(e => e.inactive_7d),
-          borderColor: 'rgba(255, 152, 0, 0.9)',
-          backgroundColor: 'rgba(255, 152, 0, 0.1)',
-          fill: false,
-          tension: 0.3,
-        },
-      ],
+    const scope = computed(() => String(config.public.scope || ''));
+    const teamScope = computed(() => {
+      const translate = t.value;
+      if (isTeamView.value) {
+        return translate('seats.scopeToTeam', { team: currentTeam.value });
+      }
+      if (scope.value.includes('organization')) {
+        return translate('seats.scopeInOrg');
+      }
+      if (scope.value.includes('enterprise')) {
+        return translate('seats.scopeInEnt');
+      }
+      return translate('seats.scopeCurrentOrgEnt');
+    });
+
+    const seatFilterTiles = computed(() => [
+      {
+        filter: 'all' as const,
+        title: t.value('seats.totalAssigned'),
+        subtitle: isTeamView.value
+          ? t.value('seats.subtitleAssignedTeam', { team: currentTeam.value })
+          : t.value('seats.subtitleAssigned'),
+        count: allSeats.value.length,
+        tooltip: t.value('seats.tooltipTotal', { scope: teamScope.value })
+      },
+      {
+        filter: 'noshow' as const,
+        title: t.value('seats.assignedNeverUsed'),
+        subtitle: t.value('seats.subtitleNeverUsed'),
+        count: noshowSeats.value,
+        tooltip: t.value('seats.tooltipNeverUsed')
+      },
+      {
+        filter: 'inactive7' as const,
+        title: t.value('seats.noActivity7'),
+        subtitle: t.value('seats.subtitleNoUse7'),
+        count: unusedSeatsInSevenDays.value,
+        tooltip: t.value('seats.tooltipInactive', { days: 7 })
+      },
+      {
+        filter: 'inactive30' as const,
+        title: t.value('seats.noActivity30'),
+        subtitle: t.value('seats.subtitleNoUse30'),
+        count: unusedSeatsInThirtyDays.value,
+        tooltip: t.value('seats.tooltipInactive', { days: 30 })
+      }
+    ]);
+
+    const filterLabels = computed<Record<SeatStatusFilter, string>>(() => ({
+      all: t.value('seats.tableAll'),
+      noshow: t.value('seats.tableNeverUsed'),
+      inactive7: t.value('seats.tableNoActivity7'),
+      inactive30: t.value('seats.tableNoActivity30')
     }));
 
-    const historyChartOptions = {
-      responsive: true,
-      maintainAspectRatio: true,
-      layout: { padding: { left: 80, right: 80, top: 20, bottom: 40 } },
-      scales: { y: { beginAtZero: true } },
-    };
+    const tableTitle = computed(() =>
+      seatFilter.value === 'all' ? t.value('seats.tableAll') : filterLabels.value[seatFilter.value]
+    );
+
+    const activeFilterLabel = computed(() => filterLabels.value[seatFilter.value]);
+
+    const headers = computed(() => [
+      { title: t.value('seats.colSerial'), key: 'serialNumber' },
+      { title: t.value('seats.colLogin'), key: 'login' },
+      { title: t.value('seats.colEmail'), key: 'email' },
+      { title: t.value('seats.colGithubId'), key: 'id' },
+      { title: t.value('seats.colTeam'), key: 'team' },
+      { title: t.value('seats.colAssigned'), key: 'created_at' },
+      { title: t.value('seats.colLastActivity'), key: 'last_activity_at' },
+      { title: t.value('seats.colLastEditor'), key: 'last_activity_editor' }
+    ]);
+
+    function toggleSeatFilter(filter: SeatStatusFilter) {
+      seatFilter.value = seatFilter.value === filter ? 'all' : filter;
+    }
+
+    async function exportSeatsExcel() {
+      if (!displayedSeats.value.length || exportingExcel.value) return
+      exportingExcel.value = true
+      try {
+        await downloadSeatAnalyticsExcel(displayedSeats.value, {
+          sheetName: t.value('seats.tableAll'),
+          filterLabel: tableTitle.value,
+          labels: {
+            serial: t.value('seats.colSerial'),
+            login: t.value('seats.colLogin'),
+            email: t.value('seats.colEmail'),
+            name: t.value('users.colName'),
+            githubId: t.value('seats.colGithubId'),
+            team: t.value('seats.colTeam'),
+            assignedAt: t.value('seats.colAssigned'),
+            lastActivityAt: t.value('seats.colLastActivity'),
+            lastActivityEditor: t.value('seats.colLastEditor'),
+          },
+        })
+      } catch (err) {
+        console.error('Failed to export seat analysis Excel', err)
+      } finally {
+        exportingExcel.value = false
+      }
+    }
 
     return {
-      noshowSeats,
-      unusedSeatsInSevenDays,
-      unusedSeatsInThirtyDays,
-      sortedSeats,
+      billing,
+      allSeats,
+      seatFilter,
+      displayedSeats,
+      seatFilterTiles,
+      tableTitle,
+      activeFilterLabel,
+      headers,
+      exportingExcel,
+      exportSeatsExcel,
+      toggleSeatFilter,
       isTeamView,
       currentTeam,
-      historyChartData,
-      historyChartOptions,
+      t,
     };
-  },
-  data() {
-    return {
-      headers: [
-        { title: 'S.No',                 key: 'serialNumber' },
-        { title: 'Login',                key: 'login' },
-        { title: 'GitHub ID',            key: 'id' },
-        { title: 'Assigning team',       key: 'team' },
-        { title: 'Assigned time',        key: 'created_at' },
-        { title: 'Last Activity At',     key: 'last_activity_at' },
-        { title: 'Last Activity Editor', key: 'last_activity_editor' },
-      ],
-      chartColumns: '2',
-    };
-  },
+  }
 });
 </script>
+

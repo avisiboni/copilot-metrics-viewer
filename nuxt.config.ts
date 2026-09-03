@@ -1,10 +1,15 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import { readFileSync } from 'fs';
+import { APP_BRANDING_DEFAULTS } from './shared/config/app-branding';
+import { isEnvTruthy } from './shared/utils/env-boolean';
+
 const packageJson = readFileSync('package.json', 'utf8');
 const version = JSON.parse(packageJson).version;
 
 export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
+  // Avoid clashes when `.nuxt` was previously created as root (`sudo npm run dev`).
+  buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
   devtools: { enabled: true },
 
   future: {
@@ -17,11 +22,25 @@ export default defineNuxtConfig({
     head: {
       link: [
         { rel: 'icon', type: 'image/x-icon', href: '/favicon.svg' }
-      ]
+      ],
+      script: [
+        { src: '/locale-bootstrap.js', tagPosition: 'head' },
+      ],
     }
   },
+  routeRules: {
+    '/docs/**': { headers: { 'Cache-Control': 'public, max-age=0, must-revalidate' } },
+    '/**': {
+      headers: {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+        'X-DNS-Prefetch-Control': 'off',
+      },
+    },
+  },
 
-  // when enabling ssr option you need to disable inlineStyles and maybe devLogs
   features: {
     inlineStyles: false,
     devLogs: false,
@@ -31,32 +50,22 @@ export default defineNuxtConfig({
     transpile: ['vuetify'],
   },
 
-  vite: {
-    ssr: {
-      noExternal: ['vuetify'],
-    },
-  },
-
   css: [
-    '@/assets/global.css'
+    '@/assets/brand-tokens.css',
+    '@/assets/global.css',
   ],
   modules: ['@nuxt/fonts', 'vuetify-nuxt-module', '@nuxt/eslint', 'nuxt-auth-utils'],
 
   vuetify: {
     moduleOptions: {
-      // check https://nuxt.vuetifyjs.com/guide/server-side-rendering.html
       ssrClientHints: {
         reloadOnFirstRequest: false,
         viewportSize: true,
         prefersColorScheme: false,
-
         prefersColorSchemeOptions: {
           useBrowserThemeOnly: false,
         },
       },
-
-      // /* If customizing sass global variables ($utilities, $reset, $color-pack, $body-font-family, etc) */
-      // disableVuetifyStyles: true,
       styles: {
         configFile: 'assets/settings.scss',
       },
@@ -75,76 +84,80 @@ export default defineNuxtConfig({
     plugins: [
       'plugins/http-agent',
       'plugins/db-init',
+      'plugins/security',
+      'plugins/dev-auth-hint',
     ],
-    // Scheduled sync is handled by the dedicated sync Docker container (Dockerfile.sync).
-    // Do not register scheduledTasks here to avoid Nitro "task not defined" warnings.
+  },
+  vite: {
+    // Avoid EACCES when node_modules/.cache/vite was created by `sudo npm run dev`
+    cacheDir: process.env.NUXT_VITE_CACHE_DIR || '.vite-cache',
+    ssr: {
+      noExternal: ['vuetify'],
+    },
   },
   runtimeConfig: {
     githubToken: '',
-    githubApiBaseUrl: '',       // NUXT_GITHUB_API_BASE_URL — override for GHE.com (e.g. https://api.SUBDOMAIN.ghe.com)
-    aiToken: '',  // Dedicated token for GitHub Models API (NUXT_AI_TOKEN). Falls back to githubToken.
-    aiModel: 'gpt-4o',  // Model for AI chat (NUXT_AI_MODEL)
-    aiMaxToolRounds: '5',  // Max tool-calling iterations (NUXT_AI_MAX_TOOL_ROUNDS)
-    // GitHub App credentials (alternative to PAT — works with any OAuth provider)
-    githubAppId: '',            // NUXT_GITHUB_APP_ID — numeric App ID (preferred); GitHub also accepts the Client ID (NUXT_OAUTH_GITHUB_CLIENT_ID)
-    githubAppPrivateKey: '',    // NUXT_GITHUB_APP_PRIVATE_KEY (PEM, \n-escaped)
+    githubApiBaseUrl: '',
+    aiToken: '',
+    aiModel: 'gpt-4o',
+    aiMaxToolRounds: '5',
+    githubAppId: '',
+    githubAppPrivateKey: '',
     session: {
-      // set to 6h - same as the GitHub token
       maxAge: 60 * 60 * 6,
       password: '',
     },
     oauth: {
-      github: {
-        clientId: '',
-        clientSecret: ''
-      },
-      google: {
-        clientId: '',
-        clientSecret: ''
-      },
-      microsoft: {
-        clientId: '',
-        clientSecret: '',
-        tenant: ''
-      },
-      auth0: {
-        clientId: '',
-        clientSecret: '',
-        domain: ''
-      },
-      keycloak: {
-        clientId: '',
-        clientSecret: '',
-        serverUrl: '',
-        realm: ''
-      }
+      github: { clientId: '', clientSecret: '' },
+      google: { clientId: '', clientSecret: '' },
+      microsoft: { clientId: '', clientSecret: '', tenant: '' },
+      auth0: { clientId: '', clientSecret: '', domain: '' },
+      keycloak: { clientId: '', clientSecret: '', serverUrl: '', realm: '' }
     },
-    // Server-only authorization config (NUXT_AUTHORIZED_USERS, NUXT_AUTHORIZED_EMAIL_DOMAINS)
     authorizedUsers: '',
     authorizedEmailDomains: '',
     public: {
-      isDataMocked: false,  // can be overridden by NUXT_PUBLIC_IS_DATA_MOCKED environment variable
-      scope: 'organization',  // can be overridden by NUXT_PUBLIC_SCOPE environment variable
+      isDataMocked: isEnvTruthy(process.env.NUXT_PUBLIC_IS_DATA_MOCKED),
+      scope: 'organization',
       githubOrg: '',
       githubEnt: '',
-      // Deprecated: use requireAuth + authProviders instead. Kept for backwards compatibility.
-      usingGithubAuth: false,
-      // Set to true when any OAuth provider is configured (NUXT_PUBLIC_REQUIRE_AUTH)
-      requireAuth: false,
-      // Comma-separated list of active OAuth providers shown in the UI, e.g. "github,google,microsoft"
-      // (NUXT_PUBLIC_AUTH_PROVIDERS)
-      authProviders: '',
+      githubTeam: '',
+      usingGithubAuth: isEnvTruthy(process.env.NUXT_PUBLIC_USING_GITHUB_AUTH),
+      requireAuth: isEnvTruthy(process.env.NUXT_PUBLIC_REQUIRE_AUTH),
+      authProviders: process.env.NUXT_PUBLIC_AUTH_PROVIDERS || '',
       version,
       isPublicApp: false,
-      // Deployment metadata (set via NUXT_PUBLIC_DEPLOY_INFO for preview environments)
-      deployInfo: '',
-      // New API migration flags
-      useLegacyApi: false,  // Set true to use deprecated /copilot/metrics API (USE_LEGACY_API)
-      enableHistoricalMode: false,  // Enable storage-backed historical queries (NUXT_PUBLIC_ENABLE_HISTORICAL_MODE)
-      hiddenTabs: '',  // Comma-separated list of tab names to hide (NUXT_PUBLIC_HIDDEN_TABS)
-      enableAiChat: true,  // Enable AI-powered chat for metrics Q&A (NUXT_PUBLIC_ENABLE_AI_CHAT)
-      entraClientId: '',    // NUXT_PUBLIC_ENTRA_CLIENT_ID — app registration client ID for MSAL popup auth
-      entraTenantId: '',    // NUXT_PUBLIC_ENTRA_TENANT_ID — tenant ID (defaults to 'common' for multi-tenant)
+      deployInfo: process.env.NUXT_PUBLIC_DEPLOY_INFO || '',
+      useLegacyApi: isEnvTruthy(process.env.USE_LEGACY_API),
+      enableHistoricalMode: isEnvTruthy(process.env.NUXT_PUBLIC_ENABLE_HISTORICAL_MODE),
+      hiddenTabs: process.env.NUXT_PUBLIC_HIDDEN_TABS || '',
+      enableAiChat: process.env.NUXT_PUBLIC_ENABLE_AI_CHAT === undefined
+        ? true
+        : isEnvTruthy(process.env.NUXT_PUBLIC_ENABLE_AI_CHAT),
+      entraClientId: process.env.NUXT_PUBLIC_ENTRA_CLIENT_ID || '',
+      entraTenantId: process.env.NUXT_PUBLIC_ENTRA_TENANT_ID || '',
+      enterprisePremiumQuota: Number(process.env.NUXT_PUBLIC_ENTERPRISE_PREMIUM_QUOTA) || 1000,
+      // Default $18 = current GitHub Copilot seat list for this org; override via env.
+      copilotSeatUnitPrice: process.env.NUXT_PUBLIC_COPILOT_SEAT_UNIT_PRICE !== undefined
+        ? Number(process.env.NUXT_PUBLIC_COPILOT_SEAT_UNIT_PRICE) || 0
+        : 18,
+      docsUrl: process.env.NUXT_PUBLIC_DOCS_URL || '/docs',
+      premiumCreditsFetchEnabled: process.env.NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED === undefined
+        ? true
+        : isEnvTruthy(process.env.NUXT_PUBLIC_PREMIUM_CREDITS_FETCH_ENABLED),
+      aiCreditsFetchEnabled: process.env.NUXT_PUBLIC_AI_CREDITS_FETCH_ENABLED === undefined
+        ? true
+        : isEnvTruthy(process.env.NUXT_PUBLIC_AI_CREDITS_FETCH_ENABLED),
+      /** Show AI adoption cohort panel, chips, and related UI (hidden by default). */
+      showAiAdoptionCohorts: isEnvTruthy(process.env.NUXT_PUBLIC_SHOW_AI_ADOPTION_COHORTS),
+      /** Hide Agent first / Multi-agent adoption phases when org only uses IDE (no CLI, cloud agent, etc.). */
+      adoptionIdeOnly: isEnvTruthy(process.env.NUXT_PUBLIC_ADOPTION_IDE_ONLY),
+      brandLogoPath: process.env.NUXT_PUBLIC_BRAND_LOGO_PATH || APP_BRANDING_DEFAULTS.logoPath,
+      brandLogoAlt: process.env.NUXT_PUBLIC_BRAND_LOGO_ALT || APP_BRANDING_DEFAULTS.logoAlt,
+      brandAppName: process.env.NUXT_PUBLIC_BRAND_APP_NAME || APP_BRANDING_DEFAULTS.appName,
+      brandMetaDescription: process.env.NUXT_PUBLIC_BRAND_META_DESCRIPTION || APP_BRANDING_DEFAULTS.metaDescription,
+      brandFooterProjectUrl: process.env.NUXT_PUBLIC_BRAND_FOOTER_PROJECT_URL || APP_BRANDING_DEFAULTS.footerProjectUrl,
+      brandFaviconPath: process.env.NUXT_PUBLIC_BRAND_FAVICON_PATH || APP_BRANDING_DEFAULTS.faviconPath,
     }
   }
 })

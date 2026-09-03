@@ -52,6 +52,7 @@ interface ChatRequest {
   question: string;
   conversationHistory?: ChatMessage[];
   currentTab?: string;
+  locale?: string;
   queryParams?: Record<string, string>;
   userToken?: string;
   dashboardData?: {
@@ -119,6 +120,7 @@ export default defineEventHandler(async (event) => {
   // Build the system prompt with page context
   const systemPrompt = buildSystemPrompt({
     currentTab: body.currentTab,
+    locale: body.locale,
     scope: body.queryParams?.scope,
     identifier: body.queryParams?.githubOrg || body.queryParams?.githubEnt,
     dateRange: {

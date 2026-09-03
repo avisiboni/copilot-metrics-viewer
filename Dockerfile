@@ -12,9 +12,15 @@ USER node
 WORKDIR /app
 
 COPY --chown=1000:1000 package*.json ./
-RUN npm ci
+COPY --chown=1000:1000 website/package*.json ./website/
+RUN npm ci && npm ci --prefix website
 COPY --chown=1000:1000 . .
-RUN npm run build
+# Public app URL for embedded docs canonical/OG links (path /docs/ on same host)
+ARG DOCUSAURUS_URL=https://metrics.example.com
+ENV DOCUSAURUS_URL=$DOCUSAURUS_URL
+# Full docs:embed can OOM in constrained Docker builders; skip when already embedded on host.
+ARG SKIP_DOCS_EMBED=0
+RUN if [ "$SKIP_DOCS_EMBED" = "1" ]; then npx nuxt build; else NODE_OPTIONS=--max-old-space-size=8192 npm run build; fi
 
 # Stage 2: Prepare the Node.js API
 FROM node:24-alpine3.23 AS base-prod

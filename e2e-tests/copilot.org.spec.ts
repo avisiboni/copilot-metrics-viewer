@@ -7,7 +7,7 @@ let dashboard: DashboardPage;
 
 test.beforeAll(async ({ browser }) => {
   const page = await browser.newPage();
-  await page.goto('/orgs/octo-demo-org?mock=true');
+  await page.goto('/orgs/demo-org?mock=true');
 
   dashboard = new DashboardPage(page);
 
@@ -20,7 +20,7 @@ test.afterAll(async () => {
 });
 
 test('has title', tag, async () => {
-  await dashboard.expectToHaveTitle(/Copilot Metrics Viewer \| Organization : octo-demo-org/);
+  await dashboard.expectToHaveTitle(/Copilot Metrics Viewer \| Organization : demo-org/);
 });
 
 test('organization tab', tag, async () => {

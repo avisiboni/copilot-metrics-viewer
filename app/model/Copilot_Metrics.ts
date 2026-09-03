@@ -180,6 +180,49 @@ interface CopilotDotcomPullRequestsData {
 /**
  * Data structure for Copilot metrics for a given day
  */
+/** Raw usage metrics fields from the Copilot usage metrics NDJSON report */
+export interface UsageDetailData {
+  day?: string;
+  daily_active_users?: number;
+  weekly_active_users?: number;
+  monthly_active_users?: number;
+  monthly_active_chat_users?: number;
+  daily_active_cli_users?: number;
+  daily_active_copilot_code_review_users?: number;
+  daily_passive_copilot_code_review_users?: number;
+  weekly_active_copilot_code_review_users?: number;
+  weekly_passive_copilot_code_review_users?: number;
+  monthly_active_copilot_code_review_users?: number;
+  monthly_passive_copilot_code_review_users?: number;
+  totals_by_feature?: Array<{ feature: string; [key: string]: unknown }>;
+  totals_by_ai_adoption_phase?: Array<{ phase: number; version?: string; [key: string]: unknown }>;
+  totals_by_cli?: {
+    session_count?: number;
+    request_count?: number;
+    prompt_count?: number;
+    last_known_cli_version?: string;
+    token_usage?: {
+      output_tokens_sum?: number;
+      prompt_tokens_sum?: number;
+      avg_tokens_per_request?: number;
+    };
+  };
+  [key: string]: unknown;
+}
+
+export interface AgentEditSummaryData {
+  loc_added_sum?: number;
+  loc_deleted_sum?: number;
+  code_generation_activity_count?: number;
+}
+
+export interface ChatModeBreakdownData {
+  mode: string;
+  total_chats?: number;
+  total_insertions?: number;
+  loc_added?: number;
+}
+
 interface CopilotMetricsData {
   /** The date for which the usage metrics are aggregated, in `YYYY-MM-DD` format */
   date: string;
@@ -187,10 +230,14 @@ interface CopilotMetricsData {
   total_active_users: number;
   /** The total number of Copilot users who engaged with any Copilot feature, for the given day. Examples include but are not limited to accepting a code suggestion, prompting Copilot chat, or triggering a PR Summary. Does not include authentication events. Is not limited to the individual features detailed on the endpoint */
   total_engaged_users: number;
+  /** Full usage metrics record from the Copilot usage metrics API */
+  usage_detail?: UsageDetailData | null;
+  /** Agent edit mode summary (lines added/deleted in IDE) */
+  agent_edit_summary?: AgentEditSummaryData | null;
   /** Usage metrics for Copilot editor code completions in the IDE */
   copilot_ide_code_completions?: CopilotIdeCodeCompletionsData | null;
   /** Usage metrics for Copilot Chat in the IDE */
-  copilot_ide_chat?: CopilotIdeChatData | null;
+  copilot_ide_chat?: CopilotIdeChatData & { chat_mode_breakdown?: ChatModeBreakdownData[] } | null;
   /** Usage metrics for Copilot Chat in GitHub.com */
   copilot_dotcom_chat?: CopilotDotcomChatData | null;
   /** Usage metrics for Copilot for pull requests */
@@ -521,6 +568,8 @@ export class CopilotMetrics {
   date: string; // The format is as :YYYY-MM-DD
   total_active_users: number;
   total_engaged_users: number;
+  usage_detail?: UsageDetailData | null;
+  agent_edit_summary?: AgentEditSummaryData | null;
   copilot_ide_code_completions?: CopilotIdeCodeCompletions | null;
   copilot_ide_chat?: CopilotIdeChat | null;
   copilot_dotcom_chat?: CopilotDotcomChat | null;
@@ -530,6 +579,8 @@ export class CopilotMetrics {
     this.date = data.date;
     this.total_active_users = data.total_active_users;
     this.total_engaged_users = data.total_engaged_users;
+    this.usage_detail = data.usage_detail ?? null;
+    this.agent_edit_summary = data.agent_edit_summary ?? null;
     this.copilot_ide_code_completions = data.copilot_ide_code_completions
       ? new CopilotIdeCodeCompletions(data.copilot_ide_code_completions)
       : null;

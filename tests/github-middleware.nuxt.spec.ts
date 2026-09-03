@@ -74,6 +74,27 @@ describe('GitHub middleware authentication guard', () => {
     expect(authenticateAndGetGitHubHeaders).toHaveBeenCalled()
     expect(event.context.headers).toBeInstanceOf(Headers)
   })
+
+  it('maps missing server auth to HTTP 401', async () => {
+    ;(authenticateAndGetGitHubHeaders as any).mockRejectedValue(
+      new Error(
+        'Authentication required but not provided. Configure one of:\n' +
+          '             1. GitHub App: set NUXT_GITHUB_APP_ID + NUXT_GITHUB_APP_PRIVATE_KEY'
+      )
+    )
+    ;(globalThis as any).createError = (opts: { statusCode: number; message: string }) => {
+      const err = new Error(opts.message) as Error & { statusCode: number }
+      err.statusCode = opts.statusCode
+      return err
+    }
+
+    const event: any = {
+      node: { req: { url: '/api/seats' } },
+      context: {}
+    }
+
+    await expect((middlewareHandler as any)(event)).rejects.toMatchObject({ statusCode: 401 })
+  })
 })
 
 describe('GitHub middleware admin/sync bypass predicate', () => {

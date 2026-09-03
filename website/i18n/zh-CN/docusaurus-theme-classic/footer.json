@@ -1,0 +1,34 @@
+{
+  "link.title.תיעוד": {
+    "message": "Belgeler",
+    "description": "Footer docs column title"
+  },
+  "link.title.מפתחים": {
+    "message": "Geliştiriciler",
+    "description": "Footer developers column title"
+  },
+  "link.item.label.התחלה": {
+    "message": "Başlarken",
+    "description": "Footer getting started link"
+  },
+  "link.item.label.מדריך למשתמש": {
+    "message": "Kullanıcı kılavuzu",
+    "description": "Footer user guide link"
+  },
+  "link.item.label.התקנה": {
+    "message": "Kurulum",
+    "description": "Footer setup link"
+  },
+  "link.item.label.OpenShift": {
+    "message": "OpenShift",
+    "description": "Footer OpenShift link"
+  },
+  "link.item.label.תרגומים": {
+    "message": "Çeviriler",
+    "description": "Footer translations link"
+  },
+  "copyright": {
+    "message": "© 2026 Copilot Metrics Viewer",
+    "description": "Footer copyright"
+  }
+}
